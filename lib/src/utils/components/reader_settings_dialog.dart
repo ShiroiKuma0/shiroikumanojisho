@@ -93,14 +93,53 @@ class ReaderAppearanceSettings {
         fw = '400';
     }
 
-    String fontFamilyCss = '';
+    // Build primary and secondary font-family declarations. The
+    // original implementation only set TTU's `--font-family-serif`
+    // / `--font-family-sans-serif` CSS variables, which TTU's
+    // current build ignores in favor of direct font-family rules
+    // driven by its own `fontFamilyGroupOne`/`Two` localStorage
+    // settings. Changing the Reader-appearance fonts therefore had
+    // no visible effect.
+    //
+    // Our fix: emit an explicit high-specificity rule that targets
+    // `.book-content` (primary — applied to all book body text) and
+    // a more specific rule for `[class*="sans"]` / `[class*="gothic"]`
+    // descendants (secondary — for elements that EPUB authors
+    // tagged as sans-serif). Both use `!important` so TTU's own
+    // font-family rules can't override us. The CSS variables are
+    // preserved as a belt-and-suspenders layer in case TTU's CSS
+    // references them somewhere we haven't mapped.
+    String primaryRule = '';
     if (fontFamily.isNotEmpty) {
-      fontFamilyCss =
+      primaryRule = '''
+        .book-content,
+        .book-content p,
+        .book-content div,
+        .book-content span {
+          font-family: "$fontFamily", "Noto Serif JP", serif !important;
+        }
+      ''';
+    }
+    String secondaryRule = '';
+    if (fontFamilySecondary.isNotEmpty) {
+      secondaryRule = '''
+        .book-content [class*="sans"],
+        .book-content [class*="gothic"],
+        .book-content [style*="sans-serif"],
+        .book-content [style*="Gothic"] {
+          font-family: "$fontFamilySecondary", "Noto Sans JP", sans-serif !important;
+        }
+      ''';
+    }
+
+    String fontFamilyVarCss = '';
+    if (fontFamily.isNotEmpty) {
+      fontFamilyVarCss =
           '--font-family-serif: "$fontFamily", "Noto Serif JP", serif;';
     }
-    String fontFamily2Css = '';
+    String fontFamily2VarCss = '';
     if (fontFamilySecondary.isNotEmpty) {
-      fontFamily2Css =
+      fontFamily2VarCss =
           '--font-family-sans-serif: "$fontFamilySecondary", "Noto Sans JP", sans-serif;';
     }
 
@@ -109,9 +148,11 @@ class ReaderAppearanceSettings {
         color: $fc !important;
         font-weight: $fw !important;
         line-height: $lineSpacing !important;
-        $fontFamilyCss
-        $fontFamily2Css
+        $fontFamilyVarCss
+        $fontFamily2VarCss
       }
+      $primaryRule
+      $secondaryRule
       body { background-color: $bg !important; }
       .py-8 {
         padding-top: ${marginTop}px !important;
@@ -402,13 +443,21 @@ class _ReaderSettingsDialogState extends State<ReaderSettingsDialog> {
               ),
               const SizedBox(height: 16),
 
-              // Font family (serif)
-              _fontField('Font family (serif)', _fontFamilyController),
+              // Primary font — applied to body text in the book.
+              // This rule wins over TTU's own fontFamilyGroupOne
+              // setting via `!important` in the injected CSS, so
+              // the value here is what actually renders. TTU's
+              // corresponding UI controls are hidden via CSS
+              // injection in the reader page to avoid the user
+              // hitting them and being confused when nothing
+              // changes.
+              _fontField('Primary font', _fontFamilyController),
               const SizedBox(height: 12),
 
-              // Font family (sans-serif)
-              _fontField(
-                  'Font family (sans-serif)', _fontFamily2Controller),
+              // Secondary font — applied to elements tagged as
+              // sans-serif (e.g. some headings in mixed-typography
+              // EPUBs). Leave blank to inherit the primary font.
+              _fontField('Secondary font', _fontFamily2Controller),
               const SizedBox(height: 16),
 
               // Line spacing
