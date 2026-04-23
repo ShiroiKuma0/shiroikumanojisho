@@ -1,25 +1,25 @@
 <p align="center">
-  <img src="https://github.com/ShiroiKuma0/jidoujisho2/blob/main/assets/meta/icon.png" width="250" height="250">
+  <img src="https://github.com/ShiroiKuma0/shiroikumanojisho/blob/main/assets/meta/icon.png" width="250" height="250">
 </p>
 <h3 align="center">白い熊の辞書</h3>
 <p align="center">A full-featured immersion language learning suite for mobile.</p>
 <p align="center">
-  <a href="https://github.com/ShiroiKuma0/jidoujisho2/releases/tag/v2.10.3">
+  <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.0.0">
     <img src="https://img.shields.io/github/v/release/arianneorpilla/jidoujisho?include_prereleases" alt="latest release" />
   </a>
-  <a href="https://github.com/ShiroiKuma0/jidoujisho2/commits/main">
+  <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/commits/main">
     <img src="https://img.shields.io/github/last-commit/arianneorpilla/jidoujisho" alt="latest commit" />
   </a>
-  <a href="https://github.com/ShiroiKuma0/jidoujisho2/actions">
+  <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/actions">
     <img src="https://img.shields.io/github/actions/workflow/status/arianneorpilla/jidoujisho/main.yml" alt="actions" />
   </a>
-  <a href="https://github.com/ShiroiKuma0/jidoujisho2/stargazers">
+  <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/stargazers">
     <img src="https://img.shields.io/github/stars/arianneorpilla/jidoujisho" alt="stars" />
   </a>
-  <a href="https://github.com/ShiroiKuma0/jidoujisho2/releases/">
+  <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/releases/">
     <img src="https://img.shields.io/github/downloads/arianneorpilla/jidoujisho/total" alt="downloads" />
   </a>
-  <a href="https://github.com/ShiroiKuma0/jidoujisho2/blob/master/LICENSE">
+  <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/blob/master/LICENSE">
     <img src="https://img.shields.io/github/license/arianneorpilla/jidoujisho" alt="license" />
   </a>
   <a href="https://crowdin.com/project/jidoujisho">
@@ -54,21 +54,21 @@
 * Etc. - as per the changelog
 
 <p align="center" style="margin:0"><b>‍🧪 Latest Release:
-  <a href="https://github.com/ShiroiKuma0/jidoujisho2/releases/tag/v2.10.3">2.10.3</a>
+  <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.0.0">1.0.0</a>
 </b></p>
 
 <b>
 <p align="center" style="margin:0"><b>📚 Resources:</b><br>
-  🏠 <a href="https://github.com/ShiroiKuma0/jidoujisho2/wiki">Wiki</a> · 
-  ❓ <a href="https://github.com/ShiroiKuma0/jidoujisho2/wiki/1.-FAQ">FAQ</a> · 
-  🩺 <a href="https://github.com/ShiroiKuma0/jidoujisho2/wiki/2.-Troubleshooting">Troubleshooting</a> · 
-  🚀 <a href="https://github.com/ShiroiKuma0/jidoujisho2/wiki/3.-Getting-Started">Getting Started</a> ·
-  🃏 <a href="https://github.com/ShiroiKuma0/jidoujisho2/wiki/4.-Flashcard-Creation">Flashcard Creation</a> ·
-  🗃️ <a href="https://github.com/ShiroiKuma0/jidoujisho2/wiki/5.-Workflow-Setup">Workflow Setup</a> · 
-  🎥 <a href="https://github.com/ShiroiKuma0/jidoujisho2/wiki/6.-Viewing-Media">Viewing Media</a> · 
-  💡 <a href="https://github.com/ShiroiKuma0/jidoujisho2/wiki/7.-Tips-and-Tricks">Tips and Tricks</a> · 
-  🧑‍💻 <a href="https://github.com/ShiroiKuma0/jidoujisho2/wiki/8.-Development">Development</a> · 
-  👥 <a href="https://github.com/ShiroiKuma0/jidoujisho2/wiki/9.-Contribution">Contribution</a> · 
+  🏠 <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/wiki">Wiki</a> · 
+  ❓ <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/wiki/1.-FAQ">FAQ</a> · 
+  🩺 <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/wiki/2.-Troubleshooting">Troubleshooting</a> · 
+  🚀 <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/wiki/3.-Getting-Started">Getting Started</a> ·
+  🃏 <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/wiki/4.-Flashcard-Creation">Flashcard Creation</a> ·
+  🗃️ <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/wiki/5.-Workflow-Setup">Workflow Setup</a> · 
+  🎥 <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/wiki/6.-Viewing-Media">Viewing Media</a> · 
+  💡 <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/wiki/7.-Tips-and-Tricks">Tips and Tricks</a> · 
+  🧑‍💻 <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/wiki/8.-Development">Development</a> · 
+  👥 <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/wiki/9.-Contribution">Contribution</a> · 
   📑 <a href="https://arianneorpilla.github.io/jidoujisho">API Documentation</a>
 </p>
 </b>
@@ -129,7 +129,9 @@
   <a href="https://github.com/ShiroiKuma0/jidoujisho2/releases/tag/v2.10.0">2.10.0</a> .
   <a href="https://github.com/ShiroiKuma0/jidoujisho2/releases/tag/v2.10.1">2.10.1</a> .
   <a href="https://github.com/ShiroiKuma0/jidoujisho2/releases/tag/v2.10.2">2.10.2</a> .
-  <a href="https://github.com/ShiroiKuma0/jidoujisho2/releases/tag/v2.10.3">2.10.3</a></b>
+  <a href="https://github.com/ShiroiKuma0/jidoujisho2/releases/tag/v2.10.3">2.10.3</a><br></b>
+</b><i>白い熊の辞書</i> <b>
+  <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.0.0">1.0.0</a></b>
 </p>
 
 
@@ -175,7 +177,7 @@
 
 **jidoujisho is eagerly looking for contributors.** If you are interested in maintaining a dictionary format, media source, an enhancement or quick action or even a new language for the application, user and developer documentation is coming soon.
 
-Originally built for the Japanese language learning community, jidoujisho is free and open source software, and is <b><a href="https://github.com/ShiroiKuma0/jidoujisho2/releases">available to download here on GitHub.</a></b>
+Originally built for the Japanese language learning community, jidoujisho is free and open source software, and is <b><a href="https://github.com/ShiroiKuma0/shiroikumanojisho/releases">available to download here on GitHub.</a></b>
 
 Please note that the development of the app switches between changes being implemented and being left alone for daily use. Update frequency may depend on the gravity of any issues that arise. **Hiatuses provide practical insight on usage and where development should go next.**
 
@@ -197,7 +199,7 @@ Please note that the development of the app switches between changes being imple
 
 A primer on the basics of the application is as follows.
 
-* 📲 <a href="https://github.com/ShiroiKuma0/jidoujisho2/releases/"/>**Download and install the latest release**</a> onto your Android device
+* 📲 <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/releases/"/>**Download and install the latest release**</a> onto your Android device
 * ⏯️ Watch a video with the *Player* selecting from your **local media library** or **picking a YouTube video**
 * 📚 Start a novel with the *Reader* to launch ッツ Ebook Reader to read an **EPUB** or **HTMLZ** file
 * 🖼️ Read pre-processed manga in HTML with the **Mokuro** media source
