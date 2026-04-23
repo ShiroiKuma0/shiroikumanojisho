@@ -888,8 +888,12 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
         if (dur == Duration.zero) return const SizedBox.shrink();
         double val = pos.inMilliseconds.toDouble()
             .clamp(0, dur.inMilliseconds.toDouble());
-        final String label =
-            _mp3Path != null ? _basenameWithoutExt(_mp3Path!) : '';
+        final String label = () {
+          if (_mp3Path == null) return '';
+          final mp3Name = _mp3Path!.split(Platform.pathSeparator).last;
+          if (_srtPath != null) return '$mp3Name/srt';
+          return mp3Name;
+        }();
         return Stack(
           alignment: Alignment.center,
           children: [
@@ -898,6 +902,10 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
             // allocating extra vertical space for a label. IgnorePointer
             // keeps the slider fully hit-testable over the top — the
             // thumb sweeps across the label without stealing touches.
+            // Label shows the full mp3 filename (with extension), and
+            // appends "/srt" when a companion subtitle track is
+            // attached, so at a glance the user sees both which
+            // chapter is playing and whether subtitles are live.
             if (label.isNotEmpty)
               Positioned.fill(
                 child: IgnorePointer(
@@ -909,7 +917,7 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
                         style: TextStyle(
                           color:
                               const Color(0xFFFFFF00).withOpacity(0.35),
-                          fontSize: 22,
+                          fontSize: 16,
                           height: 1.0,
                         ),
                         overflow: TextOverflow.ellipsis,

@@ -27,7 +27,15 @@ class _HomePageState extends BasePageState<HomePage>
   late final List<BottomNavigationBarItem> navBarItems;
 
   String get appName => appModel.packageInfo.appName;
-  String get appVersion => appModel.packageInfo.version;
+  String get appVersion {
+    // Show both the semver (version) and the build number (+N) so that
+    // at-a-glance, dev iterations are distinguishable in the running
+    // app. pubspec `version: 1.0.0+3` -> title reads "1.0.0+3".
+    final info = appModel.packageInfo;
+    final buildNumber = info.buildNumber;
+    if (buildNumber.isEmpty) return info.version;
+    return '${info.version}+$buildNumber';
+  }
 
   int get currentHomeTabIndex => appModel.currentHomeTabIndex;
 
