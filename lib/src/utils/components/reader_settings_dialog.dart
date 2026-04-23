@@ -122,7 +122,16 @@ class ReaderAppearanceSettings {
         padding-right: ${marginRight}px !important;
       }
       .book-content p, .book-content div {
-        margin-bottom: ${paragraphSpacing}em !important;
+        /* margin-block-end is the writing-mode-aware "after this
+           block" logical margin. In horizontal-tb it maps to
+           margin-bottom (the existing, expected behavior). In
+           vertical-rl (Japanese vertical novels) it maps to
+           margin-left, which is the correct direction for
+           paragraph separation in right-to-left column flow.
+           Using only the logical property — and not also forcing
+           margin-bottom — avoids double-margin / cascade conflicts
+           and produces correct spacing in both writing modes. */
+        margin-block-end: ${paragraphSpacing}em !important;
       }
     ''';
   }
