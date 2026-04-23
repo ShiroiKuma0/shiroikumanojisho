@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:material_floating_search_bar/material_floating_search_bar.dart';
 import 'package:spaces/spaces.dart';
 import 'package:shiroikumanojisho/creator.dart';
 import 'package:shiroikumanojisho/dictionary.dart';
@@ -34,7 +33,12 @@ class RecursiveDictionaryPage extends BasePage {
 
 class _RecursiveDictionaryPageState
     extends BasePageState<RecursiveDictionaryPage> {
-  final FloatingSearchBarController _controller = FloatingSearchBarController();
+  /// Current search query. Replaces the FloatingSearchBarController
+  /// from the previous design. A plain ValueNotifier is enough —
+  /// the AppBar title rebuilds on change via a
+  /// ValueListenableBuilder, and `search()` reads/writes it
+  /// directly.
+  final ValueNotifier<String> _queryNotifier = ValueNotifier<String>('');
 
   DictionarySearchResult? _result;
 
@@ -47,15 +51,9 @@ class _RecursiveDictionaryPageState
 
     _isCreatorOpen = appModelNoUpdate.isCreatorOpen;
 
-    _controller.query = widget.searchTerm;
+    _queryNotifier.value = widget.searchTerm;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _controller.open();
-
-      Future.delayed(const Duration(milliseconds: 50), () {
-        FocusScope.of(context).unfocus();
-      });
-
       appModel.addToSearchHistory(
         historyKey: DictionaryMediaType.instance.uniqueKey,
         searchTerm: widget.searchTerm,
@@ -68,6 +66,9 @@ class _RecursiveDictionaryPageState
 
   @override
   void dispose() {
+    appModelNoUpdate.dictionarySearchAgainNotifier
+        .removeListener(searchAgain);
+    _queryNotifier.dispose();
     super.dispose();
   }
 
@@ -94,133 +95,177 @@ class _RecursiveDictionaryPageState
       child: Scaffold(
         resizeToAvoidBottomInset: false,
         backgroundColor: backgroundColor,
+        appBar: _buildMinimalAppBar(),
         body: SafeArea(
-          child: Stack(
-            children: [
-              Padding(
-                padding: Spacing.of(context).insets.onlyTop.semiSmall,
-                child: buildFloatingSearchBar(),
-              ),
-              _buildExitOverlay(),
-            ],
-          ),
+          top: false,
+          child: _buildBody(),
         ),
       ),
     );
   }
 
-  /// Right-edge, vertically-centered yellow button that pops the
-  /// dictionary page. Same action as the back-arrow icon that the
-  /// FloatingSearchBar draws in its top-left — routed through
-  /// `Navigator.pop` directly (or `appModel.shutdown` for the
-  /// launcher `killOnPop` entry point), bypassing FSB's multi-stage
-  /// back handling entirely.
+  /// Lean top bar: a title showing the current search term, a
+  /// half-screen toggle, and a magnifying glass that opens a
+  /// search dialog. No embedded text field — the page is a
+  /// result viewer, not an input surface. Refining the search is
+  /// an explicit gesture (tap magnifying glass → dialog) so the
+  /// soft keyboard only rises when the user actually asks for it.
   ///
-  /// Exists because the system back gesture runs through FSB's
-  /// internal WillPopScope chain, which takes two presses to exit
-  /// — first to collapse the bar, second to pop the route — and
-  /// we couldn't find a way to preempt that from outside the
-  /// package. A persistent overlay gives the user a reliable
-  /// one-tap exit that doesn't depend on FSB's state.
-  Widget _buildExitOverlay() {
-    return Align(
-      alignment: Alignment.centerRight,
-      child: Padding(
-        padding: const EdgeInsets.only(right: 8),
-        child: Material(
-          color: Colors.black,
-          elevation: 4,
-          shape: RoundedRectangleBorder(
-            side: const BorderSide(color: Color(0xFFFFFF00), width: 2),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            splashColor: const Color(0xFFFFFF00).withOpacity(0.3),
-            onTap: () {
-              if (widget.killOnPop) {
-                appModel.shutdown();
-              } else {
-                Navigator.of(context).pop();
-              }
-            },
-            child: const SizedBox(
-              width: 48,
-              height: 48,
-              child: Icon(
-                Icons.arrow_back,
-                color: Color(0xFFFFFF00),
-                size: 24,
-              ),
+  /// Replaces the old FloatingSearchBar-based top bar. That
+  /// package auto-focused its internal TextField on open, raising
+  /// the keyboard unbidden on every word lookup; and its
+  /// multi-stage WillPopScope handling required two back presses
+  /// to exit. Both issues are structurally gone with this simpler
+  /// AppBar design.
+  PreferredSizeWidget _buildMinimalAppBar() {
+    return AppBar(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      automaticallyImplyLeading: false,
+      title: ValueListenableBuilder<String>(
+        valueListenable: _queryNotifier,
+        builder: (context, query, _) {
+          return JidoujishoMarquee(
+            text: query.isEmpty ? t.search_ellipsis : query,
+            style: TextStyle(
+              fontSize: textTheme.titleMedium?.fontSize,
+              fontWeight: FontWeight.bold,
             ),
-          ),
-        ),
+          );
+        },
       ),
+      bottom: _isSearching
+          ? const PreferredSize(
+              preferredSize: Size.fromHeight(2),
+              child: LinearProgressIndicator(minHeight: 2),
+            )
+          : null,
+      actions: [
+        JidoujishoIconButton(
+          tooltip: 'Switch to half-screen dictionary',
+          icon: Icons.fullscreen_exit,
+          onTap: () {
+            appModel.toggleAutoFullScreenDictionary();
+            if (widget.killOnPop) {
+              appModel.shutdown();
+            } else {
+              Navigator.pop(context);
+            }
+          },
+        ),
+        JidoujishoIconButton(
+          tooltip: t.search,
+          icon: Icons.search,
+          onTap: _showSearchDialog,
+        ),
+        const SizedBox(width: 4),
+      ],
     );
   }
 
-  Widget buildFloatingSearchBar() {
-    Color? backgroundColor = appModel.isDarkMode
-        ? const Color.fromARGB(255, 30, 30, 30)
-        : const Color.fromARGB(255, 229, 229, 229);
-    if (appModel.overrideDictionaryColor != null && !_isCreatorOpen) {
-      if ((appModel.overrideDictionaryTheme ?? theme).brightness ==
-          Brightness.dark) {
-        backgroundColor =
-            JidoujishoColor.lighten(appModel.overrideDictionaryColor!, 0.05);
+  /// Builds the body: results, search history, placeholders, or a
+  /// bare progress indicator depending on state. Mirrors the
+  /// previous `buildFloatingSearchBody` dispatch logic but without
+  /// the FloatingSearchBar transition parameter — we are no
+  /// longer inside a FloatingSearchBar.
+  Widget _buildBody() {
+    if (appModel.dictionaries.isEmpty) {
+      return buildImportDictionariesPlaceholderMessage();
+    }
+    final String currentQuery = _queryNotifier.value;
+    if (currentQuery.isEmpty) {
+      if (appModel
+          .getSearchHistory(historyKey: DictionaryMediaType.instance.uniqueKey)
+          .isEmpty) {
+        return buildEnterSearchTermPlaceholderMessage();
       } else {
-        backgroundColor =
-            JidoujishoColor.darken(appModel.overrideDictionaryColor!, 0.05);
+        return JidoujishoSearchHistory(
+          uniqueKey: DictionaryMediaType.instance.uniqueKey,
+          onSearchTermSelect: (searchTerm) {
+            _queryNotifier.value = searchTerm;
+            search(searchTerm);
+          },
+          onUpdate: () {
+            setState(() {});
+          },
+        );
       }
     }
-
-    return FloatingSearchBar(
-      physics: const AlwaysScrollableScrollPhysics(
-        parent: BouncingScrollPhysics(),
-      ),
-      hint: t.search_ellipsis,
-      controller: _controller,
-      builder: buildFloatingSearchBody,
-      borderRadius: BorderRadius.zero,
-      elevation: 0,
-      backgroundColor: backgroundColor,
-      backdropColor: Colors.transparent,
-      accentColor: theme.colorScheme.primary,
-      scrollPadding: const EdgeInsets.only(top: 6, bottom: 56),
-      transitionDuration: Duration.zero,
-      margins: const EdgeInsets.symmetric(horizontal: 6),
-      width: double.maxFinite,
-      transition: SlideFadeFloatingSearchBarTransition(),
-      automaticallyImplyBackButton: false,
-      isScrollControlled: true,
-      debounceDelay: Duration(milliseconds: appModel.searchDebounceDelay),
-      onFocusChanged: (focused) {
-        if (!focused) {
-          if (widget.killOnPop) {
-            appModel.shutdown();
-          } else {
-            Navigator.pop(context);
-          }
+    if (_isSearching) {
+      if (_result != null) {
+        if (_result!.headings.isNotEmpty) {
+          return buildSearchResult();
+        } else {
+          return buildNoSearchResultsPlaceholderMessage();
         }
-      },
-      progress: _isSearching,
-      leadingActions: [
-        buildBackButton(),
-      ],
-      actions: [
-        buildHalfScreenToggleButton(),
-        buildSegmentButton(),
-        buildCreatorButton(),
-        buildSearchButton(),
-      ],
-      onQueryChanged: onQueryChanged,
-      onSubmitted: search,
-    );
+      } else {
+        return const SizedBox.shrink();
+      }
+    }
+    if (_result == null || _result!.headings.isEmpty) {
+      return buildNoSearchResultsPlaceholderMessage();
+    }
+
+    return buildSearchResult();
+  }
+
+  /// Opens a modal dialog with a text field prefilled to the
+  /// current query. Submitting the form runs the search and
+  /// closes the dialog; the user can also tap outside or hit the
+  /// back button to cancel without searching. The dialog's
+  /// TextField autofocuses — which raises the keyboard — because
+  /// that's exactly what the user asked for by tapping the
+  /// magnifying glass. No fighting the keyboard here.
+  Future<void> _showSearchDialog() async {
+    final TextEditingController editingController =
+        TextEditingController(text: _queryNotifier.value);
+    final FocusNode dialogFocus = FocusNode();
+    try {
+      final String? submitted = await showDialog<String>(
+        context: context,
+        barrierDismissible: true,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: Text(t.search),
+            content: TextField(
+              controller: editingController,
+              focusNode: dialogFocus,
+              autofocus: true,
+              textInputAction: TextInputAction.search,
+              onSubmitted: (value) {
+                Navigator.pop(dialogContext, value.trim());
+              },
+              decoration: InputDecoration(
+                hintText: t.search_ellipsis,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: Text(t.dialog_cancel),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(
+                    dialogContext, editingController.text.trim()),
+                child: Text(t.search),
+              ),
+            ],
+          );
+        },
+      );
+      if (submitted != null && submitted.isNotEmpty) {
+        _queryNotifier.value = submitted;
+        search(submitted);
+      }
+    } finally {
+      editingController.dispose();
+      dialogFocus.dispose();
+    }
   }
 
   void searchAgain() {
     _result = null;
-    search(_controller.query);
+    search(_queryNotifier.value);
   }
 
   Duration get historyDelay => Duration.zero;
@@ -264,7 +309,7 @@ class _RecursiveDictionaryPageState
       );
     } finally {
       if (_result != null) {
-        if (query == _controller.query) {
+        if (query == _queryNotifier.value) {
           if (mounted) {
             setState(() {
               _isSearching = false;
@@ -272,10 +317,10 @@ class _RecursiveDictionaryPageState
             });
           }
           Future.delayed(historyDelay, () async {
-            if (query == _controller.query) {
+            if (query == _queryNotifier.value) {
               appModel.addToSearchHistory(
                 historyKey: DictionaryMediaType.instance.uniqueKey,
-                searchTerm: _controller.query,
+                searchTerm: _queryNotifier.value,
               );
             }
             if (_result!.headings.isNotEmpty) {
@@ -287,151 +332,12 @@ class _RecursiveDictionaryPageState
     }
   }
 
-  Widget buildBackButton() {
-    return FloatingSearchBarAction(
-      showIfOpened: true,
-      showIfClosed: false,
-      child: JidoujishoIconButton(
-        tooltip: t.back,
-        icon: Icons.arrow_back,
-        onTap: () async {
-          if (widget.killOnPop) {
-            appModel.shutdown();
-          } else {
-            Navigator.pop(context);
-          }
-        },
-      ),
-    );
-  }
-
-  /// Toggle button that disables the "open full-screen on tap" preference
-  /// and pops this page, returning the user to the previous media view.
-  /// The next word-tap will show the half-screen popup instead.
-  Widget buildHalfScreenToggleButton() {
-    return FloatingSearchBarAction(
-      showIfOpened: true,
-      showIfClosed: true,
-      child: JidoujishoIconButton(
-        tooltip: 'Switch to half-screen dictionary',
-        icon: Icons.fullscreen_exit,
-        onTap: () {
-          appModel.toggleAutoFullScreenDictionary();
-          if (widget.killOnPop) {
-            appModel.shutdown();
-          } else {
-            Navigator.pop(context);
-          }
-        },
-      ),
-    );
-  }
-
-  Widget buildSearchButton() {
-    return FloatingSearchBarAction(
-      showIfOpened: true,
-      builder: (context, animation) {
-        final bar = FloatingSearchAppBar.of(context)!;
-
-        return ValueListenableBuilder<String>(
-          valueListenable: bar.queryNotifer,
-          builder: (context, query, _) {
-            final isEmpty = query.isEmpty;
-
-            return SearchToClear(
-              isEmpty: isEmpty,
-              size: textTheme.titleLarge!.fontSize!,
-              color: bar.style.iconColor,
-              duration: const Duration(milliseconds: 900) * 0.5,
-              onTap: () {
-                if (!isEmpty) {
-                  bar.clear();
-                } else {
-                  bar.isOpen =
-                      !bar.isOpen || (!bar.hasFocus && bar.isAlwaysOpened);
-                }
-
-                setState(() {});
-              },
-              searchButtonSemanticLabel: t.search,
-              clearButtonSemanticLabel: t.clear,
-            );
-          },
-        );
-      },
-    );
-  }
-
   @override
   void onSearch(String searchTerm, {String? sentence = ''}) async {
     await appModel.openRecursiveDictionarySearch(
       searchTerm: searchTerm,
       killOnPop: false,
       onUpdateQuery: widget.onUpdateQuery,
-    );
-  }
-
-  Widget buildSegmentButton() {
-    return FloatingSearchBarAction(
-      showIfOpened: true,
-      child: JidoujishoIconButton(
-        size: Theme.of(context).textTheme.titleLarge?.fontSize,
-        tooltip: t.text_segmentation,
-        icon: Icons.account_tree,
-        onTap: () async {
-          await appModel.openTextSegmentationDialog(
-            sourceText: _controller.query,
-            onSearch: (selection) async {
-              await appModel.openRecursiveDictionarySearch(
-                searchTerm: selection.textInside,
-                killOnPop: false,
-                onUpdateQuery: widget.onUpdateQuery,
-              );
-            },
-          );
-
-          widget.onUpdateQuery?.call(_controller.query);
-        },
-      ),
-    );
-  }
-
-  Widget buildCreatorButton() {
-    return FloatingSearchBarAction(
-      showIfOpened: true,
-      child: JidoujishoIconButton(
-        size: Theme.of(context).textTheme.titleLarge?.fontSize,
-        tooltip: t.card_creator,
-        icon: Icons.note_add,
-        onTap: () {
-          appModel.openCreator(
-            killOnPop: false,
-            ref: ref,
-            creatorFieldValues: CreatorFieldValues(
-              textValues: {
-                SentenceField.instance: _controller.query,
-                TermField.instance: '',
-                ClozeBeforeField.instance: '',
-                ClozeInsideField.instance: '',
-                ClozeAfterField.instance: '',
-              },
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget buildSearchClearButton() {
-    return FloatingSearchBarAction(
-      showIfOpened: true,
-      showIfClosed: false,
-      child: JidoujishoIconButton(
-        size: textTheme.titleLarge?.fontSize,
-        tooltip: t.clear,
-        icon: Icons.manage_search,
-        onTap: showDeleteSearchHistoryPrompt,
-      ),
     );
   }
 
@@ -450,7 +356,7 @@ class _RecursiveDictionaryPageState
           onPressed: () async {
             appModel.clearSearchHistory(
                 historyKey: DictionaryMediaType.instance.uniqueKey);
-            _controller.clear();
+            _queryNotifier.value = '';
 
             if (mounted) {
               Navigator.pop(context);
@@ -469,52 +375,6 @@ class _RecursiveDictionaryPageState
       context: context,
       builder: (context) => alertDialog,
     );
-  }
-
-  Widget buildFloatingSearchBody(
-    BuildContext context,
-    Animation<double> transition,
-  ) {
-    if (appModel.dictionaries.isEmpty) {
-      return buildImportDictionariesPlaceholderMessage();
-    }
-    if (_controller.query.isEmpty) {
-      if (appModel
-          .getSearchHistory(historyKey: DictionaryMediaType.instance.uniqueKey)
-          .isEmpty) {
-        return buildEnterSearchTermPlaceholderMessage();
-      } else {
-        return JidoujishoSearchHistory(
-          uniqueKey: DictionaryMediaType.instance.uniqueKey,
-          onSearchTermSelect: (searchTerm) {
-            setState(() {
-              _controller.query = searchTerm;
-              search(searchTerm);
-              FocusManager.instance.primaryFocus?.unfocus();
-            });
-          },
-          onUpdate: () {
-            setState(() {});
-          },
-        );
-      }
-    }
-    if (_isSearching) {
-      if (_result != null) {
-        if (_result!.headings.isNotEmpty) {
-          return buildSearchResult();
-        } else {
-          return buildNoSearchResultsPlaceholderMessage();
-        }
-      } else {
-        return const SizedBox.shrink();
-      }
-    }
-    if (_result == null || _result!.headings.isEmpty) {
-      return buildNoSearchResultsPlaceholderMessage();
-    }
-
-    return buildSearchResult();
   }
 
   Widget buildSearchResult() {
@@ -548,7 +408,7 @@ class _RecursiveDictionaryPageState
                 ? null
                 : () async {
                     search(
-                      _controller.query,
+                      _queryNotifier.value,
                       overrideMaximumTerms:
                           _result!.headingIds.length + appModel.maximumTerms,
                     );
