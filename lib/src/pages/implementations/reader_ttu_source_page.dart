@@ -88,6 +88,19 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
   late Box _readerBox;
   InAppWebViewController? _secondaryController;
 
+  /// Per-book identifier derived from the embedded TTU SPA's URL
+  /// (`?id=X`). Updates on every `onTitleChanged` so the per-book
+  /// state (audio, split view, TTU settings, bookmark key) tracks
+  /// whichever book TTU currently has open — including when the
+  /// user picks a different book from TTU's in-app library manager
+  /// without ever leaving the Flutter reader page.
+  ///
+  /// Null when the user is on a non-book page (manager, settings,
+  /// initial load). In that case [_safeBookKey] falls back to the
+  /// legacy widget-item-based key; if that's also null, it returns
+  /// `'default'` — unchanged from pre-feature behavior.
+  String? _currentBookId;
+
   // Edge gesture state
   static const _volumeChannel =
       MethodChannel('shiroikuma.jisho/volume');
@@ -210,6 +223,24 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
 
   Future<void> _initSecondaryBook() async {
     _readerBox = await Hive.openBox('readerAudio');
+    _readerBoxReady = true;
+    _reloadSecondaryBookState();
+  }
+
+  /// Reload the per-book secondary (translation) state for whatever
+  /// key [_safeBookKey] currently resolves to. Called from
+  /// [_initSecondaryBook] on first mount, and from
+  /// [_updateCurrentBookFromUrl] every time the TTU SPA navigates to
+  /// a different book. Resets the in-memory state first so an
+  /// unsaved `shown=true` from the previous book doesn't paint for
+  /// one frame before the Hive read completes.
+  void _reloadSecondaryBookState() {
+    _secondaryUrl = null;
+    _secondaryTitle = null;
+    _hasSecondary = false;
+    _splitRatio = 0.5;
+    _secondaryShown = false;
+
     String key = _safeBookKey();
     _secondaryUrl = _readerBox.get('secondary_url_$key');
     _secondaryTitle = _readerBox.get('secondary_title_$key');
@@ -225,8 +256,54 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
     if (mounted) setState(() {});
   }
 
+  /// Inspect the primary WebView's current URL; if it exposes a TTU
+  /// book id (`?id=X`), adopt that id as [_currentBookId]. Triggers a
+  /// full per-book state reload when the id changes (including
+  /// transitions from null → id, id → different id, and id → null
+  /// when the user returns to the manager page).
+  Future<void> _updateCurrentBookFromUrl(
+      InAppWebViewController controller) async {
+    try {
+      WebUri? uri = await controller.getUrl();
+      if (uri == null) return;
+      String? newId = uri.queryParameters['id'];
+      if (newId == _currentBookId) return;
+      _currentBookId = newId;
+      // Don't race Hive if the secondary-book init hasn't opened the
+      // box yet (this can fire before _initSecondaryBook completes on
+      // cold start). The initial load will happen via _initSecondaryBook
+      // once the box is ready.
+      if (!_readerBoxReady) return;
+      _reloadSecondaryBookState();
+    } catch (_) {
+      // WebView torn down or URL unreachable — leave state as-is.
+    }
+  }
+
+  /// Tracks whether [_readerBox] has been assigned. `late` fields
+  /// throw on access before initialization, so a separate ready flag
+  /// lets callers defer Hive reads until [_initSecondaryBook] has
+  /// opened the box.
+  bool _readerBoxReady = false;
+
+  /// Storage key for all per-book state (split view, audio, TTU
+  /// settings, bookmarks). Three-tier fallback:
+  ///
+  /// 1. URL-derived book id from TTU (`?id=X`) — the correct answer
+  ///    for books opened via TTU's library manager, which is most
+  ///    opens in practice.
+  /// 2. `widget.item?.uniqueKey` — used by non-library launches like
+  ///    settings pages where the item is explicitly supplied.
+  /// 3. `'default'` — last-ditch fallback, matches pre-feature
+  ///    behavior so nothing breaks in edge cases we haven't
+  ///    anticipated.
   String _safeBookKey() {
-    String k = widget.item?.uniqueKey ?? 'default';
+    String k;
+    if (_currentBookId != null) {
+      k = 'book_${_currentBookId!}';
+    } else {
+      k = widget.item?.uniqueKey ?? 'default';
+    }
     return k.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
   }
 
@@ -587,7 +664,7 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
             ),
           ),
           bottomNavigationBar: ReaderAudioToolbar(
-            bookKey: widget.item?.uniqueKey ?? 'default',
+            bookKey: _safeBookKey(),
             secondaryBookKey:
                 _hasSecondary ? _safeSecondaryBookKey() : null,
             appModel: appModel,
@@ -1652,6 +1729,7 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
         );
       },
       onLoadStop: (controller, uri) async {
+        await _updateCurrentBookFromUrl(controller);
         if (mediaSource.adaptTtuTheme) {
           setDictionaryColors();
         }
@@ -1670,6 +1748,7 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
         Future.delayed(const Duration(seconds: 1), _focusNode.requestFocus);
       },
       onTitleChanged: (controller, title) async {
+        await _updateCurrentBookFromUrl(controller);
         await controller.evaluateJavascript(source: javascriptToExecute);
 
         if (mediaSource.adaptTtuTheme) {

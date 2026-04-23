@@ -70,6 +70,7 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
   String? _srtPath;
 
   late Box _box;
+  bool _boxReady = false;
 
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<PlayerState>? _playerStateSub;
@@ -81,8 +82,51 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
     _init();
   }
 
+  @override
+  void didUpdateWidget(covariant ReaderAudioToolbar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // When the TTU SPA navigates between books, the parent page
+    // rebuilds the toolbar with a new [bookKey]. The old state
+    // (mp3 path, srt path, audio player, subtitle list, saved
+    // position) belongs to the previous book and must not leak
+    // into the new book's session. Save the old book's position,
+    // tear down the audio pipeline, reset display fields, then
+    // re-run [_init] against the new key.
+    if (oldWidget.bookKey != widget.bookKey) {
+      // Save position under the OLD key — `widget.bookKey` has
+      // already flipped to the new value by the time didUpdateWidget
+      // runs, so the normal [_saveAudioPosition] helper would write
+      // the leaving book's position into the entering book's slot.
+      // Guard on [_boxReady] because the initial [_init] is async and
+      // the first bookKey change could land before Hive opens.
+      if (_boxReady &&
+          _audioLoaded &&
+          _positionNotifier.value > Duration.zero) {
+        final oldKey = _safeKey(oldWidget.bookKey);
+        _box.put('pos_$oldKey', _positionNotifier.value.inMilliseconds);
+      }
+      _audioPlayer.stop();
+      _positionSub?.cancel();
+      _playerStateSub?.cancel();
+      _durationSub?.cancel();
+      _positionNotifier.value = Duration.zero;
+      _durationNotifier.value = Duration.zero;
+      _playingNotifier.value = false;
+      _subtitles = [];
+      _currentSubtitle = null;
+      _autoPauseMemory = null;
+      _audioLoaded = false;
+      _collapsed = true;
+      _mp3Path = null;
+      _srtPath = null;
+      if (mounted) setState(() {});
+      _init();
+    }
+  }
+
   Future<void> _init() async {
     _box = await Hive.openBox('readerAudio');
+    _boxReady = true;
     String key = _safeKey(widget.bookKey);
     _mp3Path = _box.get('mp3_$key');
     _srtPath = _box.get('srt_$key');
@@ -126,7 +170,9 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
   /// writes a fresh saved position, so there's only ever one
   /// meaningful value to remember per book.
   void _saveAudioPosition() {
-    if (_audioLoaded && _positionNotifier.value > Duration.zero) {
+    if (_boxReady &&
+        _audioLoaded &&
+        _positionNotifier.value > Duration.zero) {
       String key = _safeKey(widget.bookKey);
       _box.put('pos_$key', _positionNotifier.value.inMilliseconds);
     }
