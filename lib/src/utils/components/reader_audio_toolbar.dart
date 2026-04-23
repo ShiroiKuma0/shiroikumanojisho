@@ -658,7 +658,7 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
                   : 'Reader appearance'),
               onTap: () {
                 Navigator.pop(ctx);
-                _showReaderSettings(widget.bookKey);
+                _showReaderSettings(widget.bookKey, isSecondary: false);
               },
             ),
             if (widget.hasSecondary && widget.secondaryBookKey != null)
@@ -667,7 +667,8 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
                 title: const Text('Translation book appearance'),
                 onTap: () {
                   Navigator.pop(ctx);
-                  _showReaderSettings(widget.secondaryBookKey!);
+                  _showReaderSettings(widget.secondaryBookKey!,
+                      isSecondary: true);
                 },
               ),
             ListTile(
@@ -753,10 +754,15 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
   /// taps don't always raise the keyboard, and long-press sometimes
   /// raises it without accepting typed input. A pushed page goes
   /// through the normal route-focus machinery and behaves predictably.
-  void _showReaderSettings(String bookKey) async {
+  void _showReaderSettings(String bookKey,
+      {required bool isSecondary}) async {
     String key = _safeKey(bookKey);
-    ReaderAppearanceSettings current =
-        ReaderAppearanceSettings.load(_box, key);
+    ReaderAppearanceSettings current = ReaderAppearanceSettings.load(
+      _box,
+      key,
+      isSecondary: isSecondary,
+      languageCode: widget.appModel.targetLanguage.languageCode,
+    );
     // Release any focus held by the previous route (e.g. the WebView
     // reader) before opening the page. Without this, TextField focus
     // on the pushed page is intermittently broken because Flutter's

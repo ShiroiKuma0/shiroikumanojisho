@@ -21,6 +21,13 @@ class ReaderAppearanceSettings {
   double lineSpacing;
   String fontFamily;
   String fontFamilySecondary;
+  /// Writing mode for the book content. `'horizontal'` maps to
+  /// CSS `writing-mode: horizontal-tb` (standard left-to-right,
+  /// top-to-bottom). `'vertical'` maps to CSS
+  /// `writing-mode: vertical-rl` (top-to-bottom in columns,
+  /// right-to-left column flow — standard for Japanese novels).
+  /// Per-book and independent for primary vs. translation books.
+  String writingMode;
 
   ReaderAppearanceSettings({
     this.fontColor = 0xFFFFFF00,
@@ -34,10 +41,26 @@ class ReaderAppearanceSettings {
     this.lineSpacing = 1.0,
     this.fontFamily = '',
     this.fontFamilySecondary = '',
+    this.writingMode = 'horizontal',
   });
 
   /// Load settings from Hive box for a given book key.
-  static ReaderAppearanceSettings load(Box box, String bookKey) {
+  ///
+  /// [isSecondary] and [languageCode] inform the default value of
+  /// [writingMode] for books that have never had an explicit writing
+  /// mode saved. Japanese primary books default to vertical —
+  /// matching how Japanese novels are typeset; every other
+  /// combination (Japanese translation books, all non-Japanese
+  /// books) defaults to horizontal. Once the user toggles the mode
+  /// the per-book saved value takes precedence over these defaults.
+  static ReaderAppearanceSettings load(
+    Box box,
+    String bookKey, {
+    bool isSecondary = false,
+    String languageCode = '',
+  }) {
+    final String defaultWritingMode =
+        (!isSecondary && languageCode == 'ja') ? 'vertical' : 'horizontal';
     return ReaderAppearanceSettings(
       fontColor: box.get('rs_fontColor_$bookKey', defaultValue: 0xFFFFFF00),
       backgroundColor:
@@ -57,6 +80,8 @@ class ReaderAppearanceSettings {
       fontFamily: box.get('rs_fontFamily_$bookKey', defaultValue: ''),
       fontFamilySecondary:
           box.get('rs_fontFamily2_$bookKey', defaultValue: ''),
+      writingMode: box.get('rs_writingMode_$bookKey',
+          defaultValue: defaultWritingMode),
     );
   }
 
@@ -73,6 +98,7 @@ class ReaderAppearanceSettings {
     await box.put('rs_lineSpacing_$bookKey', lineSpacing);
     await box.put('rs_fontFamily_$bookKey', fontFamily);
     await box.put('rs_fontFamily2_$bookKey', fontFamilySecondary);
+    await box.put('rs_writingMode_$bookKey', writingMode);
   }
 
   /// Generate CSS to inject into the WebView.
@@ -143,6 +169,21 @@ class ReaderAppearanceSettings {
           '--font-family-sans-serif: "$fontFamilySecondary", "Noto Sans JP", sans-serif;';
     }
 
+    // Writing mode: horizontal-tb for Latin-style flow,
+    // vertical-rl for Japanese vertical novels. Applied at the
+    // document root and on .book-content so TTU's column layout
+    // picks the right axis regardless of where it reads the
+    // writing-mode from. `!important` so we win over TTU's own
+    // writingMode-driven rules, which might be toggled by TTU's
+    // settings page in the same session.
+    final String wmValue =
+        writingMode == 'vertical' ? 'vertical-rl' : 'horizontal-tb';
+    final String writingModeCss = '''
+      html, body, .book-content {
+        writing-mode: $wmValue !important;
+      }
+    ''';
+
     return '''
       .book-content {
         color: $fc !important;
@@ -151,6 +192,7 @@ class ReaderAppearanceSettings {
         $fontFamilyVarCss
         $fontFamily2VarCss
       }
+      $writingModeCss
       $primaryRule
       $secondaryRule
       body { background-color: $bg !important; }
@@ -235,6 +277,7 @@ class _ReaderSettingsDialogState extends State<ReaderSettingsDialog> {
       lineSpacing: widget.settings.lineSpacing,
       fontFamily: widget.settings.fontFamily,
       fontFamilySecondary: widget.settings.fontFamilySecondary,
+      writingMode: widget.settings.writingMode,
     );
     _marginLController =
         TextEditingController(text: _s.marginLeft.toString());
@@ -443,14 +486,40 @@ class _ReaderSettingsDialogState extends State<ReaderSettingsDialog> {
               ),
               const SizedBox(height: 16),
 
+              // Writing mode: horizontal-tb vs vertical-rl. Per-book
+              // setting; our toCss() emits `writing-mode: ... !important`
+              // on html/body/.book-content so whatever the user picks
+              // here wins over TTU's own writingMode setting.
+              const Text('Writing mode',
+                  style: TextStyle(color: _y, fontSize: 13)),
+              const SizedBox(height: 4),
+              DropdownButton<String>(
+                value: _s.writingMode,
+                dropdownColor: Colors.grey[900],
+                style: const TextStyle(color: _y),
+                isExpanded: true,
+                items: const [
+                  DropdownMenuItem(
+                      value: 'horizontal',
+                      child: Text('Horizontal',
+                          style: TextStyle(color: _y))),
+                  DropdownMenuItem(
+                      value: 'vertical',
+                      child: Text('Vertical',
+                          style: TextStyle(color: _y))),
+                ],
+                onChanged: (v) {
+                  if (v != null) setState(() => _s.writingMode = v);
+                },
+              ),
+              const SizedBox(height: 16),
+
               // Primary font — applied to body text in the book.
-              // This rule wins over TTU's own fontFamilyGroupOne
-              // setting via `!important` in the injected CSS, so
-              // the value here is what actually renders. TTU's
-              // corresponding UI controls are hidden via CSS
-              // injection in the reader page to avoid the user
-              // hitting them and being confused when nothing
-              // changes.
+              // The CSS we inject carries `!important` so this value
+              // wins over TTU's own fontFamilyGroupOne setting. TTU's
+              // font UI stays visible on its settings page, but
+              // changing it there has no visible effect — this is
+              // where fonts are actually controlled.
               _fontField('Primary font', _fontFamilyController),
               const SizedBox(height: 12),
 

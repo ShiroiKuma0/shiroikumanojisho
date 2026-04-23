@@ -992,10 +992,16 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
   /// settings keyed by their respective unique keys. Each controller only
   /// receives its book's settings so they can be configured independently.
   void _applyReaderSettings() async {
+    final String languageCode = appModel.targetLanguage.languageCode;
+
     // Primary
     String primaryKey = _safeBookKey();
-    ReaderAppearanceSettings primarySettings =
-        ReaderAppearanceSettings.load(_readerBox, primaryKey);
+    ReaderAppearanceSettings primarySettings = ReaderAppearanceSettings.load(
+      _readerBox,
+      primaryKey,
+      isSecondary: false,
+      languageCode: languageCode,
+    );
     String primaryCss = primarySettings.toCss().replaceAll('\n', ' ');
     String primaryJs = _buildAppearanceInjectJs(primaryCss);
     // Re-inject the user-fonts stylesheet before the appearance CSS
@@ -1007,10 +1013,19 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
     await _controller.evaluateJavascript(source: primaryJs);
 
     // Secondary (translation book) — load its own settings.
+    // `isSecondary: true` forces the default writing mode to
+    // horizontal regardless of language, because translation books
+    // are typeset in the source language's convention (almost
+    // always horizontal) not the target language's convention.
     if (_secondaryController != null && _hasSecondary) {
       String secondaryKey = _safeSecondaryBookKey();
       ReaderAppearanceSettings secondarySettings =
-          ReaderAppearanceSettings.load(_readerBox, secondaryKey);
+          ReaderAppearanceSettings.load(
+        _readerBox,
+        secondaryKey,
+        isSecondary: true,
+        languageCode: languageCode,
+      );
       String secondaryCss = secondarySettings.toCss().replaceAll('\n', ' ');
       String secondaryJs = _buildAppearanceInjectJs(secondaryCss);
       await _injectUserFonts(_secondaryController!);
