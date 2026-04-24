@@ -116,12 +116,67 @@ class _RecursiveDictionaryPageState
   /// the keyboard unbidden on every word lookup; and its
   /// multi-stage WillPopScope handling required two back presses
   /// to exit. Both issues are structurally gone with this simpler
+  /// Shared handler for the two close buttons in [_buildMinimalAppBar]
+  /// (one on the leading side next to Back, one on the actions side
+  /// next to the half-screen toggle). Pops every route named
+  /// `'recursive_dictionary'` off the navigator in a single
+  /// operation, landing on whatever pushed the first dict -- reader,
+  /// player, creator, etc. For the share-intent launch path
+  /// ([RecursiveDictionaryPage.killOnPop] `true`) there is nothing
+  /// below the dict on the stack, so the equivalent of "return to
+  /// source" is exiting the app cleanly via [AppModel.shutdown].
+  void _closeAllDictionaryPages() {
+    if (widget.killOnPop) {
+      appModel.shutdown();
+    } else {
+      Navigator.of(context).popUntil(
+        (route) => route.settings.name != 'recursive_dictionary',
+      );
+    }
+  }
+
   /// AppBar design.
   PreferredSizeWidget _buildMinimalAppBar() {
     return AppBar(
       backgroundColor: Colors.transparent,
       elevation: 0,
       automaticallyImplyLeading: false,
+      // Two icons in the leading slot side-by-side: Back and Close.
+      // Back behaves like the OS back gesture (pop one). Close pops
+      // every recursive-dictionary route at once, returning to
+      // whatever pushed the first dict (reader, player, creator).
+      // Together they give the user a one-tap way to either step
+      // back through a lookup chain or abandon it entirely. The
+      // Close icon is duplicated on the right side of the AppBar
+      // too (in actions) so the user has a reachable close target
+      // regardless of which hand is holding the phone; the two
+      // copies share the same handler via _closeAllDictionaryPages.
+      // leadingWidth is widened from the AppBar default of 56 so
+      // both icons fit without clipping; the extra SizedBox between
+      // them prevents visual crowding.
+      leadingWidth: 104,
+      leading: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          JidoujishoIconButton(
+            tooltip: t.back,
+            icon: Icons.arrow_back,
+            onTap: () {
+              if (widget.killOnPop) {
+                appModel.shutdown();
+              } else {
+                Navigator.pop(context);
+              }
+            },
+          ),
+          const SizedBox(width: 4),
+          JidoujishoIconButton(
+            tooltip: 'Close dictionary',
+            icon: Icons.close,
+            onTap: _closeAllDictionaryPages,
+          ),
+        ],
+      ),
       title: ValueListenableBuilder<String>(
         valueListenable: _queryNotifier,
         builder: (context, query, _) {
@@ -141,6 +196,17 @@ class _RecursiveDictionaryPageState
             )
           : null,
       actions: [
+        JidoujishoIconButton(
+          tooltip: 'Close dictionary',
+          icon: Icons.close,
+          onTap: _closeAllDictionaryPages,
+        ),
+        // Six times the 4px gap used on the leading side between
+        // Back and Close. Big enough that the right-side Close
+        // reads as a standalone escape hatch rather than a member
+        // of the half-screen/search cluster; small enough that the
+        // icon still lives inside the actions strip.
+        const SizedBox(width: 24),
         JidoujishoIconButton(
           tooltip: 'Switch to half-screen dictionary',
           icon: Icons.fullscreen_exit,

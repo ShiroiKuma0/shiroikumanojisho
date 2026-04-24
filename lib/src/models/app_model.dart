@@ -3563,6 +3563,12 @@ class AppModel with ChangeNotifier {
     await Navigator.push(
       _navigatorKey.currentContext!,
       PageRouteBuilder(
+        // The name is referenced by RecursiveDictionaryPage's
+        // close-all button, which pops routes until the predicate
+        // `route.settings.name != 'recursive_dictionary'` holds --
+        // i.e. we land on whatever pushed the dict (reader, player,
+        // creator, etc.). Also useful for debug navigation logs.
+        settings: const RouteSettings(name: 'recursive_dictionary'),
         pageBuilder: (context, animation1, animation2) =>
             RecursiveDictionaryPage(
           searchTerm: searchTerm,
