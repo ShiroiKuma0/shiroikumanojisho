@@ -39,7 +39,9 @@ README="$REPO_ROOT/README.md"
 [[ -f "$PUBSPEC" ]] || die "pubspec not found: $PUBSPEC"
 [[ -f "$README" ]] || die "README not found: $README"
 
-# Extract current version and build number.
+# Extract current version and build number. The pubspec during
+# development carries `X.Y.Z+N`; right before a release we
+# overwrite it to plain `X.Y.Z` (no `+N`) — see NEW_FULL below.
 CURRENT_LINE=$(grep -E '^version: [0-9]+\.[0-9]+\.[0-9]+\+[0-9]+$' "$PUBSPEC" || true)
 [[ -n "$CURRENT_LINE" ]] || die "could not find a 'version: X.Y.Z+N' line in $PUBSPEC"
 
@@ -56,8 +58,9 @@ if [[ "$sort_check" != "$NEW_VER" ]]; then
   die "new version ($NEW_VER) is older than current ($CURRENT_SEMVER)"
 fi
 
-NEW_BUILD=$((CURRENT_BUILD + 1))
-NEW_FULL="$NEW_VER+$NEW_BUILD"
+# Release form is plain semver, no +N. bump-build.sh resumes dev
+# iteration afterwards by appending +1, +2, ... on the next build.
+NEW_FULL="$NEW_VER"
 
 printf 'bumping %s → %s\n' "$CURRENT_VER" "$NEW_FULL"
 
@@ -68,44 +71,47 @@ sed -i "s|^version: ${CURRENT_VER}\$|version: ${NEW_FULL}|" "$PUBSPEC"
 grep -q "^version: ${NEW_FULL}\$" "$PUBSPEC" || die "pubspec rewrite failed"
 
 # --- README.md ---
-# Three edits, all keyed off the previous semver. We match the
-# concrete link substring `tag/v<CURRENT_SEMVER>` rather than a looser
-# pattern so we only touch links that actually pointed to the last
-# released version.
+# Two edits. The README has two kinds of release references:
 #
-# 1. The release badge link near the top of the file.
-# 2. The "Latest Release" paragraph just above the Resources block.
-# 3. The history line that lists every past release separated by ` . `.
+#  (1) Current-release links/labels: the release badge anchor near
+#      the top and the visible "Latest Release: <VER>" paragraph
+#      further down. These both point at the current release on
+#      the active `shiroikumanojisho` repo and use tag names
+#      WITHOUT a `v` prefix (user preference).
 #
-# Edits 1 and 2 are the same `tag/v<CURRENT>` → `tag/v<NEW>` substitution
-# (plus, for #2, the visible `<CURRENT>` label inside the anchor).
-# Edit 3 appends to the list by inserting `<NEW>` immediately after the
-# last existing entry (which is `<CURRENT>` wrapped in an anchor and
-# followed by `</b>`).
+#  (2) History list: a multi-line series of `<a>` tags listing
+#      every past release, grouped by era. The most recent era —
+#      白い熊の辞書 — is the only one that gets appended to;
+#      older eras (Legacy / Chisa / Yuuna / 白い熊の自動辞書第二版)
+#      live on the archived `jidoujisho2` repo and are never
+#      modified here.
 #
-# Do all three with sed in-place, one pattern at a time.
+# Neither the current-release label nor the appended history entry
+# uses `v` in the tag name — it's plain `tag/X.Y.Z`.
 
-# Safety check: both the current version's link and label should appear.
-grep -q "tag/v${CURRENT_SEMVER}" "$README" \
-  || die "README doesn't mention tag/v${CURRENT_SEMVER} — already updated?"
+# Safety check: the current version's link should appear somewhere.
+grep -q "shiroikumanojisho/releases/tag/${CURRENT_SEMVER}" "$README" \
+  || die "README doesn't mention shiroikumanojisho tag/${CURRENT_SEMVER} — already updated?"
 
-# Edits 1 + 2 (rewrite every `tag/v<CURRENT>` link to point at NEW, and
-# every `>CURRENT<` visible label inside anchors too). This rewrites
-# the history entry for the current version as well, which we then
-# restore by re-appending the old label in edit 3 below.
-sed -i "s|tag/v${CURRENT_SEMVER}|tag/v${NEW_VER}|g" "$README"
+# Rewrite badge + "Latest Release" references. These are the only
+# shiroikumanojisho links that point at a specific tag on the main
+# repo; updating them atomically via the substring
+# `shiroikumanojisho/releases/tag/<CURRENT>` is both safe and
+# complete.
+sed -i "s|shiroikumanojisho/releases/tag/${CURRENT_SEMVER}|shiroikumanojisho/releases/tag/${NEW_VER}|g" "$README"
+# Also update the visible label inside the "Latest Release" anchor.
+# The badge anchor contains an <img> not a text label, so this
+# touches only the visible-label paragraph.
 sed -i "s|>${CURRENT_SEMVER}</a>|>${NEW_VER}</a>|g" "$README"
 
-# Edit 3: we've overwritten the old CURRENT → NEW everywhere. The
-# history list now ends with `NEW` but has lost its `CURRENT` entry
-# (there's now a duplicate `NEW` instead). Fix by replacing the final
-# `. <NEW>` with `. <CURRENT> . <NEW>`.
-#
-# The history list is a single line that ends like:
-#   . <a href="...tag/vNEW">NEW</a></b>
-# After our sweep we need exactly one occurrence of:
-#   . <a href="...tag/v${CURRENT_SEMVER}">${CURRENT_SEMVER}</a>
-# inserted before the final entry.
+# Append the new version to the 白い熊の辞書 era history line.
+# The history list is rendered as `<a>...</a> . <a>...</a></b>`
+# with a trailing `</b>` marking the end of the current era. The
+# last anchor inside that era closes the group. We find the final
+# anchor in that era (which will now be the `>NEW_VER<` entry
+# after the sweep above rewrote both label and URL) and insert a
+# ` . <CURRENT>` entry before it, restoring the previous release
+# into the history while keeping the new one as the latest.
 python3 - "$README" "$CURRENT_SEMVER" "$NEW_VER" <<'PY'
 import re
 import sys
@@ -114,27 +120,23 @@ readme_path, current, new_ver = sys.argv[1], sys.argv[2], sys.argv[3]
 with open(readme_path, encoding="utf-8") as f:
     text = f.read()
 
-new_entry = (
-    f' .\n  <a href="https://github.com/ShiroiKuma0/jidoujisho2'
-    f'/releases/tag/v{new_ver}">{new_ver}</a>'
-)
 current_entry = (
-    f'  <a href="https://github.com/ShiroiKuma0/jidoujisho2'
-    f'/releases/tag/v{current}">{current}</a>'
+    f'<a href="https://github.com/ShiroiKuma0/shiroikumanojisho'
+    f'/releases/tag/{current}">{current}</a>'
 )
 
-# Find the last `. <a ...>NEW</a></b>` in the history line and
-# insert a `. CURRENT` entry before it if it's missing.
+# Find the final `<a ...tag/NEW">NEW</a>` in the 白い熊の辞書 era
+# history line (identified by `shiroikumanojisho/releases/tag/`)
+# and, if the `CURRENT` entry is gone, reinsert it immediately
+# before the new one.
 history_final_pattern = re.compile(
-    r'(  <a href="https://github\.com/ShiroiKuma0/jidoujisho2'
-    r'/releases/tag/v' + re.escape(new_ver) + r'">' +
-    re.escape(new_ver) + r'</a></b>)'
+    r'(<a href="https://github\.com/ShiroiKuma0/shiroikumanojisho'
+    r'/releases/tag/' + re.escape(new_ver) + r'">' +
+    re.escape(new_ver) + r'</a>)'
 )
-if f'tag/v{current}' not in text:
-    # CURRENT link was removed by the sed sweep — reinsert before the
-    # final NEW entry.
+if f'shiroikumanojisho/releases/tag/{current}' not in text:
     def repl(m):
-        return f'{current_entry} .\n{m.group(1)}'
+        return f'{current_entry} .\n  {m.group(1)}'
     text, n = history_final_pattern.subn(repl, text, count=1)
     if n != 1:
         sys.exit('error: could not restore current-version history entry')
@@ -149,5 +151,5 @@ git -C "$REPO_ROOT" diff -- "$PUBSPEC" "$README" | head -80
 printf '\nNext steps:\n'
 printf '  1. Review the diff above (run `git diff` for the full view).\n'
 printf '  2. Build and install to verify everything still works.\n'
-printf '  3. git add -A && git commit -m "Release %s" && git tag -a v%s -m "Release %s" && git push origin main && git push origin v%s\n' \
+printf '  3. git add -A && git commit -m "Release %s" && git tag -a %s -m "Release %s" && git push origin main && git push origin %s\n' \
   "$NEW_VER" "$NEW_VER" "$NEW_VER" "$NEW_VER"

@@ -21,6 +21,65 @@ if (flutterVersionName == null) {
     flutterVersionName = '1.0'
 }
 
+// Compute an Android `versionCode` that is strictly monotonic across
+// all builds — releases and dev iterations alike. Flutter's default
+// uses just pubspec's `+N` as the code, which regresses at every
+// release (`1.0.0+25` has code 25; the subsequent `1.0.1` release
+// has code 1 — installer rejects as a downgrade).
+//
+// Pack `X.Y.Z+N` into a single integer with per-component slots:
+//   code = X * 1_000_000 + Y * 10_000 + Z * 100 + min(N, 99)
+// Each axis has comfortable headroom: 99 patches per minor, 99
+// minors per major, 99 dev iterations per patch.
+//
+// IMPORTANT: the `N` value is read DIRECTLY from pubspec.yaml here,
+// not from `flutter.versionCode`, because Flutter smooshes bare
+// `X.Y.Z` pubspec versions into `versionCode=1` — identical to
+// `X.Y.Z+1`. We need to tell release (bare, N=0) from first-dev
+// (+1, N=1). Reading pubspec.yaml directly preserves the
+// distinction: bare → N=0, `+K` → N=K.
+//
+// Examples:
+//   1.0.0+25   → 1_000_025    (dev iteration)
+//   1.0.1      → 1_000_100    (release — cleanly > 1.0.0+25)
+//   1.0.1+1    → 1_000_101    (first dev after release, cleanly >)
+//   1.0.1+5    → 1_000_105    (dev)
+//   1.0.2      → 1_000_200    (next release, cleanly > 1.0.1+99)
+//   1.1.0      → 1_010_000
+//   2.0.0      → 2_000_000
+//
+// One-time migration: builds before this change used formula
+// `100 * N + abi_offset`, max ever produced was ~2500. New scheme
+// starts at 1_000_000+, so every new build is comfortably greater
+// than every legacy one.
+def pubspecFile = file("${rootProject.projectDir}/../pubspec.yaml")
+def pubspecVersionLine = pubspecFile.readLines().find { it =~ /^version:\s/ }
+if (pubspecVersionLine == null) {
+    throw new GradleException("could not find 'version:' line in pubspec.yaml")
+}
+def pubspecVersionMatcher = (pubspecVersionLine =~ /^version:\s*(\d+)\.(\d+)\.(\d+)(?:\+(\d+))?\s*$/)
+if (!pubspecVersionMatcher.matches()) {
+    throw new GradleException(
+        "pubspec version must be X.Y.Z or X.Y.Z+N, got: '${pubspecVersionLine}'")
+}
+def pubspecMajor = pubspecVersionMatcher[0][1].toInteger()
+def pubspecMinor = pubspecVersionMatcher[0][2].toInteger()
+def pubspecPatch = pubspecVersionMatcher[0][3].toInteger()
+// The `+N` group is optional. Bare `X.Y.Z` (release form) → null → 0.
+// `X.Y.Z+K` (dev form) → K.
+def pubspecBuildN = pubspecVersionMatcher[0][4] != null
+    ? pubspecVersionMatcher[0][4].toInteger()
+    : 0
+// Clamp dev-iteration count to 99. More than 99 dev builds between
+// two releases would indicate something weird; capping prevents
+// the dev slot from spilling into the next patch's slot.
+if (pubspecBuildN > 99) pubspecBuildN = 99
+def computedVersionCode =
+    pubspecMajor * 1000000 +
+    pubspecMinor * 10000 +
+    pubspecPatch * 100 +
+    pubspecBuildN
+
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
@@ -46,7 +105,7 @@ android {
         applicationId "shiroikuma.jisho"
         minSdkVersion 24
         targetSdkVersion 32
-        versionCode flutterVersionCode.toInteger()
+        versionCode computedVersionCode
         versionName flutterVersionName
     }
 
@@ -86,8 +145,9 @@ android {
                 } else {
                     newName = "${appName}_${defaultConfig.versionName}.apk"
                 }
-                
-                output.versionCodeOverride = (100 * project.android.defaultConfig.versionCode)
+
+                // Universal APK uses the computed code directly.
+                output.versionCodeOverride = project.android.defaultConfig.versionCode
             } else {
                 if (buildType == 'debug') {
                     newName = "${appName}_${defaultConfig.versionName}-${architecture}-debug.apk"
@@ -95,17 +155,17 @@ android {
                     newName = "${appName}_${defaultConfig.versionName}-${architecture}.apk"
                 }
 
-                def offset
-                if (architecture == "armeabi") {
-                    offset = 1
-                } else if (architecture == "arm64") {
-                    offset = 2
-                } else if (architecture == "x86_64") {
-                    offset = 3
-                }
-
                 outputFileName = newName
-                output.versionCodeOverride = (100 * project.android.defaultConfig.versionCode) + offset
+                // All per-ABI variants share the same versionCode as
+                // the universal build. A given device installs only
+                // one ABI's APK, so no collision on the device. The
+                // previous code here added a per-ABI offset (1..3)
+                // to keep the codes distinct — that only matters
+                // when uploading every variant to a store backend
+                // like Google Play that rejects duplicates. This
+                // project distributes APKs directly without that
+                // constraint, so the offset is unnecessary.
+                output.versionCodeOverride = project.android.defaultConfig.versionCode
             }
         }
     }
