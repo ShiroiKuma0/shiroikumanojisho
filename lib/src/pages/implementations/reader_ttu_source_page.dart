@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 
 import 'package:document_file_save_plus/document_file_save_plus.dart';
@@ -101,6 +102,37 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
   /// `'default'` — unchanged from pre-feature behavior.
   String? _currentBookId;
 
+  /// Writing mode (`'vertical-rl'` or `'horizontal-tb'`) currently
+  /// baked into the primary webview's UserScript-level
+  /// `localStorage.getItem('writingMode')` override. TTU reads this
+  /// key once at module init to seed its internal `verticalMode`
+  /// flag, which governs which scroll axis it saves bookmarks on
+  /// (`scrollX` vertical, `scrollY` horizontal) and how it handles
+  /// RTL direction conversions. When this disagrees with the actual
+  /// rendered writing mode on `document.body`, bookmark save/restore
+  /// silently breaks and layout math produces off-axis margins.
+  ///
+  /// Changes to this field drive the primary webview's widget
+  /// `key`, so Flutter tears down and re-creates the webview with a
+  /// fresh UserScript whenever the forced mode needs to change
+  /// (book-level writing-mode flip via the reader settings dialog,
+  /// SPA navigation to a book with a different per-book setting).
+  String _primaryForcedWritingMode = 'horizontal-tb';
+
+  /// Writing mode currently baked into the secondary webview's
+  /// UserScript. Same role as [_primaryForcedWritingMode] but for
+  /// the translation pane. Defaults to horizontal because translation
+  /// books use the source language's convention (almost always
+  /// horizontal) rather than the target language's.
+  String _secondaryForcedWritingMode = 'horizontal-tb';
+
+  /// Last URL observed for the primary webview (via
+  /// [_updateCurrentBookFromUrl]). Used as the `initialUrlRequest`
+  /// on a widget-key-driven rebuild so the user doesn't get yanked
+  /// back to the manager or the cold-start URL when the primary is
+  /// reconstructed to pick up a new forced writing mode.
+  String? _primaryCurrentUrl;
+
   // Edge gesture state
   static const _volumeChannel =
       MethodChannel('shiroikuma.jisho/volume');
@@ -116,6 +148,19 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Seed the primary's forced writingMode from the target-language
+    // default before the first webview build. This is the value baked
+    // into the first UserScript. If the specific book the user opens
+    // has a per-book writingMode override, [_applyReaderSettings]
+    // will detect the mismatch at its first onLoadStop, update this
+    // field via setState, and trigger a widget-key-driven rebuild so
+    // the webview re-initialises with the correct value. Secondary
+    // always defaults to horizontal regardless of language (see the
+    // field doc on [_secondaryForcedWritingMode]).
+    _primaryForcedWritingMode =
+        (appModelNoUpdate.targetLanguage.languageCode == 'ja')
+            ? 'vertical-rl'
+            : 'horizontal-tb';
     _initSecondaryBook();
     _initGestureVolume();
 
@@ -266,6 +311,11 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
     try {
       WebUri? uri = await controller.getUrl();
       if (uri == null) return;
+      // Capture current URL for key-driven rebuild's initialUrlRequest.
+      // On an SPA navigation (manager → book, book → manager, book →
+      // different book) this keeps the user on the same TTU route
+      // when a subsequent writing-mode change rebuilds the webview.
+      _primaryCurrentUrl = uri.toString();
       String? newId = uri.queryParameters['id'];
       if (newId == _currentBookId) return;
       _currentBookId = newId;
@@ -759,8 +809,15 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
   Widget _buildSecondaryReader(LocalAssetsServer server) {
     String url = _secondaryUrl ??
         'http://localhost:${server.boundPort}/manage.html';
+    // Widget key gated on forced writing mode so Flutter tears down
+    // and re-creates the webview whenever the secondary book's
+    // per-book writing mode setting changes (via the reader settings
+    // dialog or a newly attached translation book).
     return InAppWebView(
+      key: ValueKey('secondary_$_secondaryForcedWritingMode'),
       initialUrlRequest: URLRequest(url: WebUri(url)),
+      initialUserScripts: UnmodifiableListView<UserScript>(
+          [_buildWritingModeUserScript(_secondaryForcedWritingMode)]),
       initialSettings: InAppWebViewSettings(
         allowFileAccessFromFileURLs: true,
         allowUniversalAccessFromFileURLs: true,
@@ -1026,6 +1083,31 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
       return;
     }
 
+    // Check whether the per-book writing-mode for either webview has
+    // drifted from the value baked into its current UserScript. If
+    // so, flip the tracked forced mode via setState so the widget
+    // key changes and Flutter rebuilds the webview with a fresh
+    // UserScript. Don't inject CSS here on the rebuild path — the
+    // new webview's onLoadStop will re-enter this method once the
+    // rebuilt TTU has settled at the correct forced writingMode,
+    // and CSS will apply then.
+    final String newPrimary = _computePrimaryForcedWritingMode();
+    final String newSecondary = _computeSecondaryForcedWritingMode();
+    bool needsRebuild = false;
+    if (newPrimary != _primaryForcedWritingMode) {
+      _primaryForcedWritingMode = newPrimary;
+      needsRebuild = true;
+    }
+    if (_secondaryController != null &&
+        newSecondary != _secondaryForcedWritingMode) {
+      _secondaryForcedWritingMode = newSecondary;
+      needsRebuild = true;
+    }
+    if (needsRebuild) {
+      if (mounted) setState(() {});
+      return;
+    }
+
     // Primary
     String primaryKey = _safeBookKey();
     ReaderAppearanceSettings primarySettings = ReaderAppearanceSettings.load(
@@ -1063,6 +1145,103 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
       await _injectUserFonts(_secondaryController!);
       await _secondaryController!.evaluateJavascript(source: secondaryJs);
     }
+  }
+
+  /// Build the DOCUMENT_START UserScript that overrides
+  /// `localStorage.getItem('writingMode')` (and blocks writes to the
+  /// same key) inside a TTU webview. The returned value is baked
+  /// into the script source at construction time; to change which
+  /// value TTU reads after the webview is already built, the widget's
+  /// `key` must change so Flutter tears down and re-creates the
+  /// webview with a fresh UserScript.
+  ///
+  /// Why this hook is necessary: TTU's `writingMode` is a
+  /// Svelte-store-backed preference stored in `localStorage` (shared
+  /// per-origin — and both primary and secondary webviews load from
+  /// the same TTU server). TTU reads it once at module init to seed
+  /// its internal `verticalMode` flag, which drives bookmark save
+  /// (`scrollX` vertical, `scrollY` horizontal), RTL direction
+  /// conversions, column layout, and `firstDimensionMargin`
+  /// placement. Without this hook, the secondary webview inherits
+  /// whatever the primary's target language defaulted to — which on
+  /// Japanese is `vertical-rl`, causing the secondary (whose body
+  /// we force to `horizontal-tb`) to save `scrollX` (always 0) and
+  /// restore to position 0 every time. Similar axis-mismatch
+  /// symptoms appear on the primary if the user flips its per-book
+  /// writing mode via the reader settings dialog, and in the
+  /// various other combinations where body CSS and TTU's cached
+  /// flag disagree.
+  ///
+  /// `setItem` is swallowed for the same key so writes from TTU's
+  /// own in-webview settings UI don't propagate to the shared
+  /// localStorage and contaminate the other webview.
+  UserScript _buildWritingModeUserScript(String mode) {
+    return UserScript(
+      source: '''
+        (function() {
+          if (window.__ttuWmHookInstalled) return;
+          window.__ttuWmHookInstalled = true;
+          var forcedMode = '$mode';
+          var origGet = Storage.prototype.getItem;
+          Storage.prototype.getItem = function(key) {
+            if (this === window.localStorage && key === 'writingMode') {
+              return forcedMode;
+            }
+            return origGet.apply(this, arguments);
+          };
+          var origSet = Storage.prototype.setItem;
+          Storage.prototype.setItem = function(key, value) {
+            if (this === window.localStorage && key === 'writingMode') {
+              return;
+            }
+            return origSet.apply(this, arguments);
+          };
+        })();
+      ''',
+      injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+    );
+  }
+
+  /// Map a stored per-book writing-mode value (`'vertical'` /
+  /// `'horizontal'`) to the CSS/TTU literal (`'vertical-rl'` /
+  /// `'horizontal-tb'`).
+  String _wmToCss(String stored) =>
+      stored == 'vertical' ? 'vertical-rl' : 'horizontal-tb';
+
+  /// Compute the writing mode the primary webview should currently
+  /// force on TTU, based on the open book's per-book Hive setting,
+  /// falling back to the target-language default when the book isn't
+  /// known yet (cold start, manager page).
+  String _computePrimaryForcedWritingMode() {
+    final String languageCode = appModel.targetLanguage.languageCode;
+    if (_readerBoxReady && _currentBookId != null) {
+      final settings = ReaderAppearanceSettings.load(
+        _readerBox,
+        _safeBookKey(),
+        isSecondary: false,
+        languageCode: languageCode,
+      );
+      return _wmToCss(settings.writingMode);
+    }
+    return languageCode == 'ja' ? 'vertical-rl' : 'horizontal-tb';
+  }
+
+  /// Compute the writing mode the secondary webview should currently
+  /// force on TTU, based on the attached translation book's per-book
+  /// Hive setting, falling back to horizontal (the secondary default
+  /// regardless of target language).
+  String _computeSecondaryForcedWritingMode() {
+    final String languageCode = appModel.targetLanguage.languageCode;
+    if (_readerBoxReady && _hasSecondary && _secondaryUrl != null) {
+      final settings = ReaderAppearanceSettings.load(
+        _readerBox,
+        _safeSecondaryBookKey(),
+        isSecondary: true,
+        languageCode: languageCode,
+      );
+      return _wmToCss(settings.writingMode);
+    }
+    return 'horizontal-tb';
   }
 
   String _buildAppearanceInjectJs(String css) {
@@ -1688,13 +1867,24 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
   }
 
   Widget buildReaderArea(LocalAssetsServer server) {
+    // Widget key includes the forced writing mode so any change to
+    // it tears down and re-creates the webview. The UserScript bakes
+    // the current value in at construction time, so a fresh webview
+    // is the only way to update which value TTU reads at module init.
+    // Initial URL falls back through: last-observed primary URL
+    // (preserves position across a key-driven rebuild) → item's
+    // direct-launch URL → manager page.
     return InAppWebView(
+      key: ValueKey('primary_$_primaryForcedWritingMode'),
       initialUrlRequest: URLRequest(
         url: WebUri(
-          widget.item?.mediaIdentifier ??
+          _primaryCurrentUrl ??
+              widget.item?.mediaIdentifier ??
               'http://localhost:${server.boundPort}/manage.html',
         ),
       ),
+      initialUserScripts: UnmodifiableListView<UserScript>(
+          [_buildWritingModeUserScript(_primaryForcedWritingMode)]),
       onPermissionRequest: (controller, origin) async {
         return PermissionResponse(
           action: PermissionResponseAction.GRANT,
