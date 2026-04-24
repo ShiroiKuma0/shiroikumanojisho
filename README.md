@@ -4,7 +4,7 @@
 <h3 align="center">白い熊の辞書</h3>
 <p align="center">A full-featured immersion language learning suite for mobile, for any language.</p>
 <p align="center">
-  <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.0.3">
+  <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.0.4">
     <img src="https://img.shields.io/github/v/release/arianneorpilla/jidoujisho?include_prereleases" alt="latest release" />
   </a>
   <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/commits/main">
@@ -56,7 +56,8 @@
 <p align="center" style="margin:0"><b>‍🧪 Latest Release:
   <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.0.1">1.0.1</a> .
   <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.0.2">1.0.2</a> .
-  <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.0.3">1.0.3</a>
+  <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.0.3">1.0.3</a> .
+  <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.0.4">1.0.4</a>
 </b></p>
 
 <b>
@@ -134,7 +135,7 @@
   <a href="https://github.com/ShiroiKuma0/jidoujisho2/releases/tag/v2.10.3">2.10.3</a><br></b>
 </b><i>白い熊の辞書</i> <b>
   <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.0.0">1.0.0</a> .
-  <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.0.3">1.0.3</a></b>
+  <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.0.4">1.0.4</a></b>
 </p>
 
 
