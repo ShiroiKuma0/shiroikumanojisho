@@ -28,13 +28,32 @@ class _HomePageState extends BasePageState<HomePage>
 
   String get appName => appModel.packageInfo.appName;
   String get appVersion {
-    // Show both the semver (version) and the build number (+N) so that
-    // at-a-glance, dev iterations are distinguishable in the running
-    // app. pubspec `version: 1.0.0+3` -> title reads "1.0.0+3".
+    // Show the pubspec `X.Y.Z+N` form in the app bar so dev iterations
+    // are visually distinguishable from releases (release has no +N).
+    //
+    // `PackageInfo.buildNumber` on Android returns the manifest
+    // `versionCode` as a string. In this project `versionCode` is
+    // packed in `android/app/build.gradle` as
+    // `X*1_000_000 + Y*10_000 + Z*100 + N` so Android sees a strictly
+    // monotonic integer across releases and dev iterations. Concat-
+    // enating it raw would render `1.0.2+1000200` in the title bar,
+    // which is what prompted this function. Recover pubspec's `N` as
+    // `versionCode % 100` — the Z*100 term and everything above it is
+    // a multiple of 100, and N is clamped to 0..99 at the gradle
+    // layer, so the low two digits are exactly N.
+    //
+    // Legacy note: pre-packing builds used `versionCode = 100*N +
+    // abi_offset` and maxed out around ~2500. Those installs show a
+    // nonsense `+N` under this rule until overwritten by the next
+    // install, which is fine — any new build has versionCode
+    // >= 1_000_000 and renders correctly.
     final info = appModel.packageInfo;
-    final buildNumber = info.buildNumber;
-    if (buildNumber.isEmpty) return info.version;
-    return '${info.version}+$buildNumber';
+    if (info.buildNumber.isEmpty) return info.version;
+    final code = int.tryParse(info.buildNumber);
+    if (code == null) return info.version;
+    final pubspecN = code % 100;
+    if (pubspecN == 0) return info.version;
+    return '${info.version}+$pubspecN';
   }
 
   int get currentHomeTabIndex => appModel.currentHomeTabIndex;
