@@ -554,62 +554,64 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
         ),
         // Volume indicator
         if (_showVolumeIndicator)
-          Positioned(
-            right: 20, top: 0, bottom: 0,
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.volume_up,
-                        color: Color(0xFFFFFF00), size: 28),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${(_gestureVolume / _gestureMaxVolume * 100).round()}%',
-                      style: const TextStyle(
-                          color: Color(0xFFFFFF00), fontSize: 14),
-                    ),
-                  ],
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.volume_up,
+                          color: Color(0xFFFFFF00), size: 28),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${(_gestureVolume / _gestureMaxVolume * 100).round()}%',
+                        style: const TextStyle(
+                            color: Color(0xFFFFFF00), fontSize: 14),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
         // Font size indicator
         if (_showFontSizeIndicator)
-          Positioned(
-            left: 20, top: 0, bottom: 0,
-            child: Center(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.format_size,
-                        color: Color(0xFFFFFF00), size: 28),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${(_lastFontSwipeWasSecondary ? _gestureFontSizeSecondary : _gestureFontSize).round()}px',
-                      style: const TextStyle(
-                          color: Color(0xFFFFFF00), fontSize: 14),
-                    ),
-                    if (_secondaryShown) ...[
-                      const SizedBox(height: 2),
+          Positioned.fill(
+            child: IgnorePointer(
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.7),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.format_size,
+                          color: Color(0xFFFFFF00), size: 28),
+                      const SizedBox(height: 4),
                       Text(
-                        _lastFontSwipeWasSecondary ? 'translation' : 'primary',
+                        '${(_lastFontSwipeWasSecondary ? _gestureFontSizeSecondary : _gestureFontSize).round()}px',
                         style: const TextStyle(
-                            color: Color(0xFFFFFF00), fontSize: 10),
+                            color: Color(0xFFFFFF00), fontSize: 14),
                       ),
+                      if (_secondaryShown) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          _lastFontSwipeWasSecondary ? 'translation' : 'primary',
+                          style: const TextStyle(
+                              color: Color(0xFFFFFF00), fontSize: 10),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),
