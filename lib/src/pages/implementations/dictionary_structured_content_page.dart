@@ -131,27 +131,35 @@ void _replaceTextNode(dom.Text textNode, Language language) {
 
   final replacements = <dom.Node>[];
   for (final token in tokens) {
-    // Tokens from textToWords may embed leading or trailing whitespace /
-    // punctuation (Mecab keeps delimiters attached to the preceding
-    // word). Peel those off so the <scanword> element holds only the
-    // word itself and the surrounding whitespace stays as plain text.
-    // Concatenating all replacements reconstructs the original string
-    // byte-for-byte, so the rendered layout is unchanged.
-    final trimmedRight = token.trimRight();
-    final trailing = token.substring(trimmedRight.length);
-    final trimmed = trimmedRight.trimLeft();
-    final leading =
-        trimmedRight.substring(0, trimmedRight.length - trimmed.length);
+    // Peel leading and trailing non-letter characters off the token
+    // so the <scanword> element holds only its letter core. Unlike
+    // the earlier whitespace-only peel, this also strips
+    // punctuation, brackets, quotes, etc. -- essential for Latin-
+    // script languages whose splitters emit tokens like "mother." or
+    // "(hahaoya)" where the attached punctuation would otherwise
+    // become part of the search term. Concatenating leading + word +
+    // trailing reconstructs the original token byte-for-byte, so
+    // rendered layout is unchanged. For Japanese the change is a
+    // no-op in practice because Mecab emits punctuation as its own
+    // tokens, so the letter core already coincides with the token.
+    final leadingMatch = _leadingNonLetterRegExp.firstMatch(token);
+    final leadingEnd = leadingMatch?.end ?? 0;
+    final leading = token.substring(0, leadingEnd);
+    final afterLeading = token.substring(leadingEnd);
+    final trailingMatch = _trailingNonLetterRegExp.firstMatch(afterLeading);
+    final trailingStart = trailingMatch?.start ?? afterLeading.length;
+    final word = afterLeading.substring(0, trailingStart);
+    final trailing = afterLeading.substring(trailingStart);
 
     if (leading.isNotEmpty) {
       replacements.add(dom.Text(leading));
     }
-    if (trimmed.isEmpty) {
-      // Whole token was whitespace; leading already captured it.
-    } else if (_containsJapanese(trimmed)) {
-      replacements.add(dom.Element.tag('scanword')..text = trimmed);
+    if (word.isEmpty) {
+      // Whole token was non-letter characters; leading captured it.
+    } else if (_isScannableWord(word, language)) {
+      replacements.add(dom.Element.tag('scanword')..text = word);
     } else {
-      replacements.add(dom.Text(trimmed));
+      replacements.add(dom.Text(word));
     }
     if (trailing.isNotEmpty) {
       replacements.add(dom.Text(trailing));
@@ -163,9 +171,40 @@ void _replaceTextNode(dom.Text textNode, Language language) {
   parent.nodes.insertAll(idx, replacements);
 }
 
+/// Matches a run of non-letter runes at the start of a string.
+/// Cached at module scope so the dictionary-entry walk does not
+/// recompile the pattern per token.
+final RegExp _leadingNonLetterRegExp = RegExp(r'^\P{L}+', unicode: true);
+
+/// As above but anchored at the end.
+final RegExp _trailingNonLetterRegExp = RegExp(r'\P{L}+$', unicode: true);
+
+/// Decides whether a peeled word core should become a tappable scan
+/// word for the given [language]. Space-delimited languages
+/// (English, Czech, German, Polish, Russian, Ukrainian, custom
+/// Latin-script users) accept any non-empty letter run -- the peel
+/// that produced [word] already guarantees it is letters-only.
+/// Non-space-delimited languages (Japanese, and any future CJK
+/// addition) require the word to contain at least one character in
+/// the native script via [_containsJapanese], so Latin interlinear
+/// (readings, romanizations, bibliographic abbreviations) inside
+/// Japanese entries stays non-tappable as before -- tapping them
+/// would search a term that cannot resolve against the active
+/// dictionary anyway.
+bool _isScannableWord(String word, Language language) {
+  if (word.isEmpty) {
+    return false;
+  }
+  if (language.isSpaceDelimited) {
+    return true;
+  }
+  return _containsJapanese(word);
+}
+
 /// True if [text] contains at least one character in the Japanese writing
 /// system (hiragana, katakana, or CJK unified ideographs and common
-/// extensions). Used to decide whether a segmented token should become a
+/// extensions). Used by [_isScannableWord] on non-space-delimited
+/// languages to decide whether a segmented token should become a
 /// tappable scan word.
 bool _containsJapanese(String text) {
   for (final code in text.runes) {
