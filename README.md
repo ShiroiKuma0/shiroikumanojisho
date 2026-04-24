@@ -2,9 +2,9 @@
   <img src="https://github.com/ShiroiKuma0/shiroikumanojisho/blob/main/assets/meta/icon.png" width="250" height="250">
 </p>
 <h3 align="center">白い熊の辞書</h3>
-<p align="center">A full-featured immersion language learning suite for mobile.</p>
+<p align="center">A full-featured immersion language learning suite for mobile, for any language.</p>
 <p align="center">
-  <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.0.1">
+  <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.0.2">
     <img src="https://img.shields.io/github/v/release/arianneorpilla/jidoujisho?include_prereleases" alt="latest release" />
   </a>
   <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/commits/main">
@@ -39,12 +39,12 @@
 
 # Code additions on top of original jidoujisho
 
+* Multi-language support (German, Polish, Russian, Ukrainian, Czech)
 * Display secondary subtitle - for English translation - on top concurrently
 * Subtitle font, color, weight etc. modification for primary and secondary subtitles
 * Subtitles vertical position change
 * Keyboard control for playback
 * Main text UI color change for dark theme
-* Multi-language support (German, Polish, Russian, Ukrainian, Czech)
 * Dictionary management improvements (edit, reorder, search button)
 * Reader audio toolbar with SRT subtitle sync and playback modes
 * Dual-language reader with translation book split view
@@ -54,7 +54,8 @@
 * Etc. - as per the changelog
 
 <p align="center" style="margin:0"><b>‍🧪 Latest Release:
-  <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.0.1">1.0.1</a>
+  <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.0.1">1.0.1</a> .
+  <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.0.2">1.0.2</a>
 </b></p>
 
 <b>
@@ -132,7 +133,7 @@
   <a href="https://github.com/ShiroiKuma0/jidoujisho2/releases/tag/v2.10.3">2.10.3</a><br></b>
 </b><i>白い熊の辞書</i> <b>
   <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.0.0">1.0.0</a> .
-  <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.0.1">1.0.1</a></b>
+  <a href="https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.0.2">1.0.2</a></b>
 </p>
 
 
