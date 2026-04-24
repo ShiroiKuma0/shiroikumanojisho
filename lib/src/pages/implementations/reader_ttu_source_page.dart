@@ -1002,8 +1002,29 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
   /// Primary and secondary (translation) books each have their own stored
   /// settings keyed by their respective unique keys. Each controller only
   /// receives its book's settings so they can be configured independently.
+  ///
+  /// On non-book TTU pages (library manager, settings, initial load
+  /// before any book opens) there is no current book to style, so
+  /// instead of injecting CSS keyed by the placeholder `default` key
+  /// this strips any previously-injected `#reader-appearance`
+  /// stylesheet. Without this strip, the writing-mode rule on
+  /// `html, body` from a prior book page (or from the Japanese-primary
+  /// default of vertical-rl, resolved for the `default` key on cold
+  /// start) would persist on the manager page and rotate its layout:
+  /// the top-bar flex icons stack vertically, and the book-tile grid
+  /// collapses into a narrow strip of black because TTU's tile
+  /// container's `width: 100%` resolves into the block (now vertical)
+  /// axis.
   void _applyReaderSettings() async {
     final String languageCode = appModel.targetLanguage.languageCode;
+
+    if (_currentBookId == null) {
+      await _stripAppearanceStylesheet(_controller);
+      if (_secondaryController != null) {
+        await _stripAppearanceStylesheet(_secondaryController!);
+      }
+      return;
+    }
 
     // Primary
     String primaryKey = _safeBookKey();
@@ -1055,6 +1076,27 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
         document.head.appendChild(s);
       })();
     ''';
+  }
+
+  /// Remove any previously-injected `#reader-appearance` stylesheet
+  /// from a TTU webview. Used by [_applyReaderSettings] when the
+  /// current TTU page is not a book page, so per-book CSS (writing
+  /// mode, background, margins) does not leak into the manager or
+  /// settings views. Safe to call when no stylesheet is present —
+  /// the `getElementById` check no-ops.
+  Future<void> _stripAppearanceStylesheet(
+      InAppWebViewController controller) async {
+    try {
+      await controller.evaluateJavascript(source: '''
+        (function() {
+          var el = document.getElementById('reader-appearance');
+          if (el) el.remove();
+        })();
+      ''');
+    } catch (_) {
+      // Webview torn down or JS context gone — next navigation's
+      // onLoadStop will retry.
+    }
   }
 
   /// CSS to restyle the ッツ reader UI as yellow-on-black.
