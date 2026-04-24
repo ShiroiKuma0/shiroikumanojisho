@@ -49,6 +49,7 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
   static const List<String> _ttuSettingsKeys = [
     'fontFamilyGroupOne',
     'fontFamilyGroupTwo',
+    'fontSize',
     'lineHeight',
     'hideSpoilerImage',
     'viewMode',
@@ -56,10 +57,26 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
   static const Map<String, String> _ttuSettingsDefaults = {
     'fontFamilyGroupOne': 'Noto Sans JP',
     'fontFamilyGroupTwo': 'Noto Sans JP',
+    'fontSize': '20',
     'lineHeight': '1',
     'hideSpoilerImage': '0',
     'viewMode': 'continuous',
   };
+  /// Tracked TTU keys that the periodic snapshot loop must NOT
+  /// read from localStorage. Keys excluded here are the ones that
+  /// can be changed via Flutter-side gestures (currently fontSize)
+  /// — the gesture handler writes those directly to the appropriate
+  /// per-book Hive entry on drag end. Routing them through the
+  /// snapshot loop instead would clobber the wrong pane's Hive
+  /// entry, because both panes share the same TTU origin and so
+  /// the same localStorage; the snapshot reads whatever the most
+  /// recent write set, which after seeding the secondary on its
+  /// onLoadStop is always the secondary's value. TTU-UI-driven
+  /// settings (font family, line height, view mode, image blur)
+  /// stay in the snapshot path because the user can only change
+  /// them via TTU's in-webview Settings panel and there's no
+  /// gesture path to wire a direct write through.
+  static const Set<String> _snapshotExclusions = {'fontSize'};
   Timer? _settingsSnapshotTimer;
   bool _settingsInitialized = false;
 
@@ -456,6 +473,22 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
     } else {
       Future.delayed(const Duration(milliseconds: 600),
           () { if (mounted) setState(() => _showFontSizeIndicator = false); });
+      // Persist the final font size to the appropriate per-book
+      // Hive entry. The drag-update path writes localStorage on
+      // every tick for immediate display, but localStorage is
+      // shared per-origin between primary and secondary panes —
+      // routing fontSize through the periodic snapshot loop
+      // instead would land the most recent shared write into the
+      // wrong pane's Hive entry. _lastFontSwipeWasSecondary is
+      // set in the drag-update handler at the time of the actual
+      // swipe so it's authoritative for which pane to attribute
+      // this end event to.
+      final bool isSecondary = _lastFontSwipeWasSecondary;
+      final int px = (isSecondary
+              ? _gestureFontSizeSecondary
+              : _gestureFontSize)
+          .round();
+      _persistFontSizeForPane(isSecondary: isSecondary, fontSize: px);
     }
   }
 
@@ -841,6 +874,20 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
       onLoadStop: (controller, uri) async {
         await controller.evaluateJavascript(
             source: 'window.localStorage.setItem("autoBookmark", "1")');
+        // Seed the secondary's per-book TTU settings (font size,
+        // line height, font family, etc.) into localStorage so this
+        // pane's TTU picks them up on its module init. Both panes
+        // share the same TTU origin and therefore the same
+        // localStorage; this seeding overwrites whatever the primary
+        // wrote earlier in the session, but the primary's TTU has
+        // already cached its values into its in-memory Svelte store
+        // and is unaffected. The seed ordering is what carries the
+        // correct per-pane values across app restarts: each pane's
+        // onLoadStop seeds its own values, then on the next cold
+        // start each pane's TTU initialises from whatever's in
+        // localStorage at the moment its chunks load — which, for
+        // the secondary, is its own values written here.
+        await _applyBookSettings(controller, isSecondary: true);
         await _injectUiTheme(controller);
         await _injectIdbPatch(controller);
         await _injectTtfAutofill(controller);
@@ -977,31 +1024,58 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
     setState(() {});
   }
 
-  /// Apply the per-book TTU settings snapshot (fonts, line-height,
-  /// view mode, image blur) into the webview's localStorage before
-  /// TTU reads them on book render. On a book's first ever open we
-  /// seed the hard-coded defaults and persist them to Hive so later
-  /// opens of the same book restore that state even if the global
-  /// localStorage drifted while a different book was being read.
-  Future<void> _applyBookSettings(InAppWebViewController controller) async {
-    final String key = _safeBookKey();
-    final String hiveKey = 'ttu_settings_$key';
-    Map<String, String> settings;
+  /// Decode this book's TTU settings JSON snapshot from Hive into a
+  /// fully-populated map (defaults filled in for any missing or
+  /// malformed keys). Returns the all-defaults map if no entry is
+  /// stored. Pure read — does not mutate Hive.
+  Map<String, String> _loadBookSettingsMap(String hiveKey) {
     final stored = _readerBox.get(hiveKey);
     if (stored is String) {
       try {
         final dynamic parsed = jsonDecode(stored);
         if (parsed is Map) {
-          settings = {
+          return {
             for (final k in _ttuSettingsKeys)
               k: (parsed[k] ?? _ttuSettingsDefaults[k]!).toString(),
           };
-        } else {
-          settings = Map<String, String>.of(_ttuSettingsDefaults);
         }
-      } catch (_) {
-        settings = Map<String, String>.of(_ttuSettingsDefaults);
-      }
+      } catch (_) {}
+    }
+    return Map<String, String>.of(_ttuSettingsDefaults);
+  }
+
+  /// Apply the per-book TTU settings snapshot for [controller] into
+  /// the webview's localStorage before TTU renders the book.
+  ///
+  /// On a book's first ever open we seed the hard-coded defaults
+  /// and persist them to Hive so later opens of the same book
+  /// restore that state even if the global localStorage drifted
+  /// while a different book was being read.
+  ///
+  /// [isSecondary] selects which book's per-book Hive key to use
+  /// — the primary's [_safeBookKey] or the translation pane's
+  /// [_safeSecondaryBookKey]. Both panes share the same TTU origin
+  /// and therefore the same localStorage. The seeding's effect on
+  /// each pane's TTU is one-shot: TTU reads each tracked key from
+  /// localStorage exactly once at module init into a Svelte store
+  /// and never re-reads. Calling this on a pane's onLoadStop runs
+  /// in time for the NEXT app session's TTU init for that pane,
+  /// which is exactly what carries the per-book values across app
+  /// restarts. In-session, the secondary's seeding overwrites the
+  /// shared key with its own values, but the primary's TTU has
+  /// already cached its value into its in-memory store and is
+  /// unaffected.
+  Future<void> _applyBookSettings(
+    InAppWebViewController controller, {
+    bool isSecondary = false,
+  }) async {
+    final String key =
+        isSecondary ? _safeSecondaryBookKey() : _safeBookKey();
+    final String hiveKey = 'ttu_settings_$key';
+    final stored = _readerBox.get(hiveKey);
+    Map<String, String> settings;
+    if (stored is String) {
+      settings = _loadBookSettingsMap(hiveKey);
     } else {
       settings = Map<String, String>.of(_ttuSettingsDefaults);
       await _readerBox.put(hiveKey, jsonEncode(settings));
@@ -1015,7 +1089,9 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
     });
     sb.write('})();');
     await controller.evaluateJavascript(source: sb.toString());
-    _settingsInitialized = true;
+    if (!isSecondary) {
+      _settingsInitialized = true;
+    }
   }
 
   /// Snapshot current localStorage values for the tracked TTU
@@ -1025,10 +1101,19 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
   /// Silently no-ops if the webview isn't ready or hasn't had
   /// its initial per-book seed applied yet — we must never clobber
   /// the Hive entry with values that belong to a different book.
+  ///
+  /// Keys in [_snapshotExclusions] (currently fontSize) are skipped
+  /// and the existing Hive values for those keys are preserved on
+  /// merge. This is because those keys are gesture-driven and the
+  /// gesture handler writes them directly to the appropriate per-
+  /// book Hive entry — see [_snapshotExclusions] for the rationale.
   Future<void> _snapshotBookSettings() async {
     if (!_settingsInitialized || !_controllerInitialised) return;
     try {
-      final String jsArr = _ttuSettingsKeys
+      final List<String> keysToSnapshot = _ttuSettingsKeys
+          .where((k) => !_snapshotExclusions.contains(k))
+          .toList();
+      final String jsArr = keysToSnapshot
           .map((k) => 'window.localStorage.getItem("$k")')
           .join(',');
       final String js = 'JSON.stringify([$jsArr])';
@@ -1037,20 +1122,51 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
       final String rawStr = raw is String ? raw : raw.toString();
       final dynamic parsed = jsonDecode(rawStr);
       if (parsed is! List) return;
-      final Map<String, String> snap = {};
-      for (int i = 0; i < _ttuSettingsKeys.length; i++) {
+
+      // Merge into the existing Hive entry rather than replacing
+      // wholesale, so gesture-managed excluded keys (fontSize)
+      // aren't dropped on the snapshot write.
+      final String hiveKey = 'ttu_settings_${_safeBookKey()}';
+      final Map<String, String> snap = _loadBookSettingsMap(hiveKey);
+      for (int i = 0; i < keysToSnapshot.length; i++) {
         final dynamic v = i < parsed.length ? parsed[i] : null;
-        snap[_ttuSettingsKeys[i]] =
-            v == null ? _ttuSettingsDefaults[_ttuSettingsKeys[i]]! : v.toString();
+        snap[keysToSnapshot[i]] = v == null
+            ? _ttuSettingsDefaults[keysToSnapshot[i]]!
+            : v.toString();
       }
-      await _readerBox.put(
-        'ttu_settings_${_safeBookKey()}',
-        jsonEncode(snap),
-      );
+      await _readerBox.put(hiveKey, jsonEncode(snap));
     } catch (_) {
       // Webview not ready, JS eval failed, or Hive write raced with
       // dispose — drop the snapshot silently and let the next tick
       // (or the next book open) catch up.
+    }
+  }
+
+  /// Persist the given fontSize to the per-book Hive entry for the
+  /// pane indicated by [isSecondary]. Called from the gesture
+  /// handler on drag end so the user's swipe-driven font size
+  /// changes survive across app restarts on a per-book per-pane
+  /// basis, bypassing the snapshot path which can't disambiguate
+  /// the source pane of a shared-localStorage write.
+  ///
+  /// Silently no-ops if the Hive box isn't open yet (e.g., gesture
+  /// somehow fires before `_initSecondaryBook` completes) — the
+  /// next gesture will have another chance to persist.
+  Future<void> _persistFontSizeForPane({
+    required bool isSecondary,
+    required int fontSize,
+  }) async {
+    if (!_readerBoxReady) return;
+    final String key =
+        isSecondary ? _safeSecondaryBookKey() : _safeBookKey();
+    final String hiveKey = 'ttu_settings_$key';
+    final Map<String, String> existing = _loadBookSettingsMap(hiveKey);
+    existing['fontSize'] = fontSize.toString();
+    try {
+      await _readerBox.put(hiveKey, jsonEncode(existing));
+    } catch (_) {
+      // Hive write raced with dispose — drop. The next gesture or
+      // app reopen seeding will recover from the previous good value.
     }
   }
 
