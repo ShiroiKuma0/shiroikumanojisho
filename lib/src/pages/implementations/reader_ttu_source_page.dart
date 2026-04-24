@@ -287,22 +287,33 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
   bool _readerBoxReady = false;
 
   /// Storage key for all per-book state (split view, audio, TTU
-  /// settings, bookmarks). Three-tier fallback:
+  /// settings, bookmarks). Every key is scoped by the active target
+  /// language code so books across languages cannot collide --
+  /// [ttuServerProvider] is a `Provider.family<_, Language>` so each
+  /// language gets its own TTU instance with its own IndexedDB and
+  /// its own book-id counter starting at 1, which without this
+  /// namespacing caused a Japanese book with `?id=1` and a Polish
+  /// book with `?id=1` to share the same Hive entries and stomp on
+  /// each other's per-book state.
   ///
-  /// 1. URL-derived book id from TTU (`?id=X`) — the correct answer
-  ///    for books opened via TTU's library manager, which is most
-  ///    opens in practice.
-  /// 2. `widget.item?.uniqueKey` — used by non-library launches like
-  ///    settings pages where the item is explicitly supplied.
-  /// 3. `'default'` — last-ditch fallback, matches pre-feature
-  ///    behavior so nothing breaks in edge cases we haven't
-  ///    anticipated.
+  /// Three-tier fallback, all prefixed by language code:
+  ///
+  /// 1. Language + URL-derived book id from TTU (`?id=X`) -- the
+  ///    correct answer for books opened via TTU's library manager,
+  ///    which is most opens in practice.
+  /// 2. Language + `widget.item?.uniqueKey` -- used by non-library
+  ///    launches like settings pages where the item is explicitly
+  ///    supplied.
+  /// 3. Language + `'default'` -- last-ditch fallback for edge
+  ///    cases we have not anticipated.
   String _safeBookKey() {
+    final languageCode = appModel.targetLanguage.languageCode;
     String k;
     if (_currentBookId != null) {
-      k = 'book_${_currentBookId!}';
+      k = 'book_${languageCode}_${_currentBookId!}';
     } else {
-      k = widget.item?.uniqueKey ?? 'default';
+      final fallback = widget.item?.uniqueKey ?? 'default';
+      k = '${languageCode}_$fallback';
     }
     return k.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
   }
