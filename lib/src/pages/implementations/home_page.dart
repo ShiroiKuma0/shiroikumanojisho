@@ -409,6 +409,65 @@ class _HomePageState extends BasePageState<HomePage>
     );
   }
 
+  /// Prompt for the user's custom storage root path. Used to reach
+  /// the SD card (typically mounted at `/storage/<UUID>`) which
+  /// Android's scoped-storage layer hides from `/storage/` listings
+  /// even with `MANAGE_EXTERNAL_STORAGE` granted. The user copies
+  /// the path from a separate file manager and pastes/types it here.
+  ///
+  /// Empty input clears the setting so the picker reverts to opening
+  /// internal storage directly. Setting a non-empty value makes the
+  /// picker show a chooser screen with both internal storage and
+  /// the custom path as separate entries.
+  void showCustomStoragePathDialog() async {
+    final controller = TextEditingController(
+      text: appModel.customStorageRootPath ?? '',
+    );
+    final saved = await showDialog<String?>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Custom storage path'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Path to a storage volume (e.g. SD card) that '
+              "Android's scoped storage hides from /storage/ listings. "
+              "Find the path in a separate file manager (it usually "
+              "looks like /storage/XXXX-XXXX) and enter it here. The "
+              "picker will then offer it alongside internal storage.\n\n"
+              "Leave empty to clear.",
+              style: TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autocorrect: false,
+              enableSuggestions: false,
+              decoration: const InputDecoration(
+                hintText: '/storage/6262-6432',
+                isDense: true,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, null),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (saved == null) return; // Cancelled.
+    appModel.customStorageRootPath = saved.isEmpty ? null : saved;
+  }
+
   void navigateToLicensePage() async {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -554,6 +613,11 @@ class _HomePageState extends BasePageState<HomePage>
         label: t.options_profiles,
         icon: Icons.switch_account,
         action: appModel.showProfilesMenu,
+      ),
+      buildPopupItem(
+        label: 'Custom storage path',
+        icon: Icons.sd_card,
+        action: showCustomStoragePathDialog,
       ),
       buildPopupItem(
         label: t.options_ui_text_color,

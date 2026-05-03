@@ -526,7 +526,10 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
         _mp3Path != null ? File(_mp3Path!).parent.path : null;
     final path = await Navigator.of(context).push<String>(
       MaterialPageRoute(
-        builder: (_) => FolderAudioPicker(initialDir: initDir),
+        builder: (_) => FolderAudioPicker(
+          appModel: widget.appModel,
+          initialDir: initDir,
+        ),
       ),
     );
     if (path != null) {
