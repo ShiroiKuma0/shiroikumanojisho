@@ -138,6 +138,11 @@ class ReaderTtuSource extends ReaderMediaSource {
     required AppModel appModel,
   }) {
     return [
+      buildImportButton(
+        context: context,
+        ref: ref,
+        appModel: appModel,
+      ),
       buildTweaksButton(
         context: context,
         ref: ref,
@@ -154,6 +159,38 @@ class ReaderTtuSource extends ReaderMediaSource {
         appModel: appModel,
       ),
     ];
+  }
+
+  /// Toolbar action for importing an EPUB straight from the Reader
+  /// tab without first having to launch the TTU library manager.
+  /// Sets a one-shot flag on AppModel and opens the manager — the
+  /// reader page's onLoadStop consumes the flag and auto-triggers
+  /// its file-picker flow once the manager DOM is available.
+  ///
+  /// This bypasses the in-webview `<input type="file">` chooser,
+  /// which on Boox firmware crashes the device's IntentResolver
+  /// system app. See _importEpubViaFilePicker on the reader page
+  /// for full background.
+  Widget buildImportButton({
+    required BuildContext context,
+    required WidgetRef ref,
+    required AppModel appModel,
+  }) {
+    return FloatingSearchBarAction(
+      showIfOpened: true,
+      child: JidoujishoIconButton(
+        size: Theme.of(context).textTheme.titleLarge?.fontSize,
+        tooltip: 'Import EPUB',
+        icon: Icons.note_add,
+        onTap: () {
+          appModel.ttuImportPending = true;
+          appModel.openMedia(
+            ref: ref,
+            mediaSource: this,
+          );
+        },
+      ),
+    );
   }
 
   /// Allows user to close the floating search bar of a media type tab page

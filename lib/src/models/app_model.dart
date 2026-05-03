@@ -801,6 +801,41 @@ class AppModel with ChangeNotifier {
     _currentMediaSource = mediaItem.getMediaSource(appModel: this);
   }
 
+  /// One-shot flag: when set, the next TTU reader page that finishes
+  /// loading the manager page will auto-trigger the EPUB import
+  /// picker. Used by the Reader-tab toolbar's "import" button to
+  /// hand off into the reader page's import flow without first
+  /// requiring the user to tap a second button on the manager page.
+  ///
+  /// The reader page consumes this flag (sets it back to false)
+  /// inside its onLoadStop handler when the manager page settles,
+  /// so the auto-trigger is one-shot per Reader-tab tap and doesn't
+  /// keep firing on subsequent navigations.
+  bool ttuImportPending = false;
+
+  /// Optional user-specified storage root path, typically used to
+  /// reach the SD card (mounted at `/storage/<UUID>`) when Android's
+  /// scoped storage forbids `/storage/` from being listed by third-
+  /// party apps. Surfaces in [FolderAudioPicker]'s volume chooser as
+  /// a second entry alongside internal storage when set.
+  ///
+  /// Returns null when not set or empty so call sites can use `??`
+  /// to default cleanly. The setter accepts an empty string from a
+  /// "clear" UI gesture and persists it as ''; the getter normalizes
+  /// '' back to null.
+  String? get customStorageRootPath {
+    final String v = _preferences.get(
+      'custom_storage_root_path',
+      defaultValue: '',
+    );
+    return v.isEmpty ? null : v;
+  }
+
+  set customStorageRootPath(String? value) {
+    _preferences.put('custom_storage_root_path', value ?? '');
+    notifyListeners();
+  }
+
   /// Get a mapping with a given mapping name.
   AnkiMapping? getMappingFromLabel(String label) {
     return _database.ankiMappings.where().labelEqualTo(label).findFirstSync();

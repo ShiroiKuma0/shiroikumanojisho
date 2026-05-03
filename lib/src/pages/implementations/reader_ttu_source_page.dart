@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:document_file_save_plus/document_file_save_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -149,6 +150,14 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
   /// back to the manager or the cold-start URL when the primary is
   /// reconstructed to pick up a new forced writing mode.
   String? _primaryCurrentUrl;
+
+  /// Last URL observed for the secondary (translation pane) webview.
+  /// Used purely to decide whether the EPUB-import FAB should target
+  /// the secondary pane or the primary — when the user is choosing
+  /// a translation book through the bottom split's TTU manager page,
+  /// the FAB tap needs to go to the secondary controller, not the
+  /// primary, so the imported book lands in the translation slot.
+  String? _secondaryCurrentUrl;
 
   // Edge gesture state
   static const _volumeChannel =
@@ -332,7 +341,17 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
       // On an SPA navigation (manager → book, book → manager, book →
       // different book) this keeps the user on the same TTU route
       // when a subsequent writing-mode change rebuilds the webview.
-      _primaryCurrentUrl = uri.toString();
+      final String? oldUrl = _primaryCurrentUrl;
+      final String newUrl = uri.toString();
+      _primaryCurrentUrl = newUrl;
+      // Trigger a rebuild if we crossed into or out of /manage.html
+      // — that's the gate for the EPUB-import FAB's visibility. Only
+      // toggle on transition to avoid a setState every onLoadStop.
+      final bool wasManager = oldUrl?.contains('/manage.html') ?? false;
+      final bool isManager = newUrl.contains('/manage.html');
+      if (mounted && wasManager != isManager) {
+        setState(() {});
+      }
       String? newId = uri.queryParameters['id'];
       if (newId == _currentBookId) return;
       _currentBookId = newId;
@@ -772,6 +791,19 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
             onRemoveSecondary: _removeSecondary,
             onSettingsChanged: _applyReaderSettings,
           ),
+          // EPUB-import FAB visible only on the TTU library
+          // manager page. Bypasses the in-webview <input type="file">
+          // chooser that crashes Boox firmware via IntentResolver.
+          // See [_importEpubViaFilePicker] for full background.
+          floatingActionButton: _showImportFab
+              ? FloatingActionButton(
+                  onPressed: _importEpubViaFilePicker,
+                  backgroundColor: Colors.black,
+                  foregroundColor: const Color(0xFFFFFF00),
+                  tooltip: 'Import EPUB',
+                  child: const Icon(Icons.note_add),
+                )
+              : null,
         ),
       ),
     );
@@ -874,6 +906,20 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
         _secondaryController = controller;
       },
       onLoadStop: (controller, uri) async {
+        // Track secondary URL for the EPUB-import FAB visibility/
+        // attribution. Setting state only on transition into/out of
+        // /manage.html avoids unnecessary rebuilds on every load.
+        if (uri != null) {
+          final String? oldUrl = _secondaryCurrentUrl;
+          final String newUrl = uri.toString();
+          _secondaryCurrentUrl = newUrl;
+          final bool wasManager =
+              oldUrl?.contains('/manage.html') ?? false;
+          final bool isManager = newUrl.contains('/manage.html');
+          if (mounted && wasManager != isManager) {
+            setState(() {});
+          }
+        }
         await controller.evaluateJavascript(
             source: 'window.localStorage.setItem("autoBookmark", "1")');
         // Seed the secondary's per-book TTU settings (font size,
@@ -1023,6 +1069,7 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
     _hasSecondary = false;
     _secondaryShown = false;
     _secondaryController = null;
+    _secondaryCurrentUrl = null;
     setState(() {});
   }
 
@@ -1190,6 +1237,175 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
   /// collapses into a narrow strip of black because TTU's tile
   /// container's `width: 100%` resolves into the block (now vertical)
   /// axis.
+  /// Trigger an EPUB import via Flutter's file_picker, bypassing
+  /// the in-webview <input type="file"> picker.
+  ///
+  /// Background: TTU's manage page has an "import file" button that
+  /// is a standard HTML file input wired through a Svelte action
+  /// handler. Tapping it inside the webview asks Android to launch
+  /// a file chooser via ACTION_GET_CONTENT, which on Boox firmware
+  /// hits a buggy IntentResolver and crashes (the device's
+  /// IntentResolver app fatals before the user can even pick a
+  /// file). We can't fix Boox's system component from here.
+  ///
+  /// We can sidestep it: file_picker uses ACTION_OPEN_DOCUMENT,
+  /// which talks directly to DocumentsUI without going through
+  /// IntentResolver, so it works fine on Boox. After picking, we
+  /// stuff the chosen bytes into a JS File object inside the
+  /// webview, set them on TTU's existing <input type="file"> as
+  /// .files, and dispatch a 'change' event. TTU's Svelte handler
+  /// receives the FileList exactly as if the user had picked
+  /// through the native chooser, and the import flow proceeds
+  /// normally.
+  ///
+  /// This only works when we're on the TTU /manage.html page,
+  /// because that's where the input element exists. The FAB that
+  /// triggers this is gated on the same condition. If somehow
+  /// called from elsewhere we navigate to the manager page first.
+  Future<void> _importEpubViaFilePicker() async {
+    if (!_controllerInitialised) return;
+    final InAppWebViewController? target = _pickImportController();
+    if (target == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(
+            'Open the TTU library manager first.')),
+        );
+      }
+      return;
+    }
+
+    FilePickerResult? picked;
+    try {
+      picked = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['epub'],
+        withData: true,
+      );
+    } catch (e) {
+      // Picker itself failed — surface to user and bail.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Picker failed: $e')),
+        );
+      }
+      return;
+    }
+    if (picked == null || picked.files.isEmpty) return;
+    final f = picked.files.single;
+    final Uint8List? bytes = f.bytes;
+    if (bytes == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not read picked file')),
+        );
+      }
+      return;
+    }
+    // Sanitize filename for JS string literal.
+    final String safeName = (f.name.isNotEmpty ? f.name : 'imported.epub')
+        .replaceAll(r'\', r'\\')
+        .replaceAll('"', r'\"');
+
+    // Encode bytes as base64 for the bridge — evaluateJavascript's
+    // string arguments are only safe for ASCII; binary needs base64.
+    final String b64 = base64Encode(bytes);
+
+    // Inject: build File from b64, set on the EPUB-accepting input,
+    // dispatch 'change' so TTU's Svelte action picks it up. All
+    // synchronous DOM ops — no async wrapper. We do NOT await TTU's
+    // own import flow; that runs through promises in the background
+    // and surfaces its own progress dialog and result. We only
+    // report errors that prevent the dispatch itself from happening
+    // (input not found, etc.). On success we say nothing — TTU's
+    // progress UI is sufficient feedback.
+    final String js = '''
+      (function() {
+        try {
+          var b64 = "$b64";
+          var bin = atob(b64);
+          var len = bin.length;
+          var arr = new Uint8Array(len);
+          for (var i = 0; i < len; i++) arr[i] = bin.charCodeAt(i);
+          var file = new File([arr], "$safeName", { type: "application/epub+zip" });
+          var input = document.querySelector('input[type="file"][accept*=".epub"]');
+          if (!input) return JSON.stringify({ ok: false, err: "Could not find import input on this page." });
+          var dt = new DataTransfer();
+          dt.items.add(file);
+          input.files = dt.files;
+          input.dispatchEvent(new Event("change", { bubbles: true }));
+          return JSON.stringify({ ok: true });
+        } catch (e) {
+          return JSON.stringify({ ok: false, err: String(e && e.message || e) });
+        }
+      })();
+    ''';
+
+    try {
+      final dynamic result = await target.evaluateJavascript(source: js);
+      final String resultStr = result is String ? result : '${result ?? ''}';
+      Map<String, dynamic>? parsed;
+      try {
+        parsed = jsonDecode(resultStr) as Map<String, dynamic>;
+      } catch (_) {}
+      // Only surface a snackbar if the synchronous dispatch itself
+      // reported an error. On ok===true we say nothing and let TTU's
+      // own progress dialog be the visible feedback. On parse failure
+      // we also stay silent: it most often means the JS bridge round-
+      // tripped a non-string for legitimate reasons (e.g., the
+      // webview was mid-rebuild) and the dispatch likely succeeded.
+      if (parsed != null && parsed['ok'] == false) {
+        final String err = parsed['err']?.toString() ?? 'unknown error';
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Import failed: $err')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Injection failed: $e')),
+        );
+      }
+    }
+  }
+
+  /// Whether the FAB for triggering EPUB import should currently be
+  /// visible. Visible whenever EITHER the primary or the secondary
+  /// pane is on TTU's library manager page (where the import input
+  /// exists in DOM). Tracked via [_primaryCurrentUrl] /
+  /// [_secondaryCurrentUrl], kept in sync on every onLoadStop /
+  /// onTitleChanged.
+  bool get _showImportFab {
+    final p = _primaryCurrentUrl;
+    final s = _secondaryCurrentUrl;
+    if (p != null && p.contains('/manage.html')) return true;
+    if (s != null && s.contains('/manage.html')) return true;
+    return false;
+  }
+
+  /// Pick the webview controller the FAB should target. If only one
+  /// pane is on the manager page, target that one. If both somehow
+  /// are (rare — would mean the user opened the manager on both
+  /// halves of a split), prefer the secondary because that's the
+  /// pane the user most recently navigated to manage; the primary
+  /// having the manager page open is the cold-start state and not
+  /// the active context.
+  InAppWebViewController? _pickImportController() {
+    final s = _secondaryCurrentUrl;
+    if (_secondaryController != null &&
+        s != null &&
+        s.contains('/manage.html')) {
+      return _secondaryController;
+    }
+    final p = _primaryCurrentUrl;
+    if (p != null && p.contains('/manage.html')) {
+      return _controller;
+    }
+    return null;
+  }
+
   void _applyReaderSettings() async {
     final String languageCode = appModel.targetLanguage.languageCode;
 
@@ -2122,6 +2338,21 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
         _applyReaderSettings();
         _initGestureFontSize();
         Future.delayed(const Duration(seconds: 1), _focusNode.requestFocus);
+
+        // One-shot consumption of the Reader-tab "import" toolbar
+        // button's pending flag. If set, we're now on a settled TTU
+        // page (likely the manager); auto-trigger the picker so the
+        // user gets the file dialog without having to tap a second
+        // button. We clear the flag immediately so subsequent load
+        // events on the same session don't re-fire the picker.
+        if (appModel.ttuImportPending && _showImportFab) {
+          appModel.ttuImportPending = false;
+          // Slight delay so the manager DOM is fully laid out;
+          // querySelector on the import input must succeed.
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted) _importEpubViaFilePicker();
+          });
+        }
       },
       onTitleChanged: (controller, title) async {
         await _updateCurrentBookFromUrl(controller);
