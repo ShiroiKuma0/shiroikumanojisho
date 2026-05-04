@@ -48,6 +48,7 @@ class FolderAudioPicker extends StatefulWidget {
     this.allowedExtensions = const [
       '.mp3',
       '.m4a',
+      '.m4b',
       '.ogg',
       '.wav',
       '.flac',
