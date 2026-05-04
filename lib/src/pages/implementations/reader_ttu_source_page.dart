@@ -475,9 +475,17 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
               .round();
       target.evaluateJavascript(
           source: 'window.localStorage.setItem("fontSize", "$px")');
+      // Use setProperty with the "important" priority flag so the
+      // inline style wins over the per-book reader-appearance
+      // stylesheet, which sets `font-size` with `!important` on
+      // `.book-content`. CSS specificity rules: inline !important
+      // beats stylesheet !important. Without the flag, this swipe-
+      // driven write is overridden visually by the stylesheet
+      // (though it still persists to Hive, which is why the change
+      // showed up only on book reopen).
       target.evaluateJavascript(
           source:
-              'document.querySelector(".book-content").style.fontSize = "${px}px"');
+              'document.querySelector(".book-content").style.setProperty("font-size", "${px}px", "important")');
       setState(() {
         _showFontSizeIndicator = true;
         _lastFontSwipeWasSecondary = isSecondary;
@@ -883,8 +891,11 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
     return InAppWebView(
       key: ValueKey('secondary_$_secondaryForcedWritingMode'),
       initialUrlRequest: URLRequest(url: WebUri(url)),
-      initialUserScripts: UnmodifiableListView<UserScript>(
-          [_buildWritingModeUserScript(_secondaryForcedWritingMode)]),
+      initialUserScripts: UnmodifiableListView<UserScript>([
+        _buildWritingModeUserScript(_secondaryForcedWritingMode),
+        _buildFontSizeUserScript(
+            _fontSizeForPaneAtBuild(isSecondary: true)),
+      ]),
       initialSettings: InAppWebViewSettings(
         allowFileAccessFromFileURLs: true,
         allowUniversalAccessFromFileURLs: true,
@@ -1536,6 +1547,78 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
     );
   }
 
+  /// Build a UserScript that intercepts `localStorage.getItem('fontSize')`
+  /// inside a TTU webview and returns [fontSizePx] regardless of what
+  /// localStorage actually holds.
+  ///
+  /// Same shape as [_buildWritingModeUserScript]: injected at
+  /// `AT_DOCUMENT_START` so it runs before TTU's main bundle reads
+  /// localStorage and caches into its Svelte store. The value is
+  /// baked into the script source at construction; to change which
+  /// value TTU reads after the webview is built, the widget's `key`
+  /// must change so Flutter tears down and re-creates the webview
+  /// with a fresh UserScript.
+  ///
+  /// Why this hook is necessary: TTU stores fontSize in localStorage,
+  /// which is per-origin (shared across both panes since both load
+  /// from the same TTU server). Each pane wants its OWN fontSize
+  /// — primary and secondary may have different per-book settings.
+  /// Without this hook, the most recently mounted pane's fontSize
+  /// write wins, and the OTHER pane's TTU init then reads the wrong
+  /// value at module init, sees a value that doesn't match its book,
+  /// and renders at the wrong size.
+  ///
+  /// Particularly visible on app cold-start: both panes are mounted
+  /// near-simultaneously, and whichever pane's settings seeding ran
+  /// last leaves its value in localStorage — the OTHER pane's TTU
+  /// reads that stale value at module init. The user's gesture-set
+  /// fontSize is correct in Hive, but TTU rendering uses whatever
+  /// localStorage said at init time. This hook forces TTU to see
+  /// the per-pane Hive value at module init, sidestepping the race.
+  ///
+  /// Unlike the writingMode hook, [setItem] is NOT swallowed here —
+  /// TTU's own settings UI lets the user adjust fontSize, and we
+  /// want those writes to land in localStorage so the gesture path
+  /// and the snapshot loop can both see them.
+  UserScript _buildFontSizeUserScript(int fontSizePx) {
+    return UserScript(
+      source: '''
+        (function() {
+          if (window.__ttuFontSizeHookInstalled) return;
+          window.__ttuFontSizeHookInstalled = true;
+          var forcedSize = '$fontSizePx';
+          var origGet = Storage.prototype.getItem;
+          Storage.prototype.getItem = function(key) {
+            if (this === window.localStorage && key === 'fontSize') {
+              return forcedSize;
+            }
+            return origGet.apply(this, arguments);
+          };
+        })();
+      ''',
+      injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+    );
+  }
+
+  /// Read the per-book fontSize for the pane indicated by
+  /// [isSecondary] from Hive. Returns the default (20) when no
+  /// per-book entry exists yet (first-ever open of the book) or when
+  /// the box hasn't opened. Used by [_buildFontSizeUserScript] to
+  /// bake the right per-book value into the localStorage hook at
+  /// webview construction time.
+  int _fontSizeForPaneAtBuild({required bool isSecondary}) {
+    const int fallback = 20;
+    if (!_readerBoxReady) return fallback;
+    final String key =
+        isSecondary ? _safeSecondaryBookKey() : _safeBookKey();
+    final Map<String, String> settings =
+        _loadBookSettingsMap('ttu_settings_$key');
+    final String? raw = settings['fontSize'];
+    if (raw == null) return fallback;
+    final int? parsed = int.tryParse(raw);
+    return parsed ?? fallback;
+  }
+
   /// Map a stored per-book writing-mode value (`'vertical'` /
   /// `'horizontal'`) to the CSS/TTU literal (`'vertical-rl'` /
   /// `'horizontal-tb'`).
@@ -1587,6 +1670,19 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
         s.id = 'reader-appearance';
         s.textContent = ${_escapeJsString(css)};
         document.head.appendChild(s);
+        // Strip any inline `font-size` left on `.book-content` by a
+        // prior gesture. Inline `!important` beats stylesheet
+        // `!important`, so without this clear, a swipe-set inline
+        // size would override the dialog-applied stylesheet size on
+        // the next re-injection. We don't strip on every gesture
+        // tick (the gesture itself uses inline !important precisely
+        // because that's how it overrides our stylesheet during a
+        // drag), only on full re-injection — which happens on
+        // dialog Apply, on book load, and on writing-mode rebuild.
+        // In all of those, the stylesheet value is the source of
+        // truth and any leftover inline style is stale.
+        var bc = document.querySelector('.book-content');
+        if (bc) bc.style.removeProperty('font-size');
       })();
     ''';
   }
@@ -2217,8 +2313,11 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
               'http://localhost:${server.boundPort}/manage.html',
         ),
       ),
-      initialUserScripts: UnmodifiableListView<UserScript>(
-          [_buildWritingModeUserScript(_primaryForcedWritingMode)]),
+      initialUserScripts: UnmodifiableListView<UserScript>([
+        _buildWritingModeUserScript(_primaryForcedWritingMode),
+        _buildFontSizeUserScript(
+            _fontSizeForPaneAtBuild(isSecondary: false)),
+      ]),
       onPermissionRequest: (controller, origin) async {
         return PermissionResponse(
           action: PermissionResponseAction.GRANT,

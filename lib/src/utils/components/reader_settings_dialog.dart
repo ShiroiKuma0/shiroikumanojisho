@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -21,6 +22,18 @@ class ReaderAppearanceSettings {
   double lineSpacing;
   String fontFamily;
   String fontFamilySecondary;
+  /// Per-book font size in CSS pixels. Stored in the
+  /// `ttu_settings_<key>` Hive entry's JSON-encoded map under the
+  /// `fontSize` key — the same place TTU's gesture-driven font-size
+  /// adjustments persist to and the same place
+  /// `_buildFontSizeUserScript` reads at webview construction. The
+  /// dialog's UI is just a third writer to that same key, so all
+  /// three pathways stay in sync without a bridging migration.
+  ///
+  /// NOT stored in an `rs_fontSize_<key>` entry like the other rs_*
+  /// settings — that would create two sources of truth and require
+  /// gesture and userscript to read both. Single key wins.
+  int fontSize;
   /// Writing mode for the book content. `'horizontal'` maps to
   /// CSS `writing-mode: horizontal-tb` (standard left-to-right,
   /// top-to-bottom). `'vertical'` maps to CSS
@@ -41,6 +54,7 @@ class ReaderAppearanceSettings {
     this.lineSpacing = 1.0,
     this.fontFamily = '',
     this.fontFamilySecondary = '',
+    this.fontSize = 20,
     this.writingMode = 'horizontal',
   });
 
@@ -80,9 +94,31 @@ class ReaderAppearanceSettings {
       fontFamily: box.get('rs_fontFamily_$bookKey', defaultValue: ''),
       fontFamilySecondary:
           box.get('rs_fontFamily2_$bookKey', defaultValue: ''),
+      fontSize: _loadFontSizeFromTtuSettings(box, bookKey),
       writingMode: box.get('rs_writingMode_$bookKey',
           defaultValue: defaultWritingMode),
     );
+  }
+
+  /// Read the per-book font size from the JSON-encoded
+  /// `ttu_settings_<bookKey>` Hive entry. That entry is a map of
+  /// stringified TTU localStorage keys; we pull `fontSize` out of
+  /// it. Falls back to 20 (TTU's default) if the entry is missing,
+  /// malformed, or doesn't include a fontSize.
+  static int _loadFontSizeFromTtuSettings(Box box, String bookKey) {
+    const int fallback = 20;
+    final dynamic stored = box.get('ttu_settings_$bookKey');
+    if (stored is! String) return fallback;
+    try {
+      final dynamic parsed = jsonDecode(stored);
+      if (parsed is! Map) return fallback;
+      final dynamic raw = parsed['fontSize'];
+      if (raw == null) return fallback;
+      final int? parsedInt = int.tryParse(raw.toString());
+      return parsedInt ?? fallback;
+    } catch (_) {
+      return fallback;
+    }
   }
 
   /// Save settings to Hive box.
@@ -98,7 +134,34 @@ class ReaderAppearanceSettings {
     await box.put('rs_lineSpacing_$bookKey', lineSpacing);
     await box.put('rs_fontFamily_$bookKey', fontFamily);
     await box.put('rs_fontFamily2_$bookKey', fontFamilySecondary);
+    await _saveFontSizeToTtuSettings(box, bookKey);
     await box.put('rs_writingMode_$bookKey', writingMode);
+  }
+
+  /// Persist [fontSize] into the JSON-encoded `ttu_settings_<bookKey>`
+  /// Hive entry alongside the other TTU localStorage values. Reads
+  /// the existing map first so other keys (writingMode, fontFamily
+  /// groups, etc.) are preserved; only the fontSize field is
+  /// updated. Creates the entry with a fontSize-only map if it
+  /// didn't exist yet — TTU's defaults will kick in for the
+  /// untouched keys at next module init.
+  Future<void> _saveFontSizeToTtuSettings(Box box, String bookKey) async {
+    final String hiveKey = 'ttu_settings_$bookKey';
+    Map<String, String> updated = {};
+    final dynamic stored = box.get(hiveKey);
+    if (stored is String) {
+      try {
+        final dynamic parsed = jsonDecode(stored);
+        if (parsed is Map) {
+          updated = {
+            for (final entry in parsed.entries)
+              entry.key.toString(): entry.value.toString(),
+          };
+        }
+      } catch (_) {}
+    }
+    updated['fontSize'] = fontSize.toString();
+    await box.put(hiveKey, jsonEncode(updated));
   }
 
   /// Generate CSS to inject into the WebView.
@@ -187,6 +250,7 @@ class ReaderAppearanceSettings {
     return '''
       .book-content {
         color: $fc !important;
+        font-size: ${fontSize}px !important;
         font-weight: $fw !important;
         line-height: $lineSpacing !important;
         $fontFamilyVarCss
@@ -246,6 +310,7 @@ class _ReaderSettingsDialogState extends State<ReaderSettingsDialog> {
   late TextEditingController _lineSpacingController;
   late TextEditingController _fontFamilyController;
   late TextEditingController _fontFamily2Controller;
+  late TextEditingController _fontSizeController;
 
   final List<String> _fontWeights = ['Thin', 'Normal', 'Bold'];
 
@@ -277,6 +342,7 @@ class _ReaderSettingsDialogState extends State<ReaderSettingsDialog> {
       lineSpacing: widget.settings.lineSpacing,
       fontFamily: widget.settings.fontFamily,
       fontFamilySecondary: widget.settings.fontFamilySecondary,
+      fontSize: widget.settings.fontSize,
       writingMode: widget.settings.writingMode,
     );
     _marginLController =
@@ -295,6 +361,8 @@ class _ReaderSettingsDialogState extends State<ReaderSettingsDialog> {
         TextEditingController(text: _s.fontFamily);
     _fontFamily2Controller =
         TextEditingController(text: _s.fontFamilySecondary);
+    _fontSizeController =
+        TextEditingController(text: _s.fontSize.toString());
 
     // When this page is pushed from the immersive-mode reader, the
     // previous route (WebView) can retain the touch/focus claim long
@@ -321,6 +389,7 @@ class _ReaderSettingsDialogState extends State<ReaderSettingsDialog> {
     _lineSpacingController.dispose();
     _fontFamilyController.dispose();
     _fontFamily2Controller.dispose();
+    _fontSizeController.dispose();
     super.dispose();
   }
 
@@ -441,6 +510,14 @@ class _ReaderSettingsDialogState extends State<ReaderSettingsDialog> {
                       _s.lineSpacing;
               _s.fontFamily = _fontFamilyController.text.trim();
               _s.fontFamilySecondary = _fontFamily2Controller.text.trim();
+              // Font size is clamped: under 8 is unreadable; over 200
+              // breaks the column layout in TTU on small viewports.
+              // If the user typed garbage we keep the previous value.
+              final int? parsedFontSize =
+                  int.tryParse(_fontSizeController.text.trim());
+              if (parsedFontSize != null) {
+                _s.fontSize = parsedFontSize.clamp(8, 200);
+              }
               Navigator.pop(context, _s);
             },
           ),
@@ -528,6 +605,16 @@ class _ReaderSettingsDialogState extends State<ReaderSettingsDialog> {
               // EPUBs). Leave blank to inherit the primary font.
               _fontField('Secondary font', _fontFamily2Controller),
               const SizedBox(height: 16),
+
+              // Font size (px). Same value the gesture-driven
+              // pinch/swipe adjusts; both writers persist into the
+              // ttu_settings_<key> Hive entry. After tapping Apply,
+              // _applyReaderSettings re-injects the appearance CSS
+              // including this size, so the change shows up
+              // immediately in the open book.
+              _numberField('Font size (px)', _fontSizeController,
+                  decimal: false, resetValue: '20'),
+              const SizedBox(height: 12),
 
               // Line spacing
               _numberField('Line spacing', _lineSpacingController,
