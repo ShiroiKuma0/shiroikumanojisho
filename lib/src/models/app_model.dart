@@ -836,6 +836,113 @@ class AppModel with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Default Material `BottomNavigationBar` height (56dp). The user-
+  /// configured value is clamped to [_minBottomNavBarHeight,
+  /// _maxBottomNavBarHeight] on read so a manually-edited preference
+  /// outside the range can't render an unusable bar.
+  static const int _defaultBottomNavBarHeight = 56;
+  static const int _minBottomNavBarHeight = 40;
+  static const int _maxBottomNavBarHeight = 120;
+
+  /// User-configurable height of the home screen's bottom navigation
+  /// bar in logical pixels. The icon size scales with this value
+  /// (see [bottomNavBarIconSize]) so the tabs grow proportionally
+  /// instead of leaving small icons in a tall bar.
+  ///
+  /// Material's `BottomNavigationBar` doesn't accept a fixed-height
+  /// parameter; we instead drive [BottomNavigationBar.iconSize] and
+  /// rely on the widget's intrinsic layout to grow with the icons.
+  /// As a result, the rendered bar height tracks this preference
+  /// approximately, not exactly. Close enough — exact pixel
+  /// enforcement would require wrapping in a SizedBox which can
+  /// clip the Material ripples and labels.
+  int get bottomNavBarHeight {
+    final dynamic raw = _preferences.get(
+      'bottom_nav_bar_height',
+      defaultValue: _defaultBottomNavBarHeight,
+    );
+    final int v = (raw is int)
+        ? raw
+        : int.tryParse(raw.toString()) ?? _defaultBottomNavBarHeight;
+    return v.clamp(_minBottomNavBarHeight, _maxBottomNavBarHeight);
+  }
+
+  set bottomNavBarHeight(int value) {
+    _preferences.put(
+      'bottom_nav_bar_height',
+      value.clamp(_minBottomNavBarHeight, _maxBottomNavBarHeight),
+    );
+    notifyListeners();
+  }
+
+  /// Icon size for the bottom navigation bar items, derived from
+  /// [bottomNavBarHeight]. Material's default 56dp bar pairs with
+  /// 24dp icons; we keep ~28dp reserved for the label and padding
+  /// and let the icon take whatever's left, clamped to a sane range.
+  /// At height 56 → icon 28 (close to Material's 24). At height 80
+  /// → icon 52. At height 120 → icon 80 (clamp ceiling).
+  int get bottomNavBarIconSize {
+    return (bottomNavBarHeight - 28).clamp(16, 80);
+  }
+
+  /// Default height of the reader page's bottom audio toolbar
+  /// (`ReaderAudioToolbar`) in logical pixels — the strip with the
+  /// audio play/seek/chapter controls and the position slider that
+  /// sits below an open book. Independent of [bottomNavBarHeight];
+  /// the home tab bar and the reader audio toolbar are separate
+  /// preferences because they're seen in different contexts and
+  /// users may want different sizes.
+  static const int _defaultReaderAudioToolbarHeight = 48;
+  static const int _minReaderAudioToolbarHeight = 32;
+  static const int _maxReaderAudioToolbarHeight = 160;
+
+  int get readerAudioToolbarHeight {
+    final dynamic raw = _preferences.get(
+      'reader_audio_toolbar_height',
+      defaultValue: _defaultReaderAudioToolbarHeight,
+    );
+    final int v = (raw is int)
+        ? raw
+        : int.tryParse(raw.toString()) ?? _defaultReaderAudioToolbarHeight;
+    return v.clamp(
+        _minReaderAudioToolbarHeight, _maxReaderAudioToolbarHeight);
+  }
+
+  set readerAudioToolbarHeight(int value) {
+    _preferences.put(
+      'reader_audio_toolbar_height',
+      value.clamp(
+          _minReaderAudioToolbarHeight, _maxReaderAudioToolbarHeight),
+    );
+    notifyListeners();
+  }
+
+  /// Icon size for the reader audio toolbar buttons. Scales linearly
+  /// with the toolbar height, leaving ~40% as vertical breathing
+  /// room (the icon doesn't fill the full bar height — that would
+  /// look awkward). At default 48 → icon 24 (Material default). At
+  /// 80 → icon 48. At 160 → icon 96.
+  int get readerAudioToolbarIconSize {
+    return (readerAudioToolbarHeight * 0.6).round().clamp(16, 100);
+  }
+
+  /// Slider thumb radius for the reader audio toolbar's position
+  /// slider. Material's default `Slider` thumb radius is 10. Scales
+  /// with the toolbar height so the thumb stays grabbable in tall
+  /// bars. At default 48 → thumb 10. At 80 → thumb 17. At 160 →
+  /// thumb 33.
+  double get readerAudioToolbarThumbRadius {
+    return (readerAudioToolbarHeight * 0.21).clamp(8.0, 36.0);
+  }
+
+  /// Font size for the reader audio toolbar's time text and the
+  /// "Select audio file" prompt in the collapsed view. Default
+  /// toolbar height of 48 maps to roughly the existing 13. Scales
+  /// with toolbar height.
+  double get readerAudioToolbarTextSize {
+    return (readerAudioToolbarHeight * 0.27).clamp(10.0, 36.0);
+  }
+
   /// Get a mapping with a given mapping name.
   AnkiMapping? getMappingFromLabel(String label) {
     return _database.ankiMappings.where().labelEqualTo(label).findFirstSync();

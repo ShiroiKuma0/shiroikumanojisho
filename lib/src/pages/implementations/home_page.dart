@@ -160,6 +160,7 @@ class _HomePageState extends BasePageState<HomePage>
       items: navBarItems,
       selectedFontSize: textTheme.labelSmall!.fontSize!,
       unselectedFontSize: textTheme.labelSmall!.fontSize!,
+      iconSize: appModel.bottomNavBarIconSize.toDouble(),
     );
   }
 
@@ -468,6 +469,132 @@ class _HomePageState extends BasePageState<HomePage>
     appModel.customStorageRootPath = saved.isEmpty ? null : saved;
   }
 
+  /// Prompt for the user's preferred bottom navigation bar height
+  /// in logical pixels. Setting this to a higher value enlarges the
+  /// nav bar's icons proportionally (each tab becomes a more
+  /// touchable square), which is useful on devices where the
+  /// default 56dp bar feels cramped.
+  ///
+  /// Empty input or non-numeric input is treated as cancel — we
+  /// don't fall back to a default because the user might have just
+  /// fat-fingered the field. Out-of-range values are clamped by the
+  /// setter, not at the input layer, so the user gets the nearest
+  /// valid value rather than a rejection.
+  void showBottomNavBarHeightDialog() async {
+    final controller = TextEditingController(
+      text: appModel.bottomNavBarHeight.toString(),
+    );
+    final saved = await showDialog<int?>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Home tabs bar height'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Height of the home screen's bottom tab bar in logical "
+              "pixels (the bar with the source-type tabs at the very "
+              "bottom of the home screen — Reader, Player, Dictionary, "
+              "etc.). Icons scale with the height so the tabs stay "
+              "roughly square. Default is 56. Allowed range: 40\u2013120 "
+              '(values outside that are clamped).',
+              style: TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              autocorrect: false,
+              enableSuggestions: false,
+              decoration: const InputDecoration(
+                hintText: '56',
+                isDense: true,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, null),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              final parsed = int.tryParse(controller.text.trim());
+              Navigator.pop(ctx, parsed);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (saved == null) return;
+    appModel.bottomNavBarHeight = saved;
+    if (mounted) setState(() {});
+  }
+
+  /// Prompt for the user's preferred reader-audio-toolbar height in
+  /// logical pixels. This is the bar at the bottom of the reader
+  /// page (the one with the audio play/seek/chapter controls and
+  /// the position slider) — distinct from the home tab bar
+  /// configured by [showBottomNavBarHeightDialog]. The icon size,
+  /// slider thumb radius, and time-text font size all scale with
+  /// the chosen height.
+  void showReaderAudioToolbarHeightDialog() async {
+    final controller = TextEditingController(
+      text: appModel.readerAudioToolbarHeight.toString(),
+    );
+    final saved = await showDialog<int?>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reader audio toolbar height'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Height of the audio toolbar at the bottom of the '
+              'reader page in logical pixels (the strip with the '
+              'audio play/seek/chapter controls and the position '
+              'slider). Icons, slider thumb, and text scale with '
+              'the height. Default is 48. Allowed range: 32\u2013160 '
+              '(values outside that are clamped).',
+              style: TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              autocorrect: false,
+              enableSuggestions: false,
+              decoration: const InputDecoration(
+                hintText: '48',
+                isDense: true,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, null),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              final parsed = int.tryParse(controller.text.trim());
+              Navigator.pop(ctx, parsed);
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    if (saved == null) return;
+    appModel.readerAudioToolbarHeight = saved;
+    if (mounted) setState(() {});
+  }
+
   void navigateToLicensePage() async {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -618,6 +745,16 @@ class _HomePageState extends BasePageState<HomePage>
         label: 'Custom storage path',
         icon: Icons.sd_card,
         action: showCustomStoragePathDialog,
+      ),
+      buildPopupItem(
+        label: 'Home tabs bar height',
+        icon: Icons.height,
+        action: showBottomNavBarHeightDialog,
+      ),
+      buildPopupItem(
+        label: 'Reader audio toolbar height',
+        icon: Icons.height,
+        action: showReaderAudioToolbarHeightDialog,
       ),
       buildPopupItem(
         label: t.options_ui_text_color,

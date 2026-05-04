@@ -1062,14 +1062,20 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
   }
 
   Widget _buildCollapsed() {
-    // When no audio is set, keep the same 48 px bar height as the
-    // expanded view and preserve the right-side controls (translate-
-    // book toggle, three-dot menu) so users can still set the
+    // When no audio is set, mirror the expanded view's configurable
+    // height and preserve the right-side controls (translate-book
+    // toggle, navigate, three-dot menu) so users can still set the
     // translation book or open settings. The left region becomes a
     // tappable "Select audio file" prompt that opens the same menu
-    // as the three-dot button.
+    // as the three-dot button. Sizes are read from AppModel so the
+    // toolbar scales with [readerAudioToolbarHeight].
+    final double barHeight =
+        widget.appModel.readerAudioToolbarHeight.toDouble();
+    final double textSize = widget.appModel.readerAudioToolbarTextSize;
+    final double promptIconSize =
+        (textSize * 1.4).clamp(12.0, 64.0);
     return Container(
-      height: 48,
+      height: barHeight,
       color: Colors.black.withOpacity(0.9),
       child: SafeArea(
         top: false,
@@ -1081,18 +1087,19 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
               Expanded(
                 child: InkWell(
                   onTap: _showMenu,
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
                     child: Row(
                       children: [
                         Icon(Icons.audiotrack,
-                            size: 18, color: Color(0xFFFFFF00)),
-                        SizedBox(width: 8),
+                            size: promptIconSize,
+                            color: const Color(0xFFFFFF00)),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text('Select audio file',
                               style: TextStyle(
-                                  fontSize: 13,
-                                  color: Color(0xFFFFFF00)),
+                                  fontSize: textSize,
+                                  color: const Color(0xFFFFFF00)),
                               overflow: TextOverflow.ellipsis),
                         ),
                       ],
@@ -1112,7 +1119,7 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
 
   Widget _buildExpanded() {
     return Container(
-      height: 48,
+      height: widget.appModel.readerAudioToolbarHeight.toDouble(),
       color: Colors.black.withOpacity(0.9),
       child: SafeArea(
         top: false,
@@ -1140,10 +1147,12 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
   }
 
   Widget _btn(IconData icon, String tooltip, VoidCallback onTap) {
+    final double iconSize =
+        widget.appModel.readerAudioToolbarIconSize.toDouble();
     return Material(
       color: Colors.transparent,
       child: JidoujishoIconButton(
-          size: 24, icon: icon, tooltip: tooltip, onTap: onTap,
+          size: iconSize, icon: icon, tooltip: tooltip, onTap: onTap,
           enabledColor: const Color(0xFFFFFF00)),
     );
   }
@@ -1163,7 +1172,7 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
     return Material(
       color: Colors.transparent,
       child: JidoujishoIconButton(
-        size: 24,
+        size: widget.appModel.readerAudioToolbarIconSize.toDouble(),
         icon: widget.secondaryShown
             ? Icons.chrome_reader_mode
             : Icons.chrome_reader_mode_outlined,
@@ -1191,11 +1200,17 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
         if (dur == Duration.zero) return const SizedBox.shrink();
         String p = JidoujishoTimeFormat.getVideoDurationText(pos).trim();
         String d = JidoujishoTimeFormat.getVideoDurationText(dur).trim();
+        // The 0.21 factor matches the time text to roughly 10 px at
+        // the default 48 px toolbar height (the previous hardcoded
+        // value), and scales linearly with custom heights.
+        final double timeFontSize =
+            (widget.appModel.readerAudioToolbarHeight * 0.21)
+                .clamp(8.0, 36.0);
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Text('$p / $d',
-              style: const TextStyle(
-                  fontSize: 10,
+              style: TextStyle(
+                  fontSize: timeFontSize,
                   color: const Color(0xFFFFFF00))),
         );
       },
@@ -1240,7 +1255,13 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
                         style: TextStyle(
                           color:
                               const Color(0xFFFFFF00).withOpacity(0.35),
-                          fontSize: 16,
+                          // Scale label with toolbar height. Default
+                          // 48 px → 16 px font, matching the prior
+                          // hardcoded value.
+                          fontSize:
+                              (widget.appModel.readerAudioToolbarHeight *
+                                      0.33)
+                                  .clamp(10.0, 48.0),
                           height: 1.0,
                         ),
                         overflow: TextOverflow.ellipsis,
@@ -1254,10 +1275,21 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
             SliderTheme(
               data: SliderTheme.of(context).copyWith(
                 trackHeight: 2,
-                thumbShape:
-                    const RoundSliderThumbShape(enabledThumbRadius: 6),
-                overlayShape:
-                    const RoundSliderOverlayShape(overlayRadius: 10),
+                // Scale thumb and overlay so they stay grabbable in
+                // tall toolbars. Default 6 px thumb radius is fine
+                // at 48 px toolbar; we want it bigger as the bar
+                // grows. The 0.13 / 0.21 factors approximate the
+                // existing 6/10 at default 48 px.
+                thumbShape: RoundSliderThumbShape(
+                  enabledThumbRadius:
+                      widget.appModel.readerAudioToolbarThumbRadius
+                          .clamp(4.0, 24.0),
+                ),
+                overlayShape: RoundSliderOverlayShape(
+                  overlayRadius:
+                      (widget.appModel.readerAudioToolbarThumbRadius * 1.6)
+                          .clamp(8.0, 48.0),
+                ),
                 activeTrackColor: const Color(0xFFFFFF00),
                 inactiveTrackColor:
                     const Color(0xFFFFFF00).withOpacity(0.3),
