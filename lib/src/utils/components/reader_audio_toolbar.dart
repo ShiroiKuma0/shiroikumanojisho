@@ -61,7 +61,26 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
   List<Subtitle> _subtitles = [];
   Subtitle? _currentSubtitle;
   Subtitle? _autoPauseMemory;
-  bool _isSeeking = false;
+
+  /// When non-null, an in-flight seek is pending: the audio player
+  /// has been told to seek to this position but the position stream
+  /// hasn't yet caught up. While this is set, [_onPosition] ignores
+  /// stale emissions (which would otherwise reflect the OLD position
+  /// for one or two updates after the seek call returns) so the
+  /// auto-pause / condensed-playback logic doesn't see a fake
+  /// "subtitle changed" event right after a seek.
+  ///
+  /// Cleared when [_onPosition] receives a position within
+  /// [_seekTolerance] of the target, or by [_seekWatchdog] firing,
+  /// whichever comes first. The watchdog is a safety net: if the
+  /// position stream never emits a near-target value (uncommon but
+  /// possible after very short seeks), we don't want playback's
+  /// auto-pause to be permanently disabled.
+  Duration? _pendingSeekTarget;
+  Timer? _seekWatchdog;
+  static const Duration _seekTolerance = Duration(milliseconds: 250);
+  static const Duration _seekWatchdogTimeout = Duration(seconds: 1);
+
   bool _sliderBeingDragged = false;
   bool _audioLoaded = false;
   bool _collapsed = true;
@@ -160,6 +179,7 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
     _positionSub?.cancel();
     _playerStateSub?.cancel();
     _durationSub?.cancel();
+    _seekWatchdog?.cancel();
     _audioPlayer.dispose();
     super.dispose();
   }
@@ -266,7 +286,7 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
     if (_mp3Path == null) return [];
     final dir = File(_mp3Path!).parent;
     if (!dir.existsSync()) return [];
-    const exts = {'.mp3', '.m4a', '.ogg', '.wav', '.flac', '.aac'};
+    const exts = {'.mp3', '.m4a', '.m4b', '.ogg', '.wav', '.flac', '.aac'};
     final List<String> files = [];
     try {
       final entries = dir.listSync(followLinks: false);
@@ -416,10 +436,43 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
   }
 
   void _onPosition(Duration pos) {
-    if (!mounted || _isSeeking) return;
+    if (!mounted) return;
+
+    // Always reflect the audio player's reported position in the
+    // notifier — the display must equal reality. We can't gate this
+    // on closeness to a seek target, because just_audio sometimes
+    // lands a seek several seconds away from the requested target
+    // (codec frame boundaries, container quirks) and gating would
+    // leave the display frozen at a fictional position forever.
     _positionNotifier.value = pos;
 
     if (_subtitles.isEmpty) return;
+
+    // After a seek, the position stream may emit ONE stale
+    // pre-seek position before settling on the actual post-seek
+    // position. If we processed that stale emission with the
+    // subtitle-change logic, it would set _currentSubtitle to the
+    // OLD subtitle, then the next emission (real new position)
+    // would look like a subtitle change and trigger auto-pause /
+    // condensed-skip spuriously. We swallow exactly one such
+    // emission's subtitle-change processing per seek by checking
+    // whether the position is anywhere near the seek target.
+    final target = _pendingSeekTarget;
+    if (target != null) {
+      final diff = pos - target;
+      final absDiffMs = diff.isNegative ? -diff.inMilliseconds : diff.inMilliseconds;
+      if (absDiffMs > _seekTolerance.inMilliseconds) {
+        // Stale — suppress subtitle-change processing for this one
+        // emission, but DO update the position notifier (above).
+        // _currentSubtitle was preset to the seek target's subtitle
+        // by [_beginSeek] so it stays consistent.
+        return;
+      }
+      // Caught up: clear pending state and fall through.
+      _pendingSeekTarget = null;
+      _seekWatchdog?.cancel();
+      _seekWatchdog = null;
+    }
 
     // Find current subtitle at this position
     Subtitle? newSub;
@@ -457,6 +510,45 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
     }
   }
 
+  /// Begin an audio seek with the racy-position-stream guarding
+  /// described on [_pendingSeekTarget]. Pre-sets [_currentSubtitle]
+  /// to whatever subtitle the target lands in (or null if it lands
+  /// in a gap), so a stale post-seek emission can't drive the
+  /// auto-pause logic into a bad state. Updates [_positionNotifier]
+  /// to the target so the UI reflects the new position immediately
+  /// — the position stream may not emit anything for a while when
+  /// paused, and we don't want the user staring at the old time.
+  /// The notifier WILL be overwritten with the audio player's real
+  /// position when the next position emission arrives.
+  void _beginSeek(Duration target) {
+    _pendingSeekTarget = target;
+    _seekWatchdog?.cancel();
+    _seekWatchdog = Timer(_seekWatchdogTimeout, () {
+      // Watchdog fires when the position stream never emitted a
+      // near-target value — gives up and resumes normal stream
+      // processing. Better than leaving auto-pause suppressed
+      // forever.
+      _pendingSeekTarget = null;
+      _seekWatchdog = null;
+    });
+    _positionNotifier.value = target;
+    // Pre-set _currentSubtitle to whatever subtitle the target
+    // lands in. This means the post-seek "real" emission won't
+    // look like a subtitle change to [_onPosition], so auto-pause
+    // won't mis-fire.
+    Subtitle? targetSub;
+    for (Subtitle s in _subtitles) {
+      if (target >= s.start && target <= s.end) {
+        targetSub = s;
+        break;
+      }
+    }
+    _currentSubtitle = targetSub;
+    // Reset auto-pause memory so the user gets a chance to hear
+    // the targeted subtitle's auto-pause if they keep playing.
+    _autoPauseMemory = null;
+  }
+
   Subtitle? _getNearestSubtitle() {
     if (_subtitles.isEmpty) return null;
     Subtitle? last;
@@ -469,37 +561,67 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
 
   void _seekPrev() async {
     if (_subtitles.isEmpty) return;
-    int idx = _subtitles.lastIndexWhere(
-        (s) => _positionNotifier.value > s.start + const Duration(milliseconds: 500));
-    if (idx != -1) {
-      _isSeeking = true;
-      _currentSubtitle = null;
-      _autoPauseMemory = null;
-      await _audioPlayer.seek(_subtitles[idx].start);
-      _isSeeking = false;
+    final pos = _positionNotifier.value;
+    // Find the subtitle currently containing the position, if any.
+    Subtitle? containing;
+    int containingIdx = -1;
+    for (int i = 0; i < _subtitles.length; i++) {
+      final s = _subtitles[i];
+      if (pos >= s.start && pos <= s.end) {
+        containing = s;
+        containingIdx = i;
+        break;
+      }
+    }
+
+    Duration? target;
+    const Duration restartThreshold = Duration(milliseconds: 500);
+    if (containing != null && pos - containing.start > restartThreshold) {
+      // Mid-subtitle, well past its start — restart the current one.
+      target = containing.start;
+    } else {
+      // At/near a subtitle's start, in a gap, or past end of all
+      // subtitles — go to the start of the previous subtitle.
+      // Reference index for "previous" is the containing subtitle
+      // if any, otherwise the first subtitle whose start is past
+      // the current position (so prev = the one before that).
+      int referenceIdx;
+      if (containingIdx != -1) {
+        referenceIdx = containingIdx;
+      } else {
+        // Not inside any subtitle (in a gap or past end). Find the
+        // first subtitle with start > pos; reference = that. If
+        // none (we're past end of all subs), reference = length
+        // (so prev = last subtitle).
+        referenceIdx = _subtitles.indexWhere((s) => s.start > pos);
+        if (referenceIdx == -1) referenceIdx = _subtitles.length;
+      }
+      final prevIdx = referenceIdx - 1;
+      if (prevIdx >= 0) target = _subtitles[prevIdx].start;
+    }
+
+    if (target != null) {
+      _beginSeek(target);
+      await _audioPlayer.seek(target);
     }
   }
 
   void _seekNext() async {
     if (_subtitles.isEmpty) return;
-    int idx = _subtitles.indexWhere((s) => s.start > _positionNotifier.value);
+    final pos = _positionNotifier.value;
+    final idx = _subtitles.indexWhere((s) => s.start > pos);
     if (idx != -1) {
-      _isSeeking = true;
-      _currentSubtitle = null;
-      _autoPauseMemory = null;
-      await _audioPlayer.seek(_subtitles[idx].start);
-      _isSeeking = false;
+      final target = _subtitles[idx].start;
+      _beginSeek(target);
+      await _audioPlayer.seek(target);
     }
   }
 
   void _replay() async {
     Subtitle? sub = _getNearestSubtitle();
     if (sub != null) {
-      _isSeeking = true;
-      _currentSubtitle = null;
-      _autoPauseMemory = null;
+      _beginSeek(sub.start);
       await _audioPlayer.seek(sub.start);
-      _isSeeking = false;
       if (!_audioPlayer.playing) await _audioPlayer.play();
     }
   }
@@ -533,10 +655,156 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
       ),
     );
     if (path != null) {
+      // MP3-format seek imprecision warning. ExoPlayer (just_audio's
+      // Android backend) seeks MP3 by estimating frame position from
+      // average bitrate, which on most files lands the decoder
+      // several seconds away from the requested timestamp — even
+      // after re-encoding with a Xing seek-info header. The result:
+      // Prev/Next/slider seek to a point inside subtitle N but the
+      // audio actually plays from somewhere mid-subtitle-(N-1) or
+      // -(N+1), and auto-pause fires at a wrong sentence boundary.
+      // We can't fix this from inside Dart — the player API only
+      // reports the requested position, never the decoder's true
+      // position. Re-encoding to AAC-in-MP4 (.m4a) gives sample-
+      // accurate seeks via the moov atom's sample table, so we tell
+      // the user to convert. Shown once per distinct MP3 path so the
+      // user isn't re-nagged every time they reopen a book.
+      if (path.toLowerCase().endsWith('.mp3') && mounted) {
+        final shouldShow = await _shouldShowMp3Warning(path);
+        if (shouldShow && mounted) {
+          await _showMp3SeekWarningDialog(path);
+          await _markMp3WarningShown(path);
+        }
+      }
       // Explicit pick is always a fresh start; resume-where-you-were
       // is owned exclusively by _init when reopening the book.
       await _setAudio(path);
     }
+  }
+
+  /// Whether the MP3-seek warning should be shown for this path. We
+  /// store dismissed paths in a Hive set so the user is warned once
+  /// per file, not every time. Returns false if the box isn't ready
+  /// yet (don't block the audio load on a warning we can't track).
+  Future<bool> _shouldShowMp3Warning(String path) async {
+    if (!_boxReady) return false;
+    final List<dynamic>? dismissed =
+        _box.get('mp3_warning_dismissed') as List<dynamic>?;
+    if (dismissed == null) return true;
+    return !dismissed.contains(path);
+  }
+
+  Future<void> _markMp3WarningShown(String path) async {
+    if (!_boxReady) return;
+    final List<dynamic>? existing =
+        _box.get('mp3_warning_dismissed') as List<dynamic>?;
+    final List<String> updated = [
+      ...?existing?.cast<String>(),
+      if (existing == null || !existing.contains(path)) path,
+    ];
+    await _box.put('mp3_warning_dismissed', updated);
+  }
+
+  /// Modal informing the user that MP3 seek is imprecise on Android
+  /// and offering the ffmpeg one-liner to convert to .m4a / .m4b.
+  /// Tap-to-dismiss; selectable text on the commands so they can
+  /// copy them.
+  Future<void> _showMp3SeekWarningDialog(String path) async {
+    final filename = path.split('/').last;
+    final stem = filename.replaceAll(
+        RegExp(r"\.mp3$", caseSensitive: false), '');
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('MP3 seek precision warning'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'You picked an MP3 file. The Android audio player '
+                  'cannot seek MP3 files accurately — Prev/Next and '
+                  'the slider will land several seconds away from '
+                  'the requested position, and auto-pause will fire '
+                  'at the wrong sentence boundaries. This is a '
+                  'limitation of the MP3 format and the player; not '
+                  'something the app can fix.',
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Recommended fix: convert to .m4a or .m4b (AAC in '
+                  'an MP4 container). Both share the same container '
+                  'and codec — the only difference is convention: '
+                  '.m4b is the audiobook flavor that some players '
+                  'auto-file separately and remember playback '
+                  'position for. .m4a is the generic flavor. Both '
+                  'have a sample-accurate index so seeks land '
+                  'precisely. The app picks up either when you '
+                  're-attach from the same folder.',
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Single file → .m4b (audiobook):',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                SelectableText(
+                  'ffmpeg -i "$filename" \\\n'
+                  '  -map 0 -c:a aac -b:a 128k \\\n'
+                  '  -c:v copy -disposition:v attached_pic \\\n'
+                  '  "$stem.m4b"',
+                  style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 11,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  '(Replace .m4b with .m4a if you prefer the generic '
+                  'flavor.)',
+                  style: TextStyle(fontSize: 11),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Whole folder of MP3s → ./fixed/*.m4b:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                const SelectableText(
+                  'mkdir -p fixed\n'
+                  'for f in *.mp3; do\n'
+                  '  ffmpeg -i "\$f" \\\n'
+                  '    -map 0 -c:a aac -b:a 128k \\\n'
+                  '    -c:v copy -disposition:v attached_pic \\\n'
+                  '    "fixed/\${f%.mp3}.m4b"\n'
+                  'done',
+                  style: TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 11,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'You will not be warned again for this file.',
+                  style: TextStyle(
+                    fontStyle: FontStyle.italic,
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('OK, continue with MP3'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _pickSrt() async {
@@ -1003,9 +1271,10 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
                 onChanged: (v) => _positionNotifier.value =
                     Duration(milliseconds: v.toInt()),
                 onChangeEnd: (v) {
-                  _audioPlayer.seek(Duration(milliseconds: v.toInt()));
+                  final target = Duration(milliseconds: v.toInt());
+                  _beginSeek(target);
+                  _audioPlayer.seek(target);
                   _sliderBeingDragged = false;
-                  _autoPauseMemory = null;
                 },
               ),
             ),
