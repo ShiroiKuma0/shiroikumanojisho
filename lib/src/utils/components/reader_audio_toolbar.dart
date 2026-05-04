@@ -13,6 +13,33 @@ import 'package:shiroikumanojisho/models.dart';
 import 'package:shiroikumanojisho/src/utils/components/folder_audio_picker.dart';
 import 'package:shiroikumanojisho/utils.dart';
 
+/// A navigation request originating from the audio toolbar's
+/// "navigate" menu, dispatched up to the reader page so it can
+/// inject the appropriate JS into the right TTU webview pane.
+///
+/// Encoded as a class rather than a tuple so that page-jump can
+/// carry a percent payload while chapter-prev/next don't need one.
+/// The reader page switches on [type] and reads [scrollPercent]
+/// only when relevant.
+class BookNavigationRequest {
+  const BookNavigationRequest({
+    required this.type,
+    required this.isSecondary,
+    this.scrollPercent,
+  });
+
+  final BookNavigationType type;
+  final bool isSecondary;
+  final double? scrollPercent;
+}
+
+/// Kinds of book-side navigation actions the toolbar can request.
+enum BookNavigationType {
+  prevChapter,
+  nextChapter,
+  goToPercent,
+}
+
 /// A toolbar for playing audiobook MP3 files synced with SRT subtitles,
 /// displayed at the bottom of the reader page.
 class ReaderAudioToolbar extends StatefulWidget {
@@ -24,6 +51,8 @@ class ReaderAudioToolbar extends StatefulWidget {
     this.onOpenSecondaryManager,
     this.onRemoveSecondary,
     this.onSettingsChanged,
+    this.onBookNavigate,
+    this.onGetBookScrollPercent,
     this.secondaryShown = false,
     this.hasSecondary = false,
     this.secondaryTitle,
@@ -41,6 +70,19 @@ class ReaderAudioToolbar extends StatefulWidget {
   final VoidCallback? onOpenSecondaryManager;
   final VoidCallback? onRemoveSecondary;
   final VoidCallback? onSettingsChanged;
+  /// Called when the user picks a book-side navigation action from
+  /// the toolbar's navigate menu. The reader page handles dispatch
+  /// (injecting the right JS into the right webview pane). Null
+  /// safely no-ops the menu items.
+  final void Function(BookNavigationRequest)? onBookNavigate;
+  /// Asks the reader page for the current scroll position of the
+  /// targeted book pane, expressed as a percent 0.0–1.0 of the
+  /// scrollable extent. Used to initialize the page-jump slider so
+  /// it opens at the user's current location instead of always at 0.
+  /// Returns 0.0 if the webview can't be queried (no book loaded,
+  /// pane not ready).
+  final Future<double> Function({required bool isSecondary})?
+      onGetBookScrollPercent;
   final bool secondaryShown;
   final bool hasSecondary;
   final String? secondaryTitle;
@@ -1014,6 +1056,215 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
     );
   }
 
+  /// Open the navigate-to bottom sheet listing book and audio jump
+  /// destinations. Items are gated on context: the secondary-book
+  /// rows only appear when a translation book is open; the audio
+  /// time-jump only when audio is loaded; and the audio-side
+  /// "Previous/Next file" rows only when there's chapter audio in
+  /// the same folder. The book-side prev/next chapter and go-to
+  /// page rows always appear (they target the book, not the audio).
+  void _showNavigateMenu() {
+    final bool hasSecondary =
+        widget.hasSecondary && widget.secondaryBookKey != null;
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.black,
+      builder: (ctx) {
+        return SafeArea(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _navHeader(hasSecondary ? 'Primary book' : 'Book'),
+                ListTile(
+                  leading: const Icon(Icons.arrow_back,
+                      color: Color(0xFFFFFF00)),
+                  title: const Text('Previous chapter',
+                      style: TextStyle(color: Color(0xFFFFFF00))),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    widget.onBookNavigate?.call(BookNavigationRequest(
+                      type: BookNavigationType.prevChapter,
+                      isSecondary: false,
+                    ));
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.arrow_forward,
+                      color: Color(0xFFFFFF00)),
+                  title: const Text('Next chapter',
+                      style: TextStyle(color: Color(0xFFFFFF00))),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    widget.onBookNavigate?.call(BookNavigationRequest(
+                      type: BookNavigationType.nextChapter,
+                      isSecondary: false,
+                    ));
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.search,
+                      color: Color(0xFFFFFF00)),
+                  title: const Text('Go to page…',
+                      style: TextStyle(color: Color(0xFFFFFF00))),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _showPageJumpDialog(isSecondary: false);
+                  },
+                ),
+                if (hasSecondary) ...[
+                  const Divider(color: Color(0xFFFFFF00), height: 1),
+                  _navHeader('Translation book'),
+                  ListTile(
+                    leading: const Icon(Icons.arrow_back,
+                        color: Color(0xFFFFFF00)),
+                    title: const Text('Previous chapter',
+                        style: TextStyle(color: Color(0xFFFFFF00))),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      widget.onBookNavigate?.call(BookNavigationRequest(
+                        type: BookNavigationType.prevChapter,
+                        isSecondary: true,
+                      ));
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.arrow_forward,
+                        color: Color(0xFFFFFF00)),
+                    title: const Text('Next chapter',
+                        style: TextStyle(color: Color(0xFFFFFF00))),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      widget.onBookNavigate?.call(BookNavigationRequest(
+                        type: BookNavigationType.nextChapter,
+                        isSecondary: true,
+                      ));
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.search,
+                        color: Color(0xFFFFFF00)),
+                    title: const Text('Go to page…',
+                        style: TextStyle(color: Color(0xFFFFFF00))),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _showPageJumpDialog(isSecondary: true);
+                    },
+                  ),
+                ],
+                if (_audioLoaded) ...[
+                  const Divider(color: Color(0xFFFFFF00), height: 1),
+                  _navHeader('Audio'),
+                  ListTile(
+                    leading: const Icon(Icons.access_time,
+                        color: Color(0xFFFFFF00)),
+                    title: const Text('Go to time…',
+                        style: TextStyle(color: Color(0xFFFFFF00))),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _showTimeJumpDialog();
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _navHeader(String label) {
+    return Container(
+      width: double.infinity,
+      padding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Color(0xFFFFFF00),
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 1.2,
+        ),
+      ),
+    );
+  }
+
+  /// Show a slider 0–100% for jumping to an approximate position
+  /// in the targeted book pane. The reader page does the actual
+  /// scroll via [BookNavigationRequest]'s scrollPercent. We don't
+  /// know TTU's true page count without scraping its internal
+  /// pagination state — for a first pass, percent-of-scroll is
+  /// useful enough and very cheap.
+  ///
+  /// Pushed as a full-screen page (not [showDialog]) because the
+  /// reader runs in immersive UI mode, where `showDialog` overlays
+  /// have unreliable IME / focus behaviour: TextField taps may not
+  /// raise the keyboard. The pushed-page route goes through normal
+  /// focus machinery. Same rationale as [_showReaderSettings].
+  void _showPageJumpDialog({required bool isSecondary}) async {
+    // Pre-fetch the current scroll percent BEFORE the route
+    // transition so the slider opens at the user's current position
+    // instead of always at 0. If the callback isn't wired or the
+    // query fails, fall back to 0 — the slider is still usable.
+    double initialPercent = 0;
+    if (widget.onGetBookScrollPercent != null) {
+      try {
+        initialPercent =
+            await widget.onGetBookScrollPercent!(isSecondary: isSecondary);
+      } catch (_) {
+        initialPercent = 0;
+      }
+    }
+    if (!mounted) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    await Future.delayed(const Duration(milliseconds: 5), () {});
+    if (!mounted) return;
+    final double? pct = await Navigator.of(context).push<double>(
+      MaterialPageRoute(
+        builder: (ctx) => _BookPageJumpPage(
+          isSecondary: isSecondary,
+          initialPercent: initialPercent,
+        ),
+      ),
+    );
+    await Future.delayed(const Duration(milliseconds: 5), () {});
+    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    if (pct != null) {
+      widget.onBookNavigate?.call(BookNavigationRequest(
+        type: BookNavigationType.goToPercent,
+        isSecondary: isSecondary,
+        scrollPercent: pct,
+      ));
+    }
+  }
+
+  /// Show HH:MM:SS input for jumping the audio to a specific time.
+  /// Pushed as a full-screen page (not [showDialog]) — same IME-
+  /// reliability rationale as [_showPageJumpDialog].
+  void _showTimeJumpDialog() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    await Future.delayed(const Duration(milliseconds: 5), () {});
+    if (!mounted) return;
+    final Duration? target = await Navigator.of(context).push<Duration>(
+      MaterialPageRoute(
+        builder: (ctx) => _AudioTimeJumpPage(
+          initialPosition: _positionNotifier.value,
+          maxDuration: _durationNotifier.value,
+        ),
+      ),
+    );
+    await Future.delayed(const Duration(milliseconds: 5), () {});
+    await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    if (target != null) {
+      _beginSeek(target);
+      await _audioPlayer.seek(target);
+    }
+  }
+
   /// Open the reader appearance dialog for the given book. Pass the
   /// Open the reader appearance page for the given book. Pass the
   /// primary book's key when no translation book is shown, or either
@@ -1108,6 +1359,7 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
                 ),
               ),
               _buildSecondaryToggle(),
+              _btn(Icons.menu_book_outlined, 'Navigate', _showNavigateMenu),
               _btn(Icons.more_vert, t.show_options, _showMenu),
               const SizedBox(width: 4),
             ],
@@ -1137,6 +1389,7 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
               Expanded(child: _buildSlider()),
               _btn(Icons.skip_next, 'Next chapter', _nextChapter),
               _buildSecondaryToggle(),
+              _btn(Icons.menu_book_outlined, 'Navigate', _showNavigateMenu),
               _btn(Icons.more_vert, t.show_options, _showMenu),
               const SizedBox(width: 4),
             ],
@@ -1313,6 +1566,244 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
           ],
         );
       },
+    );
+  }
+}
+
+/// Full-screen page for choosing an audio playback timestamp to
+/// jump to. Pushed via [Navigator.push] instead of being a dialog
+/// because the reader runs in immersive UI mode where dialog
+/// overlays have unreliable IME / focus behaviour. Three independent
+/// number fields rather than a single timestamp string so a typo in
+/// one field doesn't reset the others. Returns the chosen [Duration]
+/// to the caller via [Navigator.pop], or null on cancel.
+class _AudioTimeJumpPage extends StatefulWidget {
+  const _AudioTimeJumpPage({
+    required this.initialPosition,
+    required this.maxDuration,
+  });
+
+  final Duration initialPosition;
+  final Duration maxDuration;
+
+  @override
+  State<_AudioTimeJumpPage> createState() => _AudioTimeJumpPageState();
+}
+
+class _AudioTimeJumpPageState extends State<_AudioTimeJumpPage> {
+  late TextEditingController _hController;
+  late TextEditingController _mController;
+  late TextEditingController _sController;
+
+  @override
+  void initState() {
+    super.initState();
+    _hController = TextEditingController(
+      text: widget.initialPosition.inHours.toString(),
+    );
+    _mController = TextEditingController(
+      text: widget.initialPosition.inMinutes
+          .remainder(60)
+          .toString()
+          .padLeft(2, '0'),
+    );
+    _sController = TextEditingController(
+      text: widget.initialPosition.inSeconds
+          .remainder(60)
+          .toString()
+          .padLeft(2, '0'),
+    );
+  }
+
+  @override
+  void dispose() {
+    _hController.dispose();
+    _mController.dispose();
+    _sController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final int h = int.tryParse(_hController.text.trim()) ?? 0;
+    final int m = int.tryParse(_mController.text.trim()) ?? 0;
+    final int s = int.tryParse(_sController.text.trim()) ?? 0;
+    final Duration target = Duration(hours: h, minutes: m, seconds: s);
+    final Duration clamped = target > widget.maxDuration
+        ? widget.maxDuration
+        : (target.isNegative ? Duration.zero : target);
+    Navigator.of(context).pop(clamped);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Go to time'),
+        actions: [
+          TextButton(
+            onPressed: _submit,
+            child: const Text('Go',
+                style: TextStyle(color: Color(0xFFFFFF00))),
+          ),
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Enter the audio playback timestamp to seek to.',
+              style: TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: 80,
+                  child: TextField(
+                    controller: _hController,
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.center,
+                    decoration: const InputDecoration(
+                      labelText: 'h',
+                    ),
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(':',
+                      style: TextStyle(
+                          fontSize: 24, fontWeight: FontWeight.bold)),
+                ),
+                SizedBox(
+                  width: 80,
+                  child: TextField(
+                    controller: _mController,
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.center,
+                    decoration: const InputDecoration(
+                      labelText: 'm',
+                    ),
+                  ),
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(':',
+                      style: TextStyle(
+                          fontSize: 24, fontWeight: FontWeight.bold)),
+                ),
+                SizedBox(
+                  width: 80,
+                  child: TextField(
+                    controller: _sController,
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.center,
+                    decoration: const InputDecoration(
+                      labelText: 's',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Maximum: ${_formatDuration(widget.maxDuration)}',
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatDuration(Duration d) {
+    final h = d.inHours;
+    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$h:$m:$s';
+  }
+}
+
+/// Full-screen page for choosing a position to jump to in the
+/// targeted book pane. Returns the chosen percent (0.0–1.0) to the
+/// caller via [Navigator.pop], or null on cancel. Pushed instead of
+/// dialog for IME reliability over the immersive reader.
+class _BookPageJumpPage extends StatefulWidget {
+  const _BookPageJumpPage({
+    required this.isSecondary,
+    this.initialPercent = 0,
+  });
+
+  final bool isSecondary;
+  /// Slider's starting position as a fraction 0.0–1.0. Set to the
+  /// pane's current scroll percent so users land on a slider
+  /// pre-positioned at where they currently are, not always at 0.
+  final double initialPercent;
+
+  @override
+  State<_BookPageJumpPage> createState() => _BookPageJumpPageState();
+}
+
+class _BookPageJumpPageState extends State<_BookPageJumpPage> {
+  late double _percent;
+
+  @override
+  void initState() {
+    super.initState();
+    _percent = (widget.initialPercent * 100.0).clamp(0.0, 100.0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.isSecondary
+            ? 'Translation book — go to position'
+            : 'Book — go to position'),
+        actions: [
+          TextButton(
+            onPressed: () =>
+                Navigator.of(context).pop(_percent / 100.0),
+            child: const Text('Go',
+                style: TextStyle(color: Color(0xFFFFFF00))),
+          ),
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Drag the slider to choose where in the book to jump to. '
+              'Position is a percentage of the total scrollable size — '
+              "the actual page number depends on font size and viewport, "
+              "which can't be queried without scraping TTU internals. "
+              'The slider opens at your current position.',
+              style: TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 24),
+            Slider(
+              value: _percent,
+              min: 0,
+              max: 100,
+              divisions: 100,
+              label: '${_percent.toStringAsFixed(0)}%',
+              onChanged: (v) => setState(() => _percent = v),
+            ),
+            Center(
+              child: Text(
+                '${_percent.toStringAsFixed(0)}%',
+                style: const TextStyle(
+                    fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

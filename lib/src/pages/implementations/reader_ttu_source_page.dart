@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'dart:convert';
 
 import 'package:document_file_save_plus/document_file_save_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
@@ -89,6 +90,28 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
   /// flush but can't cover the case where the process is killed
   /// outright without notice.
   Timer? _bookmarkFlushTimer;
+
+  /// Per-pane scroll-progress notifiers, fed by [_progressPollTimer]
+  /// every [_progressPollInterval]. The values 0.0–1.0 represent
+  /// fraction of the way through the current book's scrollable
+  /// extent; the bottom-of-pane progress strip
+  /// ([_buildProgressStrip]) renders them as a thin yellow bar.
+  /// Initial value 0.0 — replaced by the first poll tick after the
+  /// pane's controller becomes available.
+  ///
+  /// Polling-based rather than scroll-event-driven because each
+  /// scroll-event-to-Flutter message has setup cost; at fast-scroll
+  /// rates a 60 Hz event stream would saturate the channel for a
+  /// progress bar that's invisible to the eye at sub-100 ms
+  /// granularity. 1 s polling keeps the indicator visibly responsive
+  /// (one bar-step per second is plenty during reading) at near-zero
+  /// background cost.
+  final ValueNotifier<double> _primaryProgressNotifier =
+      ValueNotifier<double>(0.0);
+  final ValueNotifier<double> _secondaryProgressNotifier =
+      ValueNotifier<double>(0.0);
+  Timer? _progressPollTimer;
+  static const Duration _progressPollInterval = Duration(seconds: 1);
 
   DateTime? lastMessageTime;
   Orientation? lastOrientation;
@@ -189,6 +212,7 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
             : 'horizontal-tb';
     _initSecondaryBook();
     _initGestureVolume();
+    _startProgressPolling();
 
     // Pre-warm the in-memory term index for the current language if
     // the user has the "on book open" setting selected (default).
@@ -653,6 +677,10 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
     _bookmarkFlushTimer = null;
     _settingsSnapshotTimer?.cancel();
     _settingsSnapshotTimer = null;
+    _progressPollTimer?.cancel();
+    _progressPollTimer = null;
+    _primaryProgressNotifier.dispose();
+    _secondaryProgressNotifier.dispose();
     // Fire-and-forget final bookmark flush for both books. dispose()
     // is synchronous so we can't await; kick the eval off and let the
     // webview finish the IDB write off-thread during its own
@@ -798,6 +826,8 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
             onOpenSecondaryManager: _openSecondaryManager,
             onRemoveSecondary: _removeSecondary,
             onSettingsChanged: _applyReaderSettings,
+            onBookNavigate: _handleBookNavigate,
+            onGetBookScrollPercent: _getBookScrollPercent,
           ),
           // EPUB-import FAB visible only on the TTU library
           // manager page. Bypasses the in-webview <input type="file">
@@ -882,6 +912,18 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
   }
 
   Widget _buildSecondaryReader(LocalAssetsServer server) {
+    // Wrapped in a Column so the per-pane scroll-progress strip can
+    // sit at the bottom edge — directly above the audio toolbar.
+    // Same pattern as [buildReaderArea] for the primary pane.
+    return Column(
+      children: [
+        Expanded(child: _buildSecondaryWebView(server)),
+        _buildProgressStrip(_secondaryProgressNotifier),
+      ],
+    );
+  }
+
+  Widget _buildSecondaryWebView(LocalAssetsServer server) {
     String url = _secondaryUrl ??
         'http://localhost:${server.boundPort}/manage.html';
     // Widget key gated on forced writing mode so Flutter tears down
@@ -1082,6 +1124,255 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
     _secondaryController = null;
     _secondaryCurrentUrl = null;
     setState(() {});
+  }
+
+  /// Dispatch a book-navigation request from the audio toolbar's
+  /// navigate menu to the appropriate TTU webview pane. We can't
+  /// just hand the toolbar a controller reference because the
+  /// secondary controller can be null (no translation book attached)
+  /// or get re-created across writing-mode rebuilds, so the toolbar
+  /// asks us to act and we handle the lookup at request time.
+  ///
+  /// Chapter navigation uses TTU's keyboard shortcuts: `KeyN` for
+  /// PREV_CHAPTER, `KeyM` for NEXT_CHAPTER. Discovered by inspecting
+  /// the TTU bundle's `KeyboardShortcut` enum and the keymap in
+  /// `store-fb60485f.js`. Synthesizing a KeyboardEvent from JS
+  /// triggers TTU's own handler, which knows about chapter
+  /// boundaries (computed from the book's spine items) so we don't
+  /// have to track them.
+  ///
+  /// However, TTU's chapter handler is direction-aware: in
+  /// vertical-rl mode it INVERTS the chapter direction so PREV_CHAPTER
+  /// goes +1 in document order (forward in story) and NEXT_CHAPTER
+  /// goes -1. From `_page.svelte`:
+  ///   case PREV_CHAPTER: return f(l ? 1 : -1);
+  ///   case NEXT_CHAPTER: return f(l ? -1 : 1);
+  /// (where `l` is true for vertical-rl). The user's mental model is
+  /// document-order regardless of writing direction — "previous
+  /// chapter" means "earlier in the story". So in vertical-rl we
+  /// swap which key we send so that "Previous chapter" always goes
+  /// backward in document order.
+  ///
+  /// Page navigation scrolls to a percentage of the document's
+  /// scrollable extent. TTU is continuous-scroll (not paged) so
+  /// percent-of-scroll is the natural cursor position. In vertical-rl
+  /// the document is RTL; modern Chromium reports `scrollLeft = 0`
+  /// at the visually-rightmost element (start of book) and goes
+  /// negative as the user scrolls forward (left). So in RTL mode
+  /// the scroll target is `-maxScroll * pct`, not `+maxScroll * pct`.
+  /// We use `getComputedStyle(de).writingMode` at runtime in JS to
+  /// detect direction — relying on the Dart-side
+  /// `_primaryForcedWritingMode` would miss the case where the
+  /// browser's default mode differs from what we forced via the
+  /// userscript hook (rare but possible during re-renders).
+  void _handleBookNavigate(BookNavigationRequest req) async {
+    final InAppWebViewController? target =
+        req.isSecondary ? _secondaryController : _controller;
+    if (target == null) return;
+    final String writingMode = req.isSecondary
+        ? _secondaryForcedWritingMode
+        : _primaryForcedWritingMode;
+    final bool isVerticalRl = writingMode == 'vertical-rl';
+
+    String? jsSource;
+    switch (req.type) {
+      case BookNavigationType.prevChapter:
+        // In vertical-rl, send NEXT_CHAPTER (KeyM) — TTU inverts
+        // the direction internally so it goes backward in document
+        // order, matching user expectation.
+        final String code = isVerticalRl ? 'KeyM' : 'KeyN';
+        final String key = isVerticalRl ? 'm' : 'n';
+        jsSource = '''
+          (function(){
+            var ev = new KeyboardEvent('keydown', {
+              code: '$code', key: '$key', bubbles: true,
+            });
+            document.dispatchEvent(ev);
+          })();
+        ''';
+        break;
+      case BookNavigationType.nextChapter:
+        final String code = isVerticalRl ? 'KeyN' : 'KeyM';
+        final String key = isVerticalRl ? 'n' : 'm';
+        jsSource = '''
+          (function(){
+            var ev = new KeyboardEvent('keydown', {
+              code: '$code', key: '$key', bubbles: true,
+            });
+            document.dispatchEvent(ev);
+          })();
+        ''';
+        break;
+      case BookNavigationType.goToPercent:
+        final double pct = (req.scrollPercent ?? 0).clamp(0.0, 1.0);
+        // Detect RTL at runtime in JS — checking the actual computed
+        // writing-mode handles the case where TTU's render diverges
+        // from our forced mode. In RTL/vertical-rl, scrollLeft is
+        // negative when scrolling forward in story order; the target
+        // is -maxX*pct. In horizontal modes scrollLeft is positive.
+        // For vertical-tb (rare) the document scrolls vertically;
+        // both axes are computed and the inactive one is ignored
+        // by scrollTo.
+        //
+        // Known limitation: at pct === 0 in vertical-rl, TTU's
+        // chapter-load logic reverts our scroll back to the user's
+        // remembered bookmark position. Two attempted fixes (a
+        // defensive -0 / direct-property-assignment scroll, and an
+        // IDB bookmark write + KeyR jump) either failed to address
+        // this or regressed forward navigation. Reverted to this
+        // simpler implementation that works correctly for non-zero
+        // percentages; the 0%-in-vertical-rl case stays imperfect
+        // until a more careful TTU integration is undertaken (not
+        // currently worth the complexity).
+        jsSource = '''
+          (function(){
+            var de = document.documentElement;
+            var pct = $pct;
+            var cs = window.getComputedStyle(de);
+            var wm = cs.writingMode || '';
+            var dir = cs.direction || 'ltr';
+            var isRtl = wm.indexOf('-rl') !== -1 || dir === 'rtl';
+            var maxX = (de.scrollWidth || 0) - (de.clientWidth || 0);
+            var maxY = (de.scrollHeight || 0) - (de.clientHeight || 0);
+            var targetX = 0;
+            var targetY = 0;
+            if (maxX > 0) {
+              targetX = isRtl ? -maxX * pct : maxX * pct;
+            }
+            if (maxY > 0) {
+              targetY = maxY * pct;
+            }
+            window.scrollTo(targetX, targetY);
+          })();
+        ''';
+        break;
+    }
+    try {
+      await target.evaluateJavascript(source: jsSource);
+    } catch (_) {
+      // Webview torn down between request and dispatch — silently
+      // drop. The user can always tap again.
+    }
+  }
+
+  /// Read the current scroll position of the targeted book pane as
+  /// a fraction 0.0–1.0 of the scrollable extent. Used to
+  /// pre-position the page-jump slider so it opens at where the
+  /// user already is. The inverse of the scroll computation in
+  /// [_handleBookNavigate]'s `goToPercent` case.
+  ///
+  /// Detects RTL/vertical-rl at runtime in JS so the math matches
+  /// what the browser actually rendered (rather than relying on
+  /// our forced writing mode, which can briefly mismatch during
+  /// re-renders). In RTL, `scrollLeft` is reported as a negative
+  /// number when scrolling forward in story order, so the percent
+  /// is `-scrollLeft / maxX`.
+  ///
+  /// Returns 0.0 if: the webview controller is null (no book yet),
+  /// the JS evaluation fails (webview torn down), or the document
+  /// has no scrollable extent (book fits in one screen).
+  Future<double> _getBookScrollPercent({required bool isSecondary}) async {
+    final InAppWebViewController? target =
+        isSecondary ? _secondaryController : _controller;
+    if (target == null) return 0.0;
+    const String jsSource = '''
+      (function(){
+        var de = document.documentElement;
+        var cs = window.getComputedStyle(de);
+        var wm = cs.writingMode || '';
+        var dir = cs.direction || 'ltr';
+        var isRtl = wm.indexOf('-rl') !== -1 || dir === 'rtl';
+        var maxX = (de.scrollWidth || 0) - (de.clientWidth || 0);
+        var maxY = (de.scrollHeight || 0) - (de.clientHeight || 0);
+        var sx = window.scrollX || de.scrollLeft || 0;
+        var sy = window.scrollY || de.scrollTop || 0;
+        var pct = 0;
+        if (maxX > 0) {
+          pct = isRtl ? (-sx / maxX) : (sx / maxX);
+        } else if (maxY > 0) {
+          pct = sy / maxY;
+        }
+        if (pct < 0) pct = 0;
+        if (pct > 1) pct = 1;
+        return pct;
+      })();
+    ''';
+    try {
+      final dynamic result =
+          await target.evaluateJavascript(source: jsSource);
+      if (result is num) return result.toDouble().clamp(0.0, 1.0);
+      if (result is String) {
+        final double? parsed = double.tryParse(result);
+        if (parsed != null) return parsed.clamp(0.0, 1.0);
+      }
+    } catch (_) {
+      // Webview torn down or returned unexpected — fall through.
+    }
+    return 0.0;
+  }
+
+  /// Begin the periodic poll that keeps the per-pane progress
+  /// notifiers in sync with the user's current scroll position.
+  /// Each tick queries the same JS as [_getBookScrollPercent] for
+  /// each pane that has a controller. Failures are silent — the
+  /// notifier just keeps its previous value, and the next tick
+  /// retries.
+  ///
+  /// Started once from [initState]; lives until [dispose] cancels
+  /// it. The timer fires at [_progressPollInterval] (1 s) — that's
+  /// the visual lag between the user reading past a screen and the
+  /// progress bar advancing. Reading speed makes 1 s lag invisible
+  /// in practice.
+  void _startProgressPolling() {
+    _progressPollTimer?.cancel();
+    _progressPollTimer = Timer.periodic(_progressPollInterval, (_) async {
+      if (!mounted) return;
+      // Primary pane: poll if controller exists. The first ticks
+      // before _controller is initialised throw and are caught.
+      try {
+        final double pct =
+            await _getBookScrollPercent(isSecondary: false);
+        if (mounted) _primaryProgressNotifier.value = pct;
+      } catch (_) {}
+      // Secondary pane: only poll when the secondary view is
+      // actually mounted. With no secondary book attached the
+      // controller is null and the call returns 0.0 — we'd
+      // overwrite a stale-but-correct value with 0, which would
+      // make the bar jump to start visually. Gating on _hasSecondary
+      // avoids that.
+      if (_hasSecondary) {
+        try {
+          final double pct =
+              await _getBookScrollPercent(isSecondary: true);
+          if (mounted) _secondaryProgressNotifier.value = pct;
+        } catch (_) {}
+      }
+    });
+  }
+
+  /// Thin yellow-on-faint progress strip rendered at the bottom of
+  /// each book pane. 2 px tall (Material's typical sub-divider).
+  /// Uses an explicit [LinearProgressIndicator]-style track + fill
+  /// rather than [LinearProgressIndicator] itself because the
+  /// latter has minimum height constraints in some Material
+  /// versions and ignores extremely thin requests.
+  Widget _buildProgressStrip(ValueListenable<double> notifier) {
+    return ValueListenableBuilder<double>(
+      valueListenable: notifier,
+      builder: (context, value, _) {
+        return Container(
+          height: 2,
+          color: const Color(0xFFFFFF00).withOpacity(0.12),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: FractionallySizedBox(
+              widthFactor: value.clamp(0.0, 1.0),
+              child: Container(color: const Color(0xFFFFFF00)),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   /// Decode this book's TTU settings JSON snapshot from Hive into a
@@ -2297,6 +2588,21 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
   }
 
   Widget buildReaderArea(LocalAssetsServer server) {
+    // Webview is wrapped in a Column with a thin scroll-progress
+    // strip at the bottom so the user can see at a glance how far
+    // through the book they are. The strip's value is fed by
+    // [_progressPollTimer] every [_progressPollInterval]. In split
+    // view, this strip sits right above the splitter; the secondary
+    // pane has its own strip above the audio toolbar.
+    return Column(
+      children: [
+        Expanded(child: _buildPrimaryWebView(server)),
+        _buildProgressStrip(_primaryProgressNotifier),
+      ],
+    );
+  }
+
+  Widget _buildPrimaryWebView(LocalAssetsServer server) {
     // Widget key includes the forced writing mode so any change to
     // it tears down and re-creates the webview. The UserScript bakes
     // the current value in at construction time, so a fresh webview
