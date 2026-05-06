@@ -143,6 +143,21 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
   /// `'default'` — unchanged from pre-feature behavior.
   String? _currentBookId;
 
+  /// Title of the primary book, used to derive the per-book Hive
+  /// key in [_safeBookKey]. Seeded from `widget.item?.title` and
+  /// kept in sync with the primary webview's `<title>` element via
+  /// the primary's `onTitleChanged`. Null means "no specific book"
+  /// (manager page, cold start) and triggers the legacy id-based
+  /// fallback in [_safeBookKey].
+  ///
+  /// The reason we go content-derived in 1.1.x is cross-device
+  /// migration: TTU's IndexedDB assigns book ids by autoincrement,
+  /// so the same book has different ids on different devices. The
+  /// pre-1.1.x id-keyed Hive entries (font sizes, secondary book
+  /// associations) were therefore stranded after an export/import.
+  /// Title-keyed entries survive the round trip.
+  String? _currentBookTitle;
+
   /// Writing mode (`'vertical-rl'` or `'horizontal-tb'`) currently
   /// baked into the primary webview's UserScript-level
   /// `localStorage.getItem('writingMode')` override. TTU reads this
@@ -197,6 +212,13 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Seed the primary book's title for content-derived Hive keys
+    // (see [_safeBookKey]). When a book is launched via the app's
+    // history list `widget.item.title` is authoritative; for direct
+    // launches into TTU's manager (no specific book yet) this stays
+    // null until the primary's `onTitleChanged` fires for an actual
+    // book page.
+    _currentBookTitle = widget.item?.title;
     // Seed the primary's forced writingMode from the target-language
     // default before the first webview build. This is the value baked
     // into the first UserScript. If the specific book the user opens
@@ -379,6 +401,13 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
       String? newId = uri.queryParameters['id'];
       if (newId == _currentBookId) return;
       _currentBookId = newId;
+      // The previous book's title no longer applies — clear it so
+      // _safeBookKey falls back to the legacy id-derived shape
+      // until the next onTitleChanged supplies a fresh title.
+      // Without this clear we briefly hash the OLD title against
+      // the NEW id, producing a key that has no Hive entries on
+      // either side.
+      _currentBookTitle = null;
       // Don't race Hive if the secondary-book init hasn't opened the
       // box yet (this can fire before _initSecondaryBook completes on
       // cold start). The initial load will happen via _initSecondaryBook
@@ -408,24 +437,144 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
   ///
   /// Three-tier fallback, all prefixed by language code:
   ///
-  /// 1. Language + URL-derived book id from TTU (`?id=X`) -- the
-  ///    correct answer for books opened via TTU's library manager,
-  ///    which is most opens in practice.
-  /// 2. Language + `widget.item?.uniqueKey` -- used by non-library
-  ///    launches like settings pages where the item is explicitly
-  ///    supplied.
-  /// 3. Language + `'default'` -- last-ditch fallback for edge
-  ///    cases we have not anticipated.
+  /// 1. Language + content-derived hash of the book title -- the
+  ///    correct answer once both the id (so we know we are on a
+  ///    book page at all) and the title (from `widget.item.title`
+  ///    or the primary webview's `<title>`) are known. The hash
+  ///    rather than raw title keeps Hive keys to fixed size and
+  ///    avoids the regex sanitisation step swallowing the title
+  ///    into a string of underscores. Title-derived keys survive
+  ///    cross-device migration; id-derived keys did not.
+  /// 2. Language + URL-derived book id from TTU (`?id=X`) -- used
+  ///    when an id is known but the title is not yet (e.g. between
+  ///    `_updateCurrentBookFromUrl` setting the id and the
+  ///    primary's `onTitleChanged` setting the title). This is also
+  ///    the legacy key shape used pre-1.1.x; if a user is opening
+  ///    a book that was last read before the upgrade,
+  ///    [_migrateBookKeyIfNeeded] will copy the entries to the new
+  ///    title-derived key once the title becomes available.
+  /// 3. Language + `widget.item?.uniqueKey` -- non-library launches
+  ///    where the item is explicitly supplied.
+  /// 4. Language + `'default'` -- last-ditch fallback.
   String _safeBookKey() {
     final languageCode = appModel.targetLanguage.languageCode;
+    final title = _currentBookTitle;
+    if (title != null && title.isNotEmpty && _currentBookId != null) {
+      // Tier 1: title-derived. Prefix `t_` to disambiguate from
+      // legacy id-shaped keys.
+      return 'book_${languageCode}_t_${_stableHashHex(title)}';
+    }
     String k;
     if (_currentBookId != null) {
+      // Tier 2: id-derived (legacy shape). Same exact format as
+      // pre-1.1.x so existing Hive entries continue to resolve
+      // until [_migrateBookKeyIfNeeded] catches them.
       k = 'book_${languageCode}_${_currentBookId!}';
     } else {
+      // Tiers 3-4.
       final fallback = widget.item?.uniqueKey ?? 'default';
       k = '${languageCode}_$fallback';
     }
     return k.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+  }
+
+  /// Returns the legacy id-derived key for the current book, or
+  /// null if no id is known. Used by [_migrateBookKeyIfNeeded] to
+  /// find pre-1.1.x entries to copy forward.
+  String? _legacyBookKey() {
+    if (_currentBookId == null) return null;
+    final languageCode = appModel.targetLanguage.languageCode;
+    final k = 'book_${languageCode}_${_currentBookId!}';
+    return k.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+  }
+
+  /// One-shot migration of pre-1.1.x id-keyed Hive entries to the
+  /// new title-keyed shape. Called whenever both the id AND the
+  /// title for the current book are known and the Hive box is
+  /// open. No-op when:
+  ///
+  /// - the title or id is missing (the new key is not derivable
+  ///   yet, so we have nothing to migrate FROM),
+  /// - the legacy and new keys happen to match (single-language
+  ///   `default` fallback, mostly),
+  /// - any of the per-book prefixes already has an entry under the
+  ///   new key (means migration was already done, or the user has
+  ///   touched these settings post-upgrade and we should not stomp
+  ///   on them with stale legacy values).
+  ///
+  /// Legacy entries are NOT deleted after migration. They take
+  /// ~hundreds of bytes per book and act as a safety net if
+  /// anything we did not anticipate goes wrong with the new keys.
+  void _migrateBookKeyIfNeeded() {
+    if (!_readerBoxReady) return;
+    final title = _currentBookTitle;
+    if (title == null || title.isEmpty) return;
+    if (_currentBookId == null) return;
+
+    final newKey = _safeBookKey();
+    final legacyKey = _legacyBookKey();
+    if (legacyKey == null || legacyKey == newKey) return;
+
+    const prefixes = <String>[
+      'secondary_url_',
+      'secondary_title_',
+      'split_ratio_',
+      'secondary_shown_',
+      'ttu_settings_',
+    ];
+
+    // Bail if any new-key entry already exists; preserves
+    // post-upgrade edits over pre-upgrade legacy values.
+    for (final p in prefixes) {
+      if (_readerBox.containsKey('$p$newKey')) return;
+    }
+
+    bool migrated = false;
+    for (final p in prefixes) {
+      final legacy = '$p$legacyKey';
+      if (_readerBox.containsKey(legacy)) {
+        _readerBox.put('$p$newKey', _readerBox.get(legacy));
+        migrated = true;
+      }
+    }
+    if (migrated) {
+      debugPrint(
+          'reader_ttu: migrated per-book Hive entries $legacyKey → $newKey');
+    }
+  }
+
+  /// FNV-1a 32-bit hash, returned as 8 hex chars. Used to convert
+  /// arbitrary book titles into safe fixed-length Hive key
+  /// suffixes. Stable across Dart VM runs (unlike `String.hashCode`
+  /// which on some VM versions includes a per-isolate seed) so the
+  /// hash a book gets at first read is the same one it gets six
+  /// months later — that is what makes Hive entries survive across
+  /// app launches.
+  static String _stableHashHex(String s) {
+    var h = 0x811c9dc5;
+    for (final code in s.codeUnits) {
+      h ^= code & 0xff;
+      h = (h * 0x01000193) & 0xffffffff;
+      h ^= (code >> 8) & 0xff;
+      h = (h * 0x01000193) & 0xffffffff;
+    }
+    return h.toRadixString(16).padLeft(8, '0');
+  }
+
+  /// Extract the primary-book portion of TTU's page title. TTU
+  /// formats the title as either `BOOK | ッツ Ebook Reader` or, when
+  /// a secondary translation has been associated, `PRIMARY ⇨
+  /// SECONDARY | ッツ Ebook Reader`. We want the bare PRIMARY for
+  /// the Hive-key derivation, with the suffixes stripped and the
+  /// secondary half discarded.
+  static String? _extractPrimaryTitle(String? rawTitle) {
+    if (rawTitle == null || rawTitle.isEmpty) return null;
+    var t = rawTitle.split(' | ').first.trim();
+    if (t.isEmpty || t == 'ッツ Ebook Reader') return null;
+    if (t.contains('⇨')) {
+      t = t.split('⇨').first.trim();
+    }
+    return t.isEmpty ? null : t;
   }
 
   /// Stable identifier for the currently-attached secondary (translation)
@@ -2761,6 +2910,30 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
       },
       onTitleChanged: (controller, title) async {
         await _updateCurrentBookFromUrl(controller);
+        // Update the per-book Hive key's title source whenever the
+        // primary's <title> changes. _extractPrimaryTitle strips
+        // " | ッツ Ebook Reader" and discards the secondary half of
+        // a "PRIMARY ⇨ SECONDARY" rename. Triggers a one-shot
+        // migration of legacy id-keyed entries to the new title-
+        // derived shape (idempotent — second-and-subsequent calls
+        // for the same book are no-ops).
+        final extractedTitle = _extractPrimaryTitle(title);
+        if (extractedTitle != null && extractedTitle != _currentBookTitle) {
+          _currentBookTitle = extractedTitle;
+          // Migrate any pre-1.1.x id-keyed entries forward, then
+          // reload book-scoped state from Hive — _safeBookKey will
+          // now return the title-derived key, so the secondary
+          // book association, split ratio, and per-book TTU
+          // settings need to be re-read against that key. On a
+          // fresh import (no legacy entries to migrate) this is
+          // also when the imported title-keyed entries finally get
+          // applied, since _initSecondaryBook ran before the title
+          // was known.
+          _migrateBookKeyIfNeeded();
+          if (_readerBoxReady) {
+            _reloadSecondaryBookState();
+          }
+        }
         await controller.evaluateJavascript(source: javascriptToExecute);
 
         if (mediaSource.adaptTtuTheme) {

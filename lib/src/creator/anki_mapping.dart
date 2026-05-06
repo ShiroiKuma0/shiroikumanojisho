@@ -30,6 +30,13 @@ class AnkiMapping {
     this.id,
   });
 
+  /// Create an instance of this class from a serialized format.
+  factory AnkiMapping.fromJson(Map<String, dynamic> json) =>
+      _$AnkiMappingFromJson(json);
+
+  /// Convert this into a serialized format.
+  Map<String, dynamic> toJson() => _$AnkiMappingToJson(this);
+
   /// Get the default mapping that is included with the application at first
   /// startup. Requires a language so that the appropriate default enhancements
   /// are suggested.

@@ -98,9 +98,28 @@ class ReaderTtuSource extends ReaderMediaSource {
   /// retry look better for port conflicts.
   bool _lastServeFailed = false;
 
-  /// For serving the reader assets locally.
+  /// Cache of running [LocalAssetsServer]s, keyed by their port.
+  /// `serveLocalAssets` is called from multiple places: every time
+  /// the user opens a TTU book in their target language, and from
+  /// [AppExportImport] which iterates every language during export
+  /// or import. Without this cache, the second call for the same
+  /// language hits a `SocketException("The shared flag to bind()
+  /// needs to be true ...")` because Dart refuses to double-bind
+  /// the same address+port within one isolate without `shared:
+  /// true`. Returning the existing server when present avoids that
+  /// and is also a small efficiency win on repeat opens.
+  static final Map<int, LocalAssetsServer> _serversByPort = {};
+
+  /// For serving the reader assets locally. Idempotent per port:
+  /// the first call binds and caches, subsequent calls return the
+  /// cached server.
   Future<LocalAssetsServer> serveLocalAssets(Language language) async {
-    int port = getPortForLanguage(language);
+    final port = getPortForLanguage(language);
+
+    final existing = _serversByPort[port];
+    if (existing != null) {
+      return existing;
+    }
 
     if (_lastServeFailed) {
       await Future.delayed(const Duration(seconds: 1));
@@ -116,6 +135,7 @@ class ReaderTtuSource extends ReaderMediaSource {
       );
 
       await server.serve();
+      _serversByPort[port] = server;
 
       return server;
     } catch (e) {
@@ -622,6 +642,110 @@ indexedDB.databases().then((databases) => {
     console.log(JSON.stringify({messageType: "empty"}));
     
   }
+});
+''';
+
+  /// Body for `controller.callAsyncJavaScript` — wipe all three TTU
+  /// IndexedDB stores (`data`, `lastItem`, `bookmark`). Used by the
+  /// import path before re-populating from the bundle. Stores that
+  /// do not exist yet (TTU has not finished bootstrap, schema not
+  /// yet created) are ignored — the import's `putBookJsBody` etc.
+  /// will fail loudly when they cannot find their target store, so
+  /// we do not need to fail twice for the same condition here.
+  static const String clearStoresJsBody = '''
+return await new Promise((resolve, reject) => {
+  const req = indexedDB.open("books");
+  req.onsuccess = () => {
+    try {
+      const db = req.result;
+      const stores = ["data", "lastItem", "bookmark"]
+          .filter(n => db.objectStoreNames.contains(n));
+      if (stores.length === 0) { resolve(true); return; }
+      const tx = db.transaction(stores, "readwrite");
+      for (const n of stores) tx.objectStore(n).clear();
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
+    } catch (e) { reject(e); }
+  };
+  req.onerror = () => reject(req.error);
+});
+''';
+
+  /// Body for `controller.callAsyncJavaScript` — insert one book
+  /// record into the `data` store. Pass `book` as a Map. The
+  /// `coverImage` field, if present as a base64 data URL, is
+  /// converted back to a Blob in-place so TTU's later renderers
+  /// see the same shape they would after a normal upload.
+  static const String putBookJsBody = '''
+if (book && book.coverImage && typeof book.coverImage === "string"
+    && book.coverImage.indexOf("data:") === 0) {
+  try {
+    const r = await fetch(book.coverImage);
+    book.coverImage = await r.blob();
+  } catch (e) { delete book.coverImage; }
+}
+return await new Promise((resolve, reject) => {
+  const req = indexedDB.open("books");
+  req.onsuccess = () => {
+    try {
+      const db = req.result;
+      if (!db.objectStoreNames.contains("data")) {
+        reject(new Error("data store missing — open TTU once first"));
+        return;
+      }
+      const tx = db.transaction(["data"], "readwrite");
+      tx.objectStore("data").put(book);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
+    } catch (e) { reject(e); }
+  };
+  req.onerror = () => reject(req.error);
+});
+''';
+
+  /// Body for `controller.callAsyncJavaScript` — insert all
+  /// entries into the `lastItem` store. Pass `items` as a List.
+  static const String putLastItemsJsBody = '''
+if (!items || items.length === 0) return true;
+return await new Promise((resolve, reject) => {
+  const req = indexedDB.open("books");
+  req.onsuccess = () => {
+    try {
+      const db = req.result;
+      if (!db.objectStoreNames.contains("lastItem")) {
+        resolve(true); return;
+      }
+      const tx = db.transaction(["lastItem"], "readwrite");
+      const store = tx.objectStore("lastItem");
+      for (const item of items) store.put(item);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
+    } catch (e) { reject(e); }
+  };
+  req.onerror = () => reject(req.error);
+});
+''';
+
+  /// Body for `controller.callAsyncJavaScript` — insert all
+  /// entries into the `bookmark` store. Pass `items` as a List.
+  static const String putBookmarksJsBody = '''
+if (!items || items.length === 0) return true;
+return await new Promise((resolve, reject) => {
+  const req = indexedDB.open("books");
+  req.onsuccess = () => {
+    try {
+      const db = req.result;
+      if (!db.objectStoreNames.contains("bookmark")) {
+        resolve(true); return;
+      }
+      const tx = db.transaction(["bookmark"], "readwrite");
+      const store = tx.objectStore("bookmark");
+      for (const item of items) store.put(item);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
+    } catch (e) { reject(e); }
+  };
+  req.onerror = () => reject(req.error);
 });
 ''';
 

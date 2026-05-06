@@ -221,6 +221,12 @@ class AppModel with ChangeNotifier {
   /// Used for accessing persistent database data. See [initialise].
   late final Isar _database;
 
+  /// Public read access to the Isar database. Most call sites should use
+  /// the more focused wrappers above (`dictionaries`, `ankiMappings`,
+  /// etc.); this getter exists for cross-cutting code paths like the
+  /// export/import flow that needs to walk every collection.
+  Isar get database => _database;
+
   /// Used to get the versioning metadata of the app. See [initialise].
   PackageInfo get packageInfo => _packageInfo;
   late final PackageInfo _packageInfo;

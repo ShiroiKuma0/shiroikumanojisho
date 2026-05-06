@@ -783,6 +783,22 @@ class _HomePageState extends BasePageState<HomePage>
         ),
       ),
       buildPopupItem(
+        label: 'Export data (cross-device)',
+        icon: Icons.upload_file,
+        action: () => AppExportImport.exportData(
+          appModel: appModel,
+          context: context,
+        ),
+      ),
+      buildPopupItem(
+        label: 'Import data (cross-device)',
+        icon: Icons.download_for_offline,
+        action: () => AppExportImport.importData(
+          appModel: appModel,
+          context: context,
+        ),
+      ),
+      buildPopupItem(
         label: 'Clear reader cache',
         icon: Icons.cleaning_services,
         action: clearReaderCacheAction,
