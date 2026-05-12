@@ -50,10 +50,18 @@ public class MainActivity extends AudioServiceActivity {
      *  PlaybackIntentBridge.dart for end users. */
     public static final String ACTION_PLAYBACK_NEXT_SUBTITLE =
             "shiroikuma.jisho.action.PLAYBACK_NEXT_SUBTITLE";
+    public static final String ACTION_PLAYBACK_PREVIOUS_SUBTITLE =
+            "shiroikuma.jisho.action.PLAYBACK_PREVIOUS_SUBTITLE";
     public static final String ACTION_PLAYBACK_REPLAY_SUBTITLE =
             "shiroikuma.jisho.action.PLAYBACK_REPLAY_SUBTITLE";
     public static final String ACTION_PLAYBACK_TOGGLE_PLAY_PAUSE =
             "shiroikuma.jisho.action.PLAYBACK_TOGGLE_PLAY_PAUSE";
+    public static final String ACTION_PLAYBACK_PREVIOUS_CHAPTER =
+            "shiroikuma.jisho.action.PLAYBACK_PREVIOUS_CHAPTER";
+    public static final String ACTION_PLAYBACK_NEXT_CHAPTER =
+            "shiroikuma.jisho.action.PLAYBACK_NEXT_CHAPTER";
+    public static final String ACTION_PLAYBACK_CYCLE_MODE =
+            "shiroikuma.jisho.action.PLAYBACK_CYCLE_MODE";
 
     /** Lives as long as the FlutterEngine is configured. Created
      *  in configureFlutterEngine alongside the receiver and used
@@ -317,11 +325,23 @@ public class MainActivity extends AudioServiceActivity {
                     case ACTION_PLAYBACK_NEXT_SUBTITLE:
                         playbackChannel.invokeMethod("nextSubtitle", null);
                         break;
+                    case ACTION_PLAYBACK_PREVIOUS_SUBTITLE:
+                        playbackChannel.invokeMethod("previousSubtitle", null);
+                        break;
                     case ACTION_PLAYBACK_REPLAY_SUBTITLE:
                         playbackChannel.invokeMethod("replaySubtitle", null);
                         break;
                     case ACTION_PLAYBACK_TOGGLE_PLAY_PAUSE:
                         playbackChannel.invokeMethod("togglePlayPause", null);
+                        break;
+                    case ACTION_PLAYBACK_PREVIOUS_CHAPTER:
+                        playbackChannel.invokeMethod("previousChapter", null);
+                        break;
+                    case ACTION_PLAYBACK_NEXT_CHAPTER:
+                        playbackChannel.invokeMethod("nextChapter", null);
+                        break;
+                    case ACTION_PLAYBACK_CYCLE_MODE:
+                        playbackChannel.invokeMethod("cycleMode", null);
                         break;
                 }
             }
@@ -329,8 +349,12 @@ public class MainActivity extends AudioServiceActivity {
 
         IntentFilter filter = new IntentFilter();
         filter.addAction(ACTION_PLAYBACK_NEXT_SUBTITLE);
+        filter.addAction(ACTION_PLAYBACK_PREVIOUS_SUBTITLE);
         filter.addAction(ACTION_PLAYBACK_REPLAY_SUBTITLE);
         filter.addAction(ACTION_PLAYBACK_TOGGLE_PLAY_PAUSE);
+        filter.addAction(ACTION_PLAYBACK_PREVIOUS_CHAPTER);
+        filter.addAction(ACTION_PLAYBACK_NEXT_CHAPTER);
+        filter.addAction(ACTION_PLAYBACK_CYCLE_MODE);
 
         // Android 13+ requires the exported/not-exported flag for
         // any receiver that listens to broadcasts from other apps.

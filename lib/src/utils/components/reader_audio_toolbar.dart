@@ -146,12 +146,22 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
     // for the action names. Cleared again in [dispose].
     PlaybackIntentBridge.register(
       onNextSubtitle: _seekNext,
+      onPreviousSubtitle: _seekPrev,
       onReplaySubtitle: _replay,
       onTogglePlayPause: () {
         // Wrap in a void-returning closure — the bridge wants
         // VoidCallback but _playPause is Future<void>.
         _playPause();
       },
+      onPreviousChapter: () {
+        // Same wrap rationale as togglePlayPause: _prevChapter
+        // returns Future<void>.
+        _prevChapter();
+      },
+      onNextChapter: () {
+        _nextChapter();
+      },
+      onCycleMode: _cyclePlaybackMode,
     );
   }
 
@@ -690,6 +700,24 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
     }
   }
 
+  /// Advance the playback mode by one step in the
+  /// `normal → condensed → autoPause → normal` cycle. The
+  /// in-toolbar menu uses the same logic inline; this helper
+  /// exists so the broadcast-intent bridge can drive it without
+  /// duplicating the cycle math.
+  void _cyclePlaybackMode() {
+    final mode = widget.appModel.playbackMode;
+    final next = (mode.index + 1) % PlaybackMode.values.length;
+    widget.appModel.setPlaybackMode(PlaybackMode.values[next]);
+    // The mode is read live in `_onPosition`, so the behaviour
+    // change takes effect on the next position update without any
+    // further intervention. The setState here is purely so the
+    // menu icon (rendered against `mode`) re-renders next time
+    // the menu opens — useful when the user has the menu open and
+    // fires the intent from elsewhere on the same device.
+    if (mounted) setState(() {});
+  }
+
   Future<void> _pickMp3() async {
     // Custom folder browser rather than `file_picker.pickFiles` —
     // on Huawei (and some other Android flavours) file_picker's
@@ -963,10 +991,8 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
               title: Text(modeLabels[mode] ?? ''),
               subtitle: const Text('Tap to cycle'),
               onTap: () {
-                int next = (mode.index + 1) % PlaybackMode.values.length;
-                widget.appModel.setPlaybackMode(PlaybackMode.values[next]);
+                _cyclePlaybackMode();
                 Navigator.pop(ctx);
-                setState(() {});
               },
             ),
             if (_mp3Path != null)

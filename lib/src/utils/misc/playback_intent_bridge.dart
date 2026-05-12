@@ -11,11 +11,23 @@ import 'package:flutter/services.dart';
 ///
 ///   * `shiroikuma.jisho.action.PLAYBACK_NEXT_SUBTITLE`
 ///       Seek to the start of the next subtitle.
+///   * `shiroikuma.jisho.action.PLAYBACK_PREVIOUS_SUBTITLE`
+///       Seek to the start of the previous subtitle.
 ///   * `shiroikuma.jisho.action.PLAYBACK_REPLAY_SUBTITLE`
 ///       Seek to the start of the current (or nearest preceding)
 ///       subtitle and resume playback.
 ///   * `shiroikuma.jisho.action.PLAYBACK_TOGGLE_PLAY_PAUSE`
 ///       Toggle play/pause.
+///   * `shiroikuma.jisho.action.PLAYBACK_PREVIOUS_CHAPTER`
+///       Jump to the previous chapter audio file in the same
+///       folder, if any.
+///   * `shiroikuma.jisho.action.PLAYBACK_NEXT_CHAPTER`
+///       Jump to the next chapter audio file in the same folder,
+///       if any.
+///   * `shiroikuma.jisho.action.PLAYBACK_CYCLE_MODE`
+///       Cycle the playback mode: normal → condensed → auto-pause
+///       → normal. Used to switch in and out of shadowing mode
+///       (auto-pause) without opening the toolbar menu.
 ///
 /// In Tasker, use a "Send Intent" action with the appropriate
 /// action string, target package `shiroikuma.jisho`, and target
@@ -39,8 +51,12 @@ class PlaybackIntentBridge {
       MethodChannel('shiroikuma.jisho/playback_intent');
 
   static VoidCallback? _onNextSubtitle;
+  static VoidCallback? _onPreviousSubtitle;
   static VoidCallback? _onReplaySubtitle;
   static VoidCallback? _onTogglePlayPause;
+  static VoidCallback? _onPreviousChapter;
+  static VoidCallback? _onNextChapter;
+  static VoidCallback? _onCycleMode;
 
   static bool _initialised = false;
 
@@ -56,11 +72,23 @@ class PlaybackIntentBridge {
         case 'nextSubtitle':
           _onNextSubtitle?.call();
           return null;
+        case 'previousSubtitle':
+          _onPreviousSubtitle?.call();
+          return null;
         case 'replaySubtitle':
           _onReplaySubtitle?.call();
           return null;
         case 'togglePlayPause':
           _onTogglePlayPause?.call();
+          return null;
+        case 'previousChapter':
+          _onPreviousChapter?.call();
+          return null;
+        case 'nextChapter':
+          _onNextChapter?.call();
+          return null;
+        case 'cycleMode':
+          _onCycleMode?.call();
           return null;
       }
       return null;
@@ -78,18 +106,30 @@ class PlaybackIntentBridge {
   /// wins until it disposes.
   static void register({
     VoidCallback? onNextSubtitle,
+    VoidCallback? onPreviousSubtitle,
     VoidCallback? onReplaySubtitle,
     VoidCallback? onTogglePlayPause,
+    VoidCallback? onPreviousChapter,
+    VoidCallback? onNextChapter,
+    VoidCallback? onCycleMode,
   }) {
     _onNextSubtitle = onNextSubtitle;
+    _onPreviousSubtitle = onPreviousSubtitle;
     _onReplaySubtitle = onReplaySubtitle;
     _onTogglePlayPause = onTogglePlayPause;
+    _onPreviousChapter = onPreviousChapter;
+    _onNextChapter = onNextChapter;
+    _onCycleMode = onCycleMode;
   }
 
   /// Clear all registered callbacks. Safe to call multiple times.
   static void unregister() {
     _onNextSubtitle = null;
+    _onPreviousSubtitle = null;
     _onReplaySubtitle = null;
     _onTogglePlayPause = null;
+    _onPreviousChapter = null;
+    _onNextChapter = null;
+    _onCycleMode = null;
   }
 }
