@@ -141,6 +141,18 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
   void initState() {
     super.initState();
     _init();
+    // Make the toolbar's playback controls reachable from external
+    // broadcast intents (Tasker etc.). See [PlaybackIntentBridge]
+    // for the action names. Cleared again in [dispose].
+    PlaybackIntentBridge.register(
+      onNextSubtitle: _seekNext,
+      onReplaySubtitle: _replay,
+      onTogglePlayPause: () {
+        // Wrap in a void-returning closure — the bridge wants
+        // VoidCallback but _playPause is Future<void>.
+        _playPause();
+      },
+    );
   }
 
   @override
@@ -218,6 +230,7 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
   @override
   void dispose() {
     _saveAudioPosition();
+    PlaybackIntentBridge.unregister();
     _positionSub?.cancel();
     _playerStateSub?.cancel();
     _durationSub?.cancel();

@@ -43,6 +43,7 @@ export 'src/utils/misc/browser_bookmark.dart';
 export 'src/utils/components/reader_audio_toolbar.dart';
 export 'src/utils/misc/app_backup_restore.dart';
 export 'src/utils/misc/app_export_import.dart';
+export 'src/utils/misc/playback_intent_bridge.dart';
 export 'src/utils/misc/dictionary_resource_cleanup.dart';
 export 'src/utils/misc/storage_benchmark_dialog.dart';
 export 'src/utils/components/reader_settings_dialog.dart';

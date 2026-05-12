@@ -30,6 +30,15 @@ void main() {
     /// starting the application.
     final binding = WidgetsFlutterBinding.ensureInitialized();
 
+    /// Install the broadcast-intent → Dart bridge so external
+    /// tools (Tasker, etc.) can drive playback controls. The
+    /// handler is idle until a reader audio toolbar mounts and
+    /// registers its callbacks; intents that arrive before then
+    /// are silently dropped (no-op), which is the correct
+    /// behaviour — we do not want a stray broadcast to cold-start
+    /// audio playback from no context.
+    PlaybackIntentBridge.initialise();
+
     /// Initialise local file-based logging.
     await FlutterLogs.initLogs(
       logLevelsEnabled: [

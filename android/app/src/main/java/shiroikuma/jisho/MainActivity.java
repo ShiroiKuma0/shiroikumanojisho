@@ -3,7 +3,10 @@
 package shiroikuma.jisho;
 
 import android.app.Activity;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -36,6 +39,27 @@ import android.content.res.Configuration;
 public class MainActivity extends AudioServiceActivity {
     private static final String ANKIDROID_CHANNEL = "shiroikuma.jisho/anki";
     private static final int AD_PERM_REQUEST = 0;
+
+    /** MethodChannel used to deliver decoded broadcast intents to
+     *  the Dart side (see PlaybackIntentBridge). */
+    private static final String PLAYBACK_CHANNEL =
+            "shiroikuma.jisho/playback_intent";
+
+    /** Broadcast intent actions other apps can fire to control
+     *  the reader audio toolbar's playback. Documented in
+     *  PlaybackIntentBridge.dart for end users. */
+    public static final String ACTION_PLAYBACK_NEXT_SUBTITLE =
+            "shiroikuma.jisho.action.PLAYBACK_NEXT_SUBTITLE";
+    public static final String ACTION_PLAYBACK_REPLAY_SUBTITLE =
+            "shiroikuma.jisho.action.PLAYBACK_REPLAY_SUBTITLE";
+    public static final String ACTION_PLAYBACK_TOGGLE_PLAY_PAUSE =
+            "shiroikuma.jisho.action.PLAYBACK_TOGGLE_PLAY_PAUSE";
+
+    /** Lives as long as the FlutterEngine is configured. Created
+     *  in configureFlutterEngine alongside the receiver and used
+     *  by the receiver to push events to Dart. */
+    private MethodChannel playbackChannel;
+    private BroadcastReceiver playbackReceiver;
 
     private Activity context;
     private AnkiDroidHelper mAnkiDroid;
@@ -255,5 +279,79 @@ public class MainActivity extends AudioServiceActivity {
                     }
                 }
             );
+
+        // --- Tasker-friendly playback intent bridge ------------
+        // External apps (Tasker, Macrodroid, button-mapper apps,
+        // hardware-button receivers) can fire one of the three
+        // ACTION_PLAYBACK_* broadcasts to drive the reader audio
+        // toolbar. The receiver registered here translates each
+        // intent into a method call on PLAYBACK_CHANNEL; the Dart
+        // side dispatches it to whichever toolbar is currently
+        // mounted. If no toolbar is mounted the call is a no-op.
+        //
+        // The receiver is registered dynamically rather than via
+        // the manifest so it lives exactly as long as the
+        // FlutterEngine: when the activity is destroyed the
+        // receiver goes with it, and no stray broadcasts can
+        // wake a dead engine.
+        playbackChannel = new MethodChannel(
+                flutterEngine.getDartExecutor().getBinaryMessenger(),
+                PLAYBACK_CHANNEL);
+
+        if (playbackReceiver != null) {
+            // Defensive: in case configureFlutterEngine is invoked
+            // more than once (cached engine pattern can do this on
+            // activity recreation), tear down the previous one
+            // first so we do not leak a receiver per recreation.
+            try { unregisterReceiver(playbackReceiver); }
+            catch (Exception ignored) {}
+            playbackReceiver = null;
+        }
+
+        playbackReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context ctx, Intent intent) {
+                if (intent == null || intent.getAction() == null) return;
+                if (playbackChannel == null) return;
+                switch (intent.getAction()) {
+                    case ACTION_PLAYBACK_NEXT_SUBTITLE:
+                        playbackChannel.invokeMethod("nextSubtitle", null);
+                        break;
+                    case ACTION_PLAYBACK_REPLAY_SUBTITLE:
+                        playbackChannel.invokeMethod("replaySubtitle", null);
+                        break;
+                    case ACTION_PLAYBACK_TOGGLE_PLAY_PAUSE:
+                        playbackChannel.invokeMethod("togglePlayPause", null);
+                        break;
+                }
+            }
+        };
+
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(ACTION_PLAYBACK_NEXT_SUBTITLE);
+        filter.addAction(ACTION_PLAYBACK_REPLAY_SUBTITLE);
+        filter.addAction(ACTION_PLAYBACK_TOGGLE_PLAY_PAUSE);
+
+        // Android 13+ requires the exported/not-exported flag for
+        // any receiver that listens to broadcasts from other apps.
+        // Below 13 the flag is implicit (exported by default if a
+        // filter is set), so we register without the flag there.
+        if (android.os.Build.VERSION.SDK_INT
+                >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(playbackReceiver, filter,
+                    Context.RECEIVER_EXPORTED);
+        } else {
+            registerReceiver(playbackReceiver, filter);
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (playbackReceiver != null) {
+            try { unregisterReceiver(playbackReceiver); }
+            catch (Exception ignored) {}
+            playbackReceiver = null;
+        }
+        super.onDestroy();
     }
 }
