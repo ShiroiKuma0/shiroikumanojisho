@@ -374,9 +374,18 @@ class _HomePageState extends BasePageState<HomePage>
               color: color,
             ),
           if (icon != null) const Space.normal(),
-          Text(
-            label,
-            style: TextStyle(color: color),
+          // Flexible + soft wrap so long labels (e.g. "Reader audio
+          // toolbar height", "Import data (cross-device)") wrap to a
+          // second line within the menu's width rather than running
+          // off the right edge of the screen and clipping. Without
+          // this the Text reports its full single-line intrinsic
+          // width and the Row overflows the popup menu's box.
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(color: color),
+              softWrap: true,
+            ),
           ),
         ],
       ),
@@ -755,6 +764,11 @@ class _HomePageState extends BasePageState<HomePage>
         label: 'Reader audio toolbar height',
         icon: Icons.height,
         action: showReaderAudioToolbarHeightDialog,
+      ),
+      buildPopupItem(
+        label: 'Customise reader toolbar',
+        icon: Icons.tune,
+        action: () => showReaderToolbarCustomiseDialog(context, appModel),
       ),
       buildPopupItem(
         label: t.options_ui_text_color,

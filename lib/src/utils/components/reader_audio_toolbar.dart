@@ -1047,6 +1047,16 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
                 },
               ),
             const Divider(),
+            ListTile(
+              leading: const Icon(Icons.tune),
+              title: const Text('Customise toolbar'),
+              subtitle: const Text('Show or hide toolbar buttons'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showCustomiseToolbar();
+              },
+            ),
+            const Divider(),
             StatefulBuilder(
               builder: (sbCtx, sbSetState) {
                 final src = ReaderTtuSource.instance;
@@ -1067,6 +1077,20 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
         ),
       ),
     );
+  }
+
+  /// Open the toolbar-customise dialog, then rebuild this toolbar so
+  /// any show/hide changes take immediate effect. The dialog body
+  /// itself lives in the top-level [showReaderToolbarCustomiseDialog]
+  /// so the home-page settings menu can present the exact same UI
+  /// without needing a mounted toolbar — important because the
+  /// toolbar's own options (⋮) button is one of the things that can
+  /// be pushed off-screen on a narrow device, which would otherwise
+  /// make this dialog unreachable.
+  void _showCustomiseToolbar() {
+    showReaderToolbarCustomiseDialog(context, widget.appModel).then((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   void _showSpeedDialog() {
@@ -1417,25 +1441,42 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Row(
-            children: [
-              const SizedBox(width: 4),
-              _btn(Icons.fast_rewind, t.seek_control, _seekPrev),
-              _btn(Icons.replay, t.replay_subtitle, _replay),
-              _buildPlayPause(),
-              _btn(Icons.fast_forward, t.seek_control, _seekNext),
-              _buildTime(),
-              _btn(Icons.skip_previous, 'Previous chapter', _prevChapter),
-              Expanded(child: _buildSlider()),
-              _btn(Icons.skip_next, 'Next chapter', _nextChapter),
-              _buildSecondaryToggle(),
-              _btn(Icons.menu_book_outlined, 'Navigate', _showNavigateMenu),
-              _btn(Icons.more_vert, t.show_options, _showMenu),
-              const SizedBox(width: 4),
-            ],
+            children: _buildExpandedChildren(),
           ),
         ),
       ),
     );
+  }
+
+  /// Build the expanded toolbar's children, omitting any button the
+  /// user has hidden via the "Customise toolbar" dialog. Play/pause,
+  /// the slider, and the options menu are always present (they have
+  /// no `if (show(...))` guard) because they are essential and the
+  /// options menu is the entry point to the customise dialog.
+  List<Widget> _buildExpandedChildren() {
+    final hidden = widget.appModel.hiddenReaderToolbarItems;
+    bool show(String id) => !hidden.contains(id);
+    return [
+      const SizedBox(width: 4),
+      if (show('seek_prev'))
+        _btn(Icons.fast_rewind, t.seek_control, _seekPrev),
+      if (show('replay'))
+        _btn(Icons.replay, t.replay_subtitle, _replay),
+      _buildPlayPause(),
+      if (show('seek_next'))
+        _btn(Icons.fast_forward, t.seek_control, _seekNext),
+      if (show('time')) _buildTime(),
+      if (show('prev_chapter'))
+        _btn(Icons.skip_previous, 'Previous chapter', _prevChapter),
+      Expanded(child: _buildSlider()),
+      if (show('next_chapter'))
+        _btn(Icons.skip_next, 'Next chapter', _nextChapter),
+      if (show('secondary_toggle')) _buildSecondaryToggle(),
+      if (show('navigate'))
+        _btn(Icons.menu_book_outlined, 'Navigate', _showNavigateMenu),
+      _btn(Icons.more_vert, t.show_options, _showMenu),
+      const SizedBox(width: 4),
+    ];
   }
 
   Widget _btn(IconData icon, String tooltip, VoidCallback onTap) {
@@ -1845,4 +1886,85 @@ class _BookPageJumpPageState extends State<_BookPageJumpPage> {
       ),
     );
   }
+}
+
+/// Show the "Customise reader toolbar" dialog: a checklist of the
+/// hideable reader-audio-toolbar buttons where checked = visible.
+///
+/// Lives at top level (rather than as a method on the toolbar's
+/// State) so it can be opened from two places:
+///   * the toolbar's own options (⋮) menu, while a reader is open;
+///   * the home-page settings menu, which is always reachable even
+///     when the toolbar's ⋮ button has been pushed off the edge of
+///     a narrow screen — the very situation this feature exists to
+///     fix.
+///
+/// All state is read from and written to [appModel]; the dialog
+/// needs no mounted toolbar. Callers that have a visible toolbar
+/// (i.e. the toolbar itself) should rebuild after the returned
+/// future completes so the bar reflects the change immediately.
+/// The home page does not need to: the next time a reader opens,
+/// the toolbar reads the updated preferences on build.
+Future<void> showReaderToolbarCustomiseDialog(
+    BuildContext context, AppModel appModel) {
+  // (id, label, icon) for every hideable button, in toolbar order.
+  const items = <List<dynamic>>[
+    ['seek_prev', 'Seek to previous subtitle', Icons.fast_rewind],
+    ['replay', 'Replay subtitle', Icons.replay],
+    ['seek_next', 'Seek to next subtitle', Icons.fast_forward],
+    ['time', 'Time display', Icons.access_time],
+    ['prev_chapter', 'Previous chapter', Icons.skip_previous],
+    ['next_chapter', 'Next chapter', Icons.skip_next],
+    ['secondary_toggle', 'Translation book toggle',
+        Icons.chrome_reader_mode],
+    ['navigate', 'Navigate menu', Icons.menu_book_outlined],
+  ];
+
+  return showDialog(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Customise toolbar'),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: StatefulBuilder(
+          builder: (sbCtx, sbSetState) {
+            return ListView(
+              shrinkWrap: true,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(8, 0, 8, 12),
+                  child: Text(
+                    'Uncheck buttons to hide them. Play/pause, the '
+                    'position slider, and the options menu always '
+                    'stay visible.',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ),
+                for (final item in items)
+                  CheckboxListTile(
+                    dense: true,
+                    secondary: Icon(item[2] as IconData),
+                    title: Text(item[1] as String),
+                    value: !appModel
+                        .isReaderToolbarItemHidden(item[0] as String),
+                    onChanged: (visible) {
+                      // Toggle flips hidden state; the checkbox
+                      // shows the inverse (visible = not hidden).
+                      appModel.toggleReaderToolbarItem(item[0] as String);
+                      sbSetState(() {});
+                    },
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Done'),
+        ),
+      ],
+    ),
+  );
 }

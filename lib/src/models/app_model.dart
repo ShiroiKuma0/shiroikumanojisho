@@ -932,6 +932,45 @@ class AppModel with ChangeNotifier {
     return (readerAudioToolbarHeight * 0.6).round().clamp(16, 100);
   }
 
+  /// IDs of reader audio toolbar buttons the user has chosen to
+  /// hide. Hiding lets the remaining buttons fit on narrow screens
+  /// (e.g. the Boox Palma) where the full set overflows the bar and
+  /// clips the rightmost item. Play/pause, the position slider, and
+  /// the options (overflow) menu are never hideable — they are
+  /// essential controls, and the options menu is how the user
+  /// reaches the customise dialog in the first place.
+  List<String> get hiddenReaderToolbarItems {
+    final dynamic raw = _preferences.get(
+      'reader_audio_toolbar_hidden_items',
+      defaultValue: const <String>[],
+    );
+    if (raw is List) {
+      return raw.map((e) => e.toString()).toList();
+    }
+    return <String>[];
+  }
+
+  set hiddenReaderToolbarItems(List<String> value) {
+    _preferences.put('reader_audio_toolbar_hidden_items', value);
+    notifyListeners();
+  }
+
+  /// Whether reader audio toolbar button [id] is currently hidden.
+  bool isReaderToolbarItemHidden(String id) {
+    return hiddenReaderToolbarItems.contains(id);
+  }
+
+  /// Flip the hidden state of reader audio toolbar button [id].
+  void toggleReaderToolbarItem(String id) {
+    final current = hiddenReaderToolbarItems;
+    if (current.contains(id)) {
+      current.remove(id);
+    } else {
+      current.add(id);
+    }
+    hiddenReaderToolbarItems = current;
+  }
+
   /// Slider thumb radius for the reader audio toolbar's position
   /// slider. Material's default `Slider` thumb radius is 10. Scales
   /// with the toolbar height so the thumb stays grabbable in tall
