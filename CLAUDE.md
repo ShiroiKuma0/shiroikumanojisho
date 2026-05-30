@@ -129,6 +129,14 @@ Always done from a clean `origin/main` state. Reset pubspec from `X.Y.Z+N` to pl
 
 The fork has no protected branches; `git revert` and push is fine. Tagged releases stay published even if a tag is later regretted — leave the old tag, cut a new one with the fix.
 
+## Selective upstream sync
+
+This fork carries a global identity rename (`yuuna` → `shiroikumanojisho`, package, name, etc.) that touches effectively every file. That makes a "mirror upstream into a branch, merge it down" pattern expensive — every sync would conflict everywhere those names appear. Instead, this repo runs a **selective cherry-pick** model: we track upstream as a second git remote, and when upstream ships something new and interesting, we port it in by hand (or via `git cherry-pick` when conflicts are tractable).
+
+This is intentional, not a missing piece. We do not mirror upstream into a branch. There is no `upstream-main` branch on `origin`. The history of this fork is single-track, and ports from upstream are presented as normal commits authored here with a "(from upstream X.Y.Z, <upstream-sha>)" reference in the commit body.
+
+See `.claude/skills/upstream-sync/SKILL.md` for the exact commands: adding the upstream remote, comparing since the last sync point, picking which commits to port, the tracking-tag convention (`upstream-sync-X.Y.Z`) that records what's been brought in, and how changelog entries should be annotated.
+
 ## What is intentionally NOT in this file
 
 - Tasker scene XML or HUD config from the user's personal device setup — not part of this codebase.
