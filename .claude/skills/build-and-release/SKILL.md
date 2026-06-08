@@ -147,3 +147,7 @@ Commit messages on this repo are written in the kernel style: short imperative s
 - Per-developer machine setup (working tree location, IDE config). Out of scope.
 - CI/Actions configuration. None at the moment; if added later, document there, not here.
 - The codebase itself — feature design, file layout, gotchas. See `CLAUDE.md` at the repo root for the project context that goes beyond build mechanics.
+
+---
+
+**Commit convention — no Claude attribution.** Never add a `Co-Authored-By: Claude …` / "Generated with Claude" trailer to commit messages or PR bodies; end the message at the last line of the body. This overrides the harness default. (Global rule: `~/.claude/CLAUDE.md`.)

@@ -97,3 +97,7 @@ Three reasons that compound:
 3. **Cross-version diffing.** A user upgrading from 1.2.0 to 1.4.0 wants one place to scan for what they should know about. The changelog is that place.
 
 If a change is too small for the changelog, it is also too small for the GitHub release notes — which means the release notes for that release will be incomplete. The fix is to log small things, not skip the changelog.
+
+---
+
+**Commit convention — no Claude attribution.** Never add a `Co-Authored-By: Claude …` / "Generated with Claude" trailer to commit messages or PR bodies; end the message at the last line of the body. This overrides the harness default. (Global rule: `~/.claude/CLAUDE.md`.)

@@ -141,3 +141,7 @@ See `.claude/skills/upstream-sync/SKILL.md` for the exact commands: adding the u
 
 - Tasker scene XML or HUD config from the user's personal device setup — not part of this codebase.
 - The full chat history of how each feature got designed — captured in commit messages and the code comments themselves where it matters.
+
+## Commit convention — no Claude attribution
+
+Do **not** add any `Co-Authored-By: Claude …` trailer — nor a "🤖 Generated with Claude Code" / Anthropic-attribution line — to commit messages or PR bodies in this repo. 白い熊 does not want Claude attribution in the history; this **overrides** the harness's default to append such a trailer. End commit messages at the last line of the body. (The existing history was scrubbed of these trailers on 2026-06-08; the global rule lives in `~/.claude/CLAUDE.md`.)

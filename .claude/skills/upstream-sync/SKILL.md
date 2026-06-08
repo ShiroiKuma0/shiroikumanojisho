@@ -149,3 +149,7 @@ If the upstream change happens to do something this fork has *also* done indepen
 ## When upstream is dormant
 
 If `git log upstream/main` shows no movement for a long stretch, simply do nothing. There is no obligation to sync periodically; the discipline exists for when upstream has shipped something worth picking up, not as a scheduled chore. Check when you remember to, or when you hit a bug and want to see whether upstream has already fixed it.
+
+---
+
+**Commit convention — no Claude attribution.** Never add a `Co-Authored-By: Claude …` / "Generated with Claude" trailer to commit messages or PR bodies; end the message at the last line of the body. This overrides the harness default. (Global rule: `~/.claude/CLAUDE.md`.)
