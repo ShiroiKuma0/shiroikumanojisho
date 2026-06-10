@@ -20,7 +20,7 @@ import 'package:receive_intent/receive_intent.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:spaces/spaces.dart';
 import 'package:subtitle/subtitle.dart';
-import 'package:wakelock/wakelock.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import 'package:shiroikumanojisho/creator.dart';
 import 'package:shiroikumanojisho/media.dart';
@@ -141,7 +141,7 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
 
         if (mounted && appModel.isMediaOpen) {
           appModel.applyPlayerOrientation();
-          Wakelock.enable();
+          WakelockPlus.enable();
         }
 
         break;
@@ -470,7 +470,7 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
 
     if (mounted && appModel.isMediaOpen) {
       await appModel.applyPlayerOrientation();
-      await Wakelock.enable();
+      await WakelockPlus.enable();
     }
 
     _playPauseSubscription = appModel.playStream.listen((_) {
@@ -3227,7 +3227,7 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
     if (_isMenuShownPermanent.value) {
       _isMenuHidden.value = false;
     } else {
-      Wakelock.enable();
+      WakelockPlus.enable();
       _menuHideTimer?.cancel();
       _isMenuHidden.value = !_isMenuHidden.value;
       if (!_isMenuHidden.value) {
