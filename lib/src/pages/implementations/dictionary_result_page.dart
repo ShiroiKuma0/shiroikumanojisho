@@ -262,17 +262,18 @@ class _DictionaryResultPageState extends BasePageState<DictionaryResultPage> {
     return Stack(
       children: [
         content,
-        Positioned(
-          left: 0,
-          top: 0,
-          bottom: 0,
-          width: fontStripWidth,
-          child: GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onVerticalDragUpdate: _onFontDragUpdate,
-            onVerticalDragEnd: _onFontDragEnd,
+        if (appModel.dictionaryFontSizeSwipeEnabled)
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: fontStripWidth,
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onVerticalDragUpdate: _onFontDragUpdate,
+              onVerticalDragEnd: _onFontDragEnd,
+            ),
           ),
-        ),
         // Font-size indicator pill. Listens on two notifiers so
         // the finger-tracking label repaints at gesture rate
         // without pulling the dictionary subtree into the

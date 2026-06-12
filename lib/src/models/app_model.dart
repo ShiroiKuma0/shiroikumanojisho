@@ -4866,6 +4866,19 @@ class AppModel with ChangeNotifier {
     await _preferences.put('dictionary_heading_font_size', fontSize);
   }
 
+  /// Whether dragging the left edge of dictionary results changes font size.
+  bool get dictionaryFontSizeSwipeEnabled {
+    return _preferences.get(
+      'dictionary_font_size_swipe_enabled',
+      defaultValue: true,
+    );
+  }
+
+  /// Sets whether dragging the left edge of dictionary results changes font size.
+  void setDictionaryFontSizeSwipeEnabled(bool enabled) async {
+    await _preferences.put('dictionary_font_size_swipe_enabled', enabled);
+  }
+  
   /// The search debounce delay in milliseconds for searching in the app..
   bool get closeCreatorOnExport {
     return _preferences.get('close_on_export', defaultValue: false);
