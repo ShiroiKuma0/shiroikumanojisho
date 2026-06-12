@@ -408,22 +408,28 @@ class _DictionaryTermFreqList extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     AppModel appModel = ref.watch(appProvider);
 
-    List<DictionaryFrequency> frequencies = heading.frequencies
-        .where((frequency) =>
-            !dictionaryNamesByHidden[frequency.dictionary.value!.name]!)
-        .toList();
+    List<DictionaryFrequency> frequencies = [
+      ...heading.frequencies,
+      ...appModel.getNoReadingFrequencies(heading: heading),
+    ].where((frequency) {
+      final dictionary = frequency.dictionary.value;
 
-    frequencies += appModel.getNoReadingFrequencies(heading: heading);
+      if (dictionary == null) {
+        return false;
+      }
+
+      return !(dictionaryNamesByHidden[dictionary.name] ?? true);
+    }).toList();
 
     if (frequencies.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    List<MapEntry<Dictionary, List<DictionaryFrequency>>>
-        frequenciesByDictionary = groupBy<DictionaryFrequency, Dictionary>(
-                frequencies, (frequency) => frequency.dictionary.value!)
-            .entries
-            .toList();
+    List<MapEntry<Dictionary, List<DictionaryFrequency>>> frequenciesByDictionary =
+        groupBy(
+      frequencies,
+      (frequency) => frequency.dictionary.value!,
+    ).entries.toList();
 
     frequenciesByDictionary.sort((a, b) => a.key.order.compareTo(b.key.order));
     for (MapEntry<Dictionary, List<DictionaryFrequency>> entries
