@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [1.4.0] - 2026-06-13
+
 ### Added
 
 - Toggle for the left-edge font-size swipe gesture in dictionary results, in the dictionary settings dialog ("Left-edge font-size swipe gesture"). Lets the gesture added in 1.0.4 be turned off on devices where it interferes with scrolling or is triggered accidentally. Persisted under the `dictionary_font_size_swipe_enabled` preference; defaults to on, preserving existing behaviour.
@@ -131,7 +135,8 @@ Initial release after the rename and restructure from `ShiroiKuma0/jidoujisho2`.
 - App display name set to `白い熊の辞書` (Android and iOS); iOS identity also updated.
 - Version baseline reset to `1.0.0+1` post-rename.
 
-[Unreleased]: https://github.com/ShiroiKuma0/shiroikumanojisho/compare/1.3.1...HEAD
+[Unreleased]: https://github.com/ShiroiKuma0/shiroikumanojisho/compare/1.4.0...HEAD
+[1.4.0]: https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.4.0
 [1.3.1]: https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.3.1
 [1.3.0]: https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.3.0
 [1.2.0]: https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.2.0
