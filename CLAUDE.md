@@ -54,7 +54,7 @@ This is a single-developer fork; the build environment is fixed and the specific
 | `JAVA_HOME` | `/usr/lib/jvm/zulu11` |
 | Why pinned to 11 | Gradle 7.2 (see below) refuses JDK 17+ with cryptic Kotlin class-file errors |
 
-Before every build session: `export JAVA_HOME=/usr/lib/jvm/zulu11 && export PATH="$JAVA_HOME/bin:$PATH"`. The Gradle daemon caches the JDK it started under, so if a previous session ran with a different JDK, kill it first: `pkill -f GradleDaemon; sleep 1`.
+Before every build session: `export JAVA_HOME=/usr/lib/jvm/zulu11 && export PATH="$JAVA_HOME/bin:$PATH"`. The Gradle daemon caches the JDK it started under, so if a previous session ran with a different JDK, kill it first: `pkill -f '[G]radleDaemon' || true`. (Bracket the `[G]` so the pattern can't match — and kill — the non-interactive shell running the command itself; a literal `pkill -f GradleDaemon` self-terminates the build. See the build-and-release skill for the full rationale.)
 
 ### Build toolchain (project-pinned)
 

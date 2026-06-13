@@ -25,8 +25,10 @@ Adjust the path if Zulu 11 is installed elsewhere on a specific machine — only
 Then kill any running Gradle daemon left over from a previous session under a different JDK, since the daemon caches the JDK it started with:
 
 ```bash
-pkill -f GradleDaemon; sleep 1
+pkill -f '[G]radleDaemon' || true
 ```
+
+Use the bracketed `[G]radleDaemon`, **not** a literal `pkill -f GradleDaemon`. When this runs from a non-interactive script (as Claude's Bash tool does), the invoking shell's own command line *contains the pattern string*, so `pkill -f GradleDaemon` matches and kills its own parent shell mid-build. The build then dies by signal (exit 144) before `flutter clean` ever runs, and a trailing `|| true` does **not** rescue it — the shell is killed by signal, not by pkill's exit code. The character class `[G]` still matches real daemon processes (their argv contains `GradleDaemon`) while keeping the literal pattern out of the script's own argv. Don't append `; sleep 1`: a fresh daemon spawns on the next gradle call regardless, and a bare foreground `sleep` is blocked in the Bash tool anyway.
 
 This pair (set JAVA_HOME, kill stale daemon) goes at the top of any build session.
 
