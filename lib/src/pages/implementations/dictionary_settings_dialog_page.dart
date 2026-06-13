@@ -141,30 +141,30 @@ class _DictionaryDialogPageState extends BasePageState {
     );
   }
 
-Widget buildDictionaryFontSizeSwipeSwitch() {
-  ValueNotifier<bool> notifier =
-      ValueNotifier<bool>(appModel.dictionaryFontSizeSwipeEnabled);
+  Widget buildDictionaryFontSizeSwipeSwitch() {
+    ValueNotifier<bool> notifier =
+        ValueNotifier<bool>(appModel.dictionaryFontSizeSwipeEnabled);
 
-  return Row(
-    children: [
-      const Expanded(
-        child: Text('Left-edge font-size swipe gesture'),
-      ),
-      ValueListenableBuilder<bool>(
-        valueListenable: notifier,
-        builder: (_, value, __) {
-          return Switch(
-            value: value,
-            onChanged: (v) {
-              appModel.setDictionaryFontSizeSwipeEnabled(v);
-              notifier.value = v;
-            },
-          );
-        },
-      )
-    ],
-  );
-}
+    return Row(
+      children: [
+        const Expanded(
+          child: Text('Left-edge font-size swipe gesture'),
+        ),
+        ValueListenableBuilder<bool>(
+          valueListenable: notifier,
+          builder: (_, value, __) {
+            return Switch(
+              value: value,
+              onChanged: (v) {
+                appModel.setDictionaryFontSizeSwipeEnabled(v);
+                notifier.value = v;
+              },
+            );
+          },
+        )
+      ],
+    );
+  }
 
   Widget buildDebounceDelayField() {
     return TextField(

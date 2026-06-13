@@ -4878,7 +4878,7 @@ class AppModel with ChangeNotifier {
   void setDictionaryFontSizeSwipeEnabled(bool enabled) async {
     await _preferences.put('dictionary_font_size_swipe_enabled', enabled);
   }
-  
+
   /// The search debounce delay in milliseconds for searching in the app..
   bool get closeCreatorOnExport {
     return _preferences.get('close_on_export', defaultValue: false);
