@@ -1,6 +1,6 @@
 ---
 name: build-and-release
-description: Build, deploy, and release the shiroikumanojisho Flutter Android app. Use this skill any time you are about to run `flutter build`, `gradle`, `adb push`, `adb install`, bump a version in pubspec.yaml, generate a release commit, tag a release, or upload to GitHub releases. Also use when reasoning about why a build is failing in confusing ways (the JDK pin and Gradle-daemon hygiene rules here cover the most common cause). Trigger words include "build", "release", "deploy", "APK", "tag", "version bump", "publish", "gradle", "JDK", "Zulu", "split-per-abi". The non-obvious rules — Zulu 11 JDK pin, two-target deploy, release filename without datetime, bare-semver tag, pubspec clean for release — are easy to get wrong from defaults and are encoded here precisely so Claude does not have to re-derive them every session.
+description: Build, deploy, and release the shiroikumanojisho Flutter Android app. Use this skill any time you are about to run `flutter build`, `gradle`, `adb push`, `adb install`, bump a version in pubspec.yaml, generate a release commit, tag a release, or upload to GitHub releases. Also use when reasoning about why a build is failing in confusing ways (the JDK pin and Gradle-daemon hygiene rules here cover the most common cause). Trigger words include "build", "release", "deploy", "APK", "tag", "version bump", "publish", "gradle", "JDK", "Zulu", "split-per-abi". The non-obvious rules — Zulu 11 JDK pin, archive-to-~/tmp + /after-build delivery, release filename without datetime, bare-semver tag, pubspec clean for release — are easy to get wrong from defaults and are encoded here precisely so Claude does not have to re-derive them every session.
 ---
 
 # Build and release
@@ -51,16 +51,16 @@ flutter build apk --split-per-abi --release
 
 Do not switch to a debug build to "diagnose" a release failure unless you have a specific reason — debug builds use different code paths for ProGuard, native-symbols stripping, and Hive type adapter handling, and successful debug builds tell you very little about release issues.
 
-## Deploy: two targets, both required
+## Deploy: archive locally, then auto-deliver via /after-build
 
-Every successful build is deployed to two places:
+Every successful build is archived locally and then delivered automatically — no asking how to transfer, no "is the phone connected?" prompt:
 
-1. **On-device**: `adb push <apk> /sdcard/tmp/<apk_name>` — lands on the test device's shared storage so the user can install it via the device's file manager.
-2. **Local archive**: `cp <apk> ~/tmp/<apk_name>` — keeps a copy on the build machine for sharing, comparison, or upload.
+1. **Local archive**: `cp <apk> ~/tmp/<apk_name>` — keeps a copy on the build machine for sharing, comparison, or upload; it is also the source `/after-build` reads from and the GitHub-release-bound copy.
+2. **Auto-deliver via `/after-build`**: invoke the global **/after-build** skill, which runs `/adb-check` (UNSANDBOXED — a sandboxed check falsely reports no device), then `/adb-push` to `/sdcard/tmp/<apk_name>` if a phone is connected, otherwise `/scp` to `skhw:~/tmp/`, announcing the filename that landed.
 
-Never pick one without the other. Never substitute `adb install` for the push; the user installs manually from the device.
+Always do the local archive; `/after-build` then handles device-or-skhw delivery on its own. Never substitute `adb install` for the push; the user installs manually from the device.
 
-This rule applies equally to release builds. There is no exception for "this is the release artifact, not a test build" — the user wants to install the release on their device just like a dev build, and the GitHub-release-bound copy comes from `~/tmp/`.
+This applies equally to release builds. There is no exception for "this is the release artifact, not a test build" — the user wants to install the release on their device just like a dev build, and the GitHub-release-bound copy comes from `~/tmp/`.
 
 ## APK filename: dev vs release
 
@@ -93,8 +93,8 @@ The project follows semver. `pubspec.yaml`'s `version:` line has two forms:
 new_ver=$(tools/bump-build.sh)
 apk_name="shiroikumanojisho_${new_ver}_$(date '+%Y-%m-%d_%H-%M-%S')_arm64-v8a.apk"
 flutter build apk --split-per-abi --release
-adb push build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "/sdcard/tmp/$apk_name"
-cp   build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "$HOME/tmp/$apk_name"
+cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "$HOME/tmp/$apk_name"
+# then deliver via /after-build (adb-push if a phone is connected, else scp to skhw)
 ```
 
 Never reset `pubspec.yaml` from a checkout or stash while iterating — that erases the build counter and breaks the monotonicity that lets the user tell builds apart.
@@ -115,8 +115,8 @@ git push origin X.Y.Z
 flutter clean
 apk_name="shiroikumanojisho_X.Y.Z_arm64-v8a.apk"       # no datetime
 flutter build apk --split-per-abi --release
-adb push build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "/sdcard/tmp/$apk_name"
-cp   build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "$HOME/tmp/$apk_name"
+cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "$HOME/tmp/$apk_name"
+# then deliver via /after-build (adb-push if a phone is connected, else scp to skhw)
 ```
 
 Then upload `~/tmp/$apk_name` to the GitHub release page via the web UI: New release → choose the tag you just pushed → title is the bare version → description is the changelog → drag APK → publish.
