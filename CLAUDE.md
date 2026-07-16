@@ -123,7 +123,7 @@ Edit, build with the dev flow from the skill (auto-bumps `+N`), test on the devi
 
 ### Cut a release
 
-Always done from a clean `origin/main` state. Reset pubspec from `X.Y.Z+N` to plain `X.Y.Z`, commit as `Release X.Y.Z`, push, tag `X.Y.Z` (bare, no `v`), push tag, build with the release filename rule (no datetime — `shiroikumanojisho_X.Y.Z_arm64-v8a.apk`), deploy to both targets, then upload the APK to the GitHub release page.
+Always done from a clean `origin/main` state. Reset pubspec from `X.Y.Z+N` to plain `X.Y.Z`, commit as `Release X.Y.Z`, push, tag `X.Y.Z` (bare, no `v`), push tag, build with the release filename rule (no datetime — `shiroikuma-jisho_X.Y.Z_arm64-v8a.apk`), deploy to both targets, then upload the APK to the GitHub release page.
 
 ### Roll back a bad commit
 
