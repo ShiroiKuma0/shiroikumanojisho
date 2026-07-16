@@ -6,7 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- The Reader tab no longer gets stuck in a "Local server port already in use / Retrying in 3 seconds…" loop after exiting and re-opening the app. When the Android process outlives the UI (audio service, dictionary indexing in progress), the old run's TTU asset server still held its fixed port and the relaunched app could never bind it. The server now binds with `shared: true` (`SO_REUSEPORT`), so a relaunch binds alongside any stale holder instead of retrying forever.
 
 ## [1.4.0] - 2026-06-13
 

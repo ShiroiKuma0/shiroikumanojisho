@@ -134,7 +134,14 @@ class ReaderTtuSource extends ReaderMediaSource {
         logger: const DebugLogger(),
       );
 
-      await server.serve();
+      // `shared: true` sets SO_REUSEPORT, so this bind succeeds even
+      // when a previous app run's isolate still holds the port — on
+      // Android the process (audio service, dictionary indexing) can
+      // outlive the UI, and the old server is never stopped. Without
+      // it, relaunching the app loops forever on "Local server port
+      // already in use". The stale server serves the same assets, so
+      // sharing the port with it is harmless.
+      await server.serve(shared: true);
       _serversByPort[port] = server;
 
       return server;
