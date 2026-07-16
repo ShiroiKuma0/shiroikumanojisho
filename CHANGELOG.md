@@ -6,9 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [1.4.0+2] - 2026-07-16
+
 ### Fixed
 
 - The Reader tab no longer gets stuck in a "Local server port already in use / Retrying in 3 seconds…" loop after exiting and re-opening the app. When the Android process outlives the UI (audio service, dictionary indexing in progress), the old run's TTU asset server still held its fixed port and the relaunched app could never bind it. The server now binds with `shared: true` (`SO_REUSEPORT`), so a relaunch binds alongside any stale holder instead of retrying forever.
+
+### Changed
+
+- The Android `versionName` now carries the full pubspec version verbatim — `X.Y.Z+N` on dev builds, bare `X.Y.Z` on releases — so installers and the in-app version line can tell dev builds apart. Previously Flutter stripped the `+N` and every dev build presented itself as the same `X.Y.Z`.
+- Built APKs are named with the `shiroikuma-jisho_` prefix (previously `shiroikumanojisho_`), aligning with the other shiroikuma-* apps.
 
 ## [1.4.0] - 2026-06-13
 
@@ -137,7 +146,8 @@ Initial release after the rename and restructure from `ShiroiKuma0/jidoujisho2`.
 - App display name set to `白い熊の辞書` (Android and iOS); iOS identity also updated.
 - Version baseline reset to `1.0.0+1` post-rename.
 
-[Unreleased]: https://github.com/ShiroiKuma0/shiroikumanojisho/compare/1.4.0...HEAD
+[Unreleased]: https://github.com/ShiroiKuma0/shiroikumanojisho/compare/1.4.0+2...HEAD
+[1.4.0+2]: https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.4.0+2
 [1.4.0]: https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.4.0
 [1.3.1]: https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.3.1
 [1.3.0]: https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.3.0
