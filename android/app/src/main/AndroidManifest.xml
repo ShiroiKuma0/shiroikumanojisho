@@ -12,7 +12,7 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove"/>
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="白い熊の辞書"
+        android:label="白い熊 辞書"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon"
         android:usesCleartextTraffic="true"

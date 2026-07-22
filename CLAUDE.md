@@ -14,7 +14,7 @@ The project root is the Flutter project root — there is no nested `yuuna/` sub
 |------|-------|
 | GitHub repo | `ShiroiKuma0/shiroikumanojisho` |
 | Dart package name | `shiroikumanojisho` |
-| App display name | `白い熊の辞書` |
+| App display name | `白い熊 辞書` |
 | Android `applicationId` | `shiroikuma.jisho` |
 | Java package | `shiroikuma.jisho` |
 | MethodChannel namespace | `shiroikuma.jisho/...` |
