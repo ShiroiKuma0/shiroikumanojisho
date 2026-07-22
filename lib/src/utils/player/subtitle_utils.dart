@@ -145,7 +145,18 @@ class SubtitleUtils {
 
     await Future.delayed(const Duration(seconds: 1));
 
-    if (outputFile.existsSync()) {
+    // The extraction must be validated, not just existence-checked: when
+    // the video has MORE than one subtitle track in the target language
+    // (e.g. jiyudoga study mkvs carry `aligned` and `asr`, both tagged
+    // with the caption language), `-map 0:m:language:` matches them all
+    // and the single-stream SRT muxer fails AFTER creating the output —
+    // leaving a zero-length file. Treating that as success used to
+    // surface a "Default" subtitle entry that was auto-selected but
+    // displayed nothing. On failure the per-track extraction in
+    // [subtitlesFromVideo] takes over, and its first track (the
+    // Matroska default, `aligned`) becomes the auto-selected subtitle.
+    if (outputFile.existsSync() &&
+        outputFile.readAsStringSync().trim().isNotEmpty) {
       SubtitleItem item = await subtitlesFromFile(
         file: outputFile,
         type: SubtitleItemType.embeddedSubtitle,
@@ -153,6 +164,9 @@ class SubtitleUtils {
       onItemComplete(item);
       return item;
     } else {
+      if (outputFile.existsSync()) {
+        outputFile.deleteSync();
+      }
       return null;
     }
   }
