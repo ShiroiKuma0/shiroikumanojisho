@@ -6,7 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- The player no longer auto-selects a non-functional "Subtitle - Default" entry on videos with more than one embedded subtitle track in the target language (e.g. jiyudoga study mkvs with `aligned` + `asr`). The language-targeted ffmpeg extraction fails on such files after creating a zero-length output, and that empty file used to be treated as a working subtitle; it is now validated and discarded, so the first real embedded track (`aligned`, the Matroska default) is auto-selected and the dead "Default" entry no longer appears.
+- Startup and player backgrounds are now pure black with the OS in light mode too: the day-variant Android `LaunchTheme`/`NormalTheme` were based on `Theme.Light` (white window behind the Flutter UI and the video surface) and the Android 12+ day splash was white; all are now black, as is the blank cold-start root behind externally-launched media.
+
+### Changed
+
+- Dark-theme panel surfaces (modal bottom sheets such as the player's track menu, dialogs, popup menus, cards) are now pure black `#000000` instead of dark grey, matching the black/yellow theme and e-ink rendering.
+
+### Notes
+
+- The jiyudoga study-export contract changed (jiyudoga 0.25.1+20): each export is now a single `.mkv` with the study subtitles embedded as Matroska `S_TEXT/UTF8` (SubRip) tracks (`aligned` as default, `asr` alongside when both exist), instead of an mp4 plus `.srt`/`.asr.srt` sidecars. The "YouTube offline" source handles both shapes — the listing scans `.mkv`, embedded tracks are extracted by the player's existing ffmpeg path, and legacy mp4+sidecar exports keep working. Exports made with the short-lived 0.25.1+19 WEBVTT flavour render no text anywhere and should simply be re-exported; the app does not special-case them.
 
 ## [1.4.0+3] - 2026-07-22
 

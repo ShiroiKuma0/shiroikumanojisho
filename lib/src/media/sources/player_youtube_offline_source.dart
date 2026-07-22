@@ -11,13 +11,21 @@ import 'package:shiroikumanojisho/utils.dart';
 import 'package:path/path.dart' as path;
 
 /// A media source for videos exported by shiroikuma-jiyudoga's "Study in
-/// jisho" button. jiyudoga downloads a muxed video plus generated SRT
-/// subtitles into a study folder and fires a
+/// jisho" button. The final contract (jiyudoga ≥ 0.25.1+22): exactly one
+/// MKV per video — h264 + aac remuxed with the study subtitles embedded as
+/// Matroska S_TEXT/UTF8 (SubRip) tracks, mkvmerge-clean structure. Track
+/// `aligned` carries the default-track flag (named `asr` instead when it
+/// is the only track); `asr` (raw auto captions) rides alongside when both
+/// exist. (Interim 0.25.1+19–21 flavours — WEBVTT codec IDs, stray
+/// CodecPrivate — rendered no text anywhere and are simply re-exported,
+/// not special-cased.) jiyudoga writes it into a study folder and fires a
 /// `shiroikuma.jisho.intent.action.STUDY_VIDEO` intent at this app (handled
 /// in `main.dart`); this source lists that folder as an offline YouTube
-/// library. Playback, sidecar-SRT detection and thumbnails all delegate to
-/// [PlayerLocalMediaSource] — the files on disk are ordinary local videos
-/// with same-basename subtitle sidecars.
+/// library. Playback and thumbnails delegate to [PlayerLocalMediaSource];
+/// embedded tracks are picked up by the player page's ffmpeg extraction
+/// path, which converts them to SRT — no handling is needed here. The
+/// sidecar-SRT scan is also delegated and still applies to legacy exports
+/// (pre-mkv mp4 + same-basename .srt/.asr.srt trios).
 class PlayerYoutubeOfflineSource extends PlayerMediaSource {
   /// Define this media source.
   PlayerYoutubeOfflineSource._privateConstructor()
@@ -53,7 +61,8 @@ class PlayerYoutubeOfflineSource extends PlayerMediaSource {
     await setPreference<String>(key: 'study_dir', value: dirPath);
   }
 
-  /// Video extensions jiyudoga exports (muxed mp4 today; mkv tolerated).
+  /// Video extensions jiyudoga exports: single mkv with embedded subtitles
+  /// since jiyudoga 0.25.1+22; mp4 (with SRT sidecars) from older exports.
   static const List<String> _videoExtensions = ['.mp4', '.mkv'];
 
   /// List the study folder's videos as media items, newest first by file
