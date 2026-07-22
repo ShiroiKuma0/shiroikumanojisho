@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [1.4.0+3] - 2026-07-22
+
 ### Added
 
 - "YouTube offline" Player media source for study videos exported by shiroikuma-jiyudoga's "Study in jisho" button. Listed in the Player source picker between Local Media and YouTube; shows the persisted study folder's videos newest-first with resume positions and thumbnails, hiding entries whose file was deleted. Playback, same-basename SRT sidecar detection (aligned `.srt` defaulting over `.asr.srt`) and thumbnails reuse the Local Media pipeline.
@@ -153,7 +157,8 @@ Initial release after the rename and restructure from `ShiroiKuma0/jidoujisho2`.
 - App display name set to `白い熊の辞書` (Android and iOS); iOS identity also updated.
 - Version baseline reset to `1.0.0+1` post-rename.
 
-[Unreleased]: https://github.com/ShiroiKuma0/shiroikumanojisho/compare/1.4.0+2...HEAD
+[Unreleased]: https://github.com/ShiroiKuma0/shiroikumanojisho/compare/1.4.0+3...HEAD
+[1.4.0+3]: https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.4.0+3
 [1.4.0+2]: https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.4.0+2
 [1.4.0]: https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.4.0
 [1.3.1]: https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.3.1

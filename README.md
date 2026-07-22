@@ -2,7 +2,7 @@
 
 <img src="assets/meta/icon.png" width="120" alt="白い熊の辞書 icon" />
 
-# 白い熊の辞書
+# 白い熊 辞書
 
 **An immersion language-learning suite: video player, audio-synced ebook reader, dictionary and Anki card factory in one app.**
 
@@ -10,7 +10,7 @@ A fork of [arianneorpilla/jidoujisho](https://github.com/arianneorpilla/jidoujis
 
 Installs **side-by-side** with jidoujisho (app id `shiroikuma.jisho`).
 
-**📥 Latest release: [`1.4.0+2`](https://github.com/ShiroiKuma0/shiroikumanojisho/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikumanojisho/releases)
+**📥 Latest release: [`1.4.0+3`](https://github.com/ShiroiKuma0/shiroikumanojisho/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikumanojisho/releases)
 
 </div>
 
@@ -33,6 +33,11 @@ Open a translation book in a split view next to the original and keep both in si
 
 ## 📺 Dual subtitles in the player
 Show a secondary (translation) subtitle track on top of the primary one, with independent font, color, weight and vertical-position control for each. Keyboard playback control included.
+
+---
+
+## 📥 YouTube offline study videos
+One tap in [shiroikuma-jiyudoga](https://github.com/ShiroiKuma0/shiroikuma-jiyudoga) ("Study in jisho") downloads a YouTube video with generated subtitles into a study folder and opens it here immediately — offline playback with per-line replay and tap-word dictionary. The "YouTube offline" player source lists the whole study library with resume positions.
 
 ---
 
