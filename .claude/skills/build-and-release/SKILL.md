@@ -68,15 +68,15 @@ The filename encodes whether a build is a dev iteration or a published release, 
 
 ### Dev builds
 
-Filename: `shiroikuma-jisho_X.Y.Z+N_YYYY-MM-DD_HH-MM-SS_arm64-v8a.apk`
+Filename: `shiroikuma-jisho_X.Y.Z+N_arm64-v8a.apk`
 
-The `+N` is the pubspec build counter (auto-bumped by `tools/bump-build.sh`, see below). The datetime distinguishes successive builds at the same `+N` if you somehow build twice without bumping.
+The `+N` is the pubspec build counter (auto-bumped by `tools/bump-build.sh`, see below). No datetime — every build bumps `+N` (hard rule), so the counter alone identifies the build. This matches the other shiroikuma-* apps (e.g. `shiroikuma-chizu_5.4.0+7_arm64-v8a.apk`). Because there is no datetime, the bump before every build is what keeps filenames unique — never build twice at the same `+N`.
 
 ### Release builds
 
 Filename: `shiroikuma-jisho_X.Y.Z_arm64-v8a.apk`
 
-No `+N`, no datetime. The tag and the version both pinpoint the build; a timestamp adds noise. **This is a real failure mode** — when composing a release build invocation from memory of a recent dev block, the temptation is to copy the dev `apk_name=` line verbatim. The dev line includes `$(date '+%Y-%m-%d_%H-%M-%S')`; the release line must not. Two real releases (1.2.0 and 1.3.0) shipped with timestamped filenames because this slip went uncaught. Verify before pushing: the release `apk_name=` must have no `date` invocation and no `+N`.
+No `+N`. The tag and the version both pinpoint the build. The only difference from a dev filename is the absence of the `+N` — verify before publishing: the release `apk_name=` must have no `+N` (and never a datetime; two early releases, 1.2.0 and 1.3.0, shipped with timestamped filenames back when dev names carried datetimes).
 
 ## Version handling
 
@@ -91,7 +91,7 @@ The project follows semver. `pubspec.yaml`'s `version:` line has two forms:
 
 ```bash
 new_ver=$(tools/bump-build.sh)
-apk_name="shiroikuma-jisho_${new_ver}_$(date '+%Y-%m-%d_%H-%M-%S')_arm64-v8a.apk"
+apk_name="shiroikuma-jisho_${new_ver}_arm64-v8a.apk"
 flutter build apk --split-per-abi --release
 cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "$HOME/tmp/$apk_name"
 # then deliver via /after-build (adb-push if a phone is connected, else scp to skhw)
@@ -113,7 +113,7 @@ git push origin main
 git tag X.Y.Z                                          # bare semver, NO 'v' prefix
 git push origin X.Y.Z
 flutter clean
-apk_name="shiroikuma-jisho_X.Y.Z_arm64-v8a.apk"       # no datetime
+apk_name="shiroikuma-jisho_X.Y.Z_arm64-v8a.apk"       # no +N
 flutter build apk --split-per-abi --release
 cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "$HOME/tmp/$apk_name"
 # then deliver via /after-build (adb-push if a phone is connected, else scp to skhw)
