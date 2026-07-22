@@ -637,6 +637,15 @@ class AppModel with ChangeNotifier {
   /// Shows when the current mode is a dark theme.
   ThemeData get darkTheme => ThemeData(
         scaffoldBackgroundColor: Colors.black,
+        // Pure black across every panel surface — canvas (modal bottom
+        // sheets like the player's track menu), cards, dialogs and popup
+        // menus. The previous dark-grey (30,30,30) panels read badly on
+        // e-ink and clash with the black/yellow theme (白い熊,
+        // 2026-07-22).
+        canvasColor: Colors.black,
+        bottomSheetTheme: const BottomSheetThemeData(
+          backgroundColor: Colors.black,
+        ),
         unselectedWidgetColor: Color(darkThemeTextColor).withOpacity(0.7),
         textTheme: darkTextTheme,
         iconTheme: IconThemeData(color: Color(darkThemeTextColor)),
@@ -670,14 +679,14 @@ class AppModel with ChangeNotifier {
           backgroundColor: Colors.black,
         ),
         popupMenuTheme: const PopupMenuThemeData(
-          color: Color.fromARGB(255, 30, 30, 30),
+          color: Colors.black,
           shape: RoundedRectangleBorder(),
         ),
         dialogTheme: const DialogTheme(
-          backgroundColor: Color.fromARGB(255, 30, 30, 30),
+          backgroundColor: Colors.black,
           shape: RoundedRectangleBorder(),
         ),
-        cardColor: const Color.fromARGB(255, 30, 30, 30),
+        cardColor: Colors.black,
         textButtonTheme: TextButtonThemeData(
           style: TextButton.styleFrom(
             foregroundColor: Color(darkThemeTextColor),

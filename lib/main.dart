@@ -237,11 +237,14 @@ class _JidoujishoAppState extends ConsumerState<JidoujishoApp>
         return;
       case 'shiroikuma.jisho.intent.action.STUDY_VIDEO':
         // Fired by shiroikuma-jiyudoga's "Study in jisho" button after it
-        // downloads a video plus generated SRTs into the study folder.
-        // Extras are plain absolute paths — deliberately NOT run through
-        // toFile(), which copies to a temp file and would break the
-        // video↔SRT same-basename sidecar pairing. This app holds
-        // MANAGE_EXTERNAL_STORAGE, so File(path) works directly.
+        // downloads a video into the study folder — a single mkv with
+        // embedded subtitle tracks since jiyudoga 0.25.1+22, final contract (the
+        // subtitlePath extra arrives empty and is ignored); mp4 plus SRT
+        // sidecars on older exports. Extras are plain absolute paths —
+        // deliberately NOT run through toFile(), which copies to a temp
+        // file outside the study folder and would break legacy sidecar
+        // pairing. This app holds MANAGE_EXTERNAL_STORAGE, so File(path)
+        // works directly.
         launchStudyVideoAction(
           videoPath: intent.extra?['path'] ?? '',
           studyDir: intent.extra?['studyDir'],
@@ -455,8 +458,12 @@ class _JidoujishoAppState extends ConsumerState<JidoujishoApp>
   /// Responsible for managing card creator state.
   CreatorModel get creatorModel => ref.watch(creatorProvider);
 
-  /// The application will open to this page upon startup.
-  Widget get home => _isMainIntent ? const HomePage() : const Scaffold();
+  /// The application will open to this page upon startup. The non-MAIN
+  /// cold-start root is a blank Scaffold behind the pushed media route —
+  /// forced black so no light flash shows around media startup.
+  Widget get home => _isMainIntent
+      ? const HomePage()
+      : const Scaffold(backgroundColor: Colors.black);
 
   /// The current theme mode, which by default is based on system setting
   /// and toggleable.
