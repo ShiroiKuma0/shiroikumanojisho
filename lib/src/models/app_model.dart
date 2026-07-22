@@ -1096,6 +1096,7 @@ class AppModel with ChangeNotifier {
     final Map<MediaType, List<MediaSource>> availableMediaSources = {
       PlayerMediaType.instance: [
         PlayerLocalMediaSource.instance,
+        PlayerYoutubeOfflineSource.instance,
         PlayerYoutubeSource.instance,
         PlayerNetworkStreamSource.instance
       ],

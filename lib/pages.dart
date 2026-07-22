@@ -21,6 +21,7 @@ export 'src/pages/implementations/open_stash_dialog_page.dart';
 export 'src/pages/implementations/profiles_dialog_page.dart';
 export 'src/pages/implementations/home_dictionary_page.dart';
 export 'src/pages/implementations/history_player_page.dart';
+export 'src/pages/implementations/player_youtube_offline_history_page.dart';
 export 'src/pages/implementations/history_reader_page.dart';
 export 'src/pages/implementations/history_viewer_page.dart';
 export 'src/pages/implementations/home_player_page.dart';

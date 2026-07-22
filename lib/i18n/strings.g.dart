@@ -1,9 +1,9 @@
 /// Generated file. Do not edit.
 ///
 /// Locales: 1
-/// Strings: 423
+/// Strings: 430
 ///
-/// Built on 2026-04-19 at 00:48 UTC
+/// Built on 2026-07-22 at 12:41 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -340,6 +340,8 @@ class _StringsEn implements BaseTranslations<AppLocale, _StringsEn> {
 	String get clear_browser_title => 'Clear Browser Data';
 	String get clear_browser_description => 'This will clear all browsing data used in media sources that use web content. Are you sure?';
 	String get ttu_no_books_added => 'No books added to ッツ Ebook Reader';
+	String get youtube_offline_empty => 'No study videos yet — use jiyudoga\'s Study button to export one';
+	String get study_video_missing => 'Study video file not found';
 	String get local_media_directory_empty => 'Directory has no folders or video';
 	String get pick_video_file => 'Pick Video File';
 	String get navigate_up_one_directory_level => 'Navigate Up One Directory Level';
@@ -800,6 +802,8 @@ extension on _StringsEn {
 			case 'clear_browser_title': return 'Clear Browser Data';
 			case 'clear_browser_description': return 'This will clear all browsing data used in media sources that use web content. Are you sure?';
 			case 'ttu_no_books_added': return 'No books added to ッツ Ebook Reader';
+			case 'youtube_offline_empty': return 'No study videos yet — use jiyudoga\'s Study button to export one';
+			case 'study_video_missing': return 'Study video file not found';
 			case 'local_media_directory_empty': return 'Directory has no folders or video';
 			case 'pick_video_file': return 'Pick Video File';
 			case 'navigate_up_one_directory_level': return 'Navigate Up One Directory Level';

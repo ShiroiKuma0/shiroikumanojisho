@@ -52,6 +52,13 @@
                 <action android:name="android.intent.action.WEB_SEARCH" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
+            <!-- Study-video import from shiroikuma-jiyudoga ("Study in
+                 jisho"). jiyudoga fires this explicitly by component, so
+                 the filter is not required for it — it exists so the
+                 intent can also be fired from adb for testing. -->
+            <intent-filter>
+                <action android:name="shiroikuma.jisho.intent.action.STUDY_VIDEO" />
+            </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_SEARCH" />
                 <category android:name="android.intent.category.DEFAULT" />

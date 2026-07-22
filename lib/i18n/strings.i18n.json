@@ -212,6 +212,9 @@
     "clear_browser_description":
         "This will clear all browsing data used in media sources that use web content. Are you sure?",
     "ttu_no_books_added": "No books added to ッツ Ebook Reader",
+    "youtube_offline_empty":
+        "No study videos yet — use jiyudoga's Study button to export one",
+    "study_video_missing": "Study video file not found",
     "local_media_directory_empty": "Directory has no folders or video",
     "pick_video_file": "Pick Video File",
     "navigate_up_one_directory_level": "Navigate Up One Directory Level",

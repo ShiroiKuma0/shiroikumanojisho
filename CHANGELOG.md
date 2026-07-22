@@ -6,7 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- "YouTube offline" Player media source for study videos exported by shiroikuma-jiyudoga's "Study in jisho" button. Listed in the Player source picker between Local Media and YouTube; shows the persisted study folder's videos newest-first with resume positions and thumbnails, hiding entries whose file was deleted. Playback, same-basename SRT sidecar detection (aligned `.srt` defaulting over `.asr.srt`) and thumbnails reuse the Local Media pipeline.
+- New Android intent `shiroikuma.jisho.intent.action.STUDY_VIDEO` (extras: `path`, `subtitlePath`, `studyDir`, `title`, `videoId`, `source`): persists the study folder, imports the video into the "YouTube offline" source and opens the player immediately. Works on both cold start and warm delivery; also fireable from adb for testing. The contract is shared with jiyudoga — changes must land in both repos together.
+
+### Changed
+
+- App launcher label changed from `白い熊の辞書` to `白い熊 辞書` (Android and iOS).
 
 ## [1.4.0+2] - 2026-07-16
 

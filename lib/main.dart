@@ -2,8 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:collection/collection.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_logs/flutter_logs.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -233,7 +235,61 @@ class _JidoujishoAppState extends ConsumerState<JidoujishoApp>
         String data = intent.extra!['query'];
         textContextMenuAction(data);
         return;
+      case 'shiroikuma.jisho.intent.action.STUDY_VIDEO':
+        // Fired by shiroikuma-jiyudoga's "Study in jisho" button after it
+        // downloads a video plus generated SRTs into the study folder.
+        // Extras are plain absolute paths — deliberately NOT run through
+        // toFile(), which copies to a temp file and would break the
+        // video↔SRT same-basename sidecar pairing. This app holds
+        // MANAGE_EXTERNAL_STORAGE, so File(path) works directly.
+        launchStudyVideoAction(
+          videoPath: intent.extra?['path'] ?? '',
+          studyDir: intent.extra?['studyDir'],
+          title: intent.extra?['title'],
+          isColdStart: isInitial,
+        );
+        return;
     }
+  }
+
+  /// Import a study video exported by jiyudoga into the "YouTube offline"
+  /// player source and open it for playback immediately. Mirrors
+  /// [launchNetworkMediaAction] in structure; killOnPop only on cold starts,
+  /// where the root behind the player route is a blank [Scaffold] (see
+  /// [home]) that the user should never land on.
+  void launchStudyVideoAction({
+    required String videoPath,
+    required bool isColdStart,
+    String? studyDir,
+    String? title,
+  }) async {
+    PlayerYoutubeOfflineSource source = PlayerYoutubeOfflineSource.instance;
+
+    if (studyDir != null && studyDir.isNotEmpty) {
+      await source.setStudyDirectory(studyDir);
+    }
+
+    if (videoPath.isEmpty || !File(videoPath).existsSync()) {
+      Fluttertoast.showToast(msg: t.study_video_missing);
+      return;
+    }
+
+    MediaItem? item = appModel
+        .getMediaSourceHistory(mediaSource: source)
+        .firstWhereOrNull((item) => item.mediaIdentifier == videoPath);
+    if (item == null) {
+      item = source.getMediaItemFromPath(videoPath, title: title);
+      await source.prepareThumbnail(appModel: appModel, item: item);
+    }
+
+    Navigator.popUntil(
+        appModel.navigatorKey.currentContext!, (route) => route.isFirst);
+    await appModel.openMedia(
+      ref: ref,
+      mediaSource: source,
+      killOnPop: isColdStart,
+      item: item,
+    );
   }
 
   void textContextMenuAction(String data) {
