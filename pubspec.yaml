@@ -1,7 +1,7 @@
 name: shiroikumanojisho
 description: A full-featured immersion language learning suite for mobile.
 publish_to: 'none'
-version: 1.4.0+6
+version: 1.4.0+25
 environment:
   sdk: ">=3.0.0<4.0.0"
   flutter: "^3.13.5"
@@ -68,6 +68,10 @@ dependencies:
       path: flutter_vlc_player
   fluttertoast: ^8.2.1
   google_fonts: ^4.0.4
+  google_mlkit_text_recognition:
+    # Vendored 0.16.0 with SDK/AGP constraints relaxed — see vendor/README notes
+    # in each package's pubspec/build.gradle.
+    path: vendor/google_mlkit_text_recognition
   hive: ^2.0.6
   hive_flutter: ^1.1.0
   html: ^0.15.2
@@ -180,6 +184,8 @@ flutter:
   assets:
     - assets/licenses/
     - assets/meta/
+    - assets/mokuro-template/
+    - assets/mokuro-template/icons/
     - assets/language/japanese/ipadic/
     - assets/ttu-ebook-reader/
     - assets/ttu-ebook-reader/_app/

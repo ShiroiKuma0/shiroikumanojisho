@@ -184,4 +184,8 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     implementation 'com.github.ankidroid:Anki-Android:2.17alpha14'
     implementation 'com.github.umair13adil:RxLogs:v1.0.18'
+    // Bundled ML Kit Japanese text-recognition model (~4 MB on arm64). The
+    // vendored google_mlkit_text_recognition plugin declares the per-script
+    // recognizers compileOnly; the app must supply the one it actually uses.
+    implementation 'com.google.mlkit:text-recognition-japanese:16.0.1'
 }

@@ -6,6 +6,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:shiroikumanojisho/language.dart';
 import 'package:shiroikumanojisho/media.dart';
 import 'package:shiroikumanojisho/pages.dart';
+import 'package:shiroikumanojisho/src/utils/components/folder_file_picker.dart';
+import 'package:shiroikumanojisho/src/utils/ocr/ocr_engine.dart';
 import 'package:shiroikumanojisho/utils.dart';
 
 /// Appears at startup as the portal from which a user may select media and
@@ -48,6 +50,12 @@ class _HomePageState extends BasePageState<HomePage>
     // install, which is fine — any new build has versionCode
     // >= 1_000_000 and renders correctly.
     final info = appModel.packageInfo;
+    // Since the gradle layer started building `versionName` as the
+    // full pubspec form verbatim (`X.Y.Z+N`), the version already
+    // carries the dev counter — appending the recovered one again
+    // rendered `1.4.0+12+12`. Only fall through to versionCode
+    // recovery for installs whose versionName is bare `X.Y.Z`.
+    if (info.version.contains('+')) return info.version;
     if (info.buildNumber.isEmpty) return info.version;
     final code = int.tryParse(info.buildNumber);
     if (code == null) return info.version;
@@ -714,6 +722,63 @@ class _HomePageState extends BasePageState<HomePage>
     );
   }
 
+  /// Smoke test for the OCR engine ([MlkitOcrEngine] today): pick an
+  /// image file, recognise it with the bundled Japanese model, show the
+  /// raw result. Doubles as the manual verification that the engine seam
+  /// used by the subtitle and scanned-PDF pipelines is alive.
+  Future<void> showOcrTestDialog() async {
+    final imagePath = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => FolderFilePicker(
+          appModel: appModel,
+          allowedExtensions: const ['.png', '.jpg', '.jpeg', '.webp', '.bmp'],
+          fileIcon: Icons.image,
+          title: 'Pick image to OCR',
+          initialDir: '/storage/emulated/0/tmp',
+        ),
+      ),
+    );
+    if (imagePath == null) {
+      return;
+    }
+
+    final OcrEngine engine = MlkitOcrEngine();
+    String resultText;
+    try {
+      final stopwatch = Stopwatch()..start();
+      final result = await engine.recognizeFile(imagePath);
+      stopwatch.stop();
+      resultText =
+          result.text.trim().isEmpty ? '(no text recognised)' : result.text;
+      resultText =
+          '$resultText\n\n— ${result.blocks.length} blocks in '
+          '${stopwatch.elapsedMilliseconds} ms';
+    } catch (e) {
+      resultText = 'OCR failed:\n$e';
+    } finally {
+      await engine.dispose();
+    }
+
+    if (!mounted) {
+      return;
+    }
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('OCR test'),
+        content: SingleChildScrollView(
+          child: SelectableText(resultText),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(t.dialog_close),
+          ),
+        ],
+      ),
+    );
+  }
+
   List<PopupMenuItem<VoidCallback>> getMenuItems() {
     return [
       buildPopupItem(
@@ -774,6 +839,11 @@ class _HomePageState extends BasePageState<HomePage>
         label: t.options_ui_text_color,
         icon: Icons.format_color_text,
         action: showUiTextColorPicker,
+      ),
+      buildPopupItem(
+        label: 'OCR test (image)',
+        icon: Icons.document_scanner,
+        action: showOcrTestDialog,
       ),
       buildPopupItem(
         label: t.options_github,
