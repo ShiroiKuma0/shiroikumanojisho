@@ -32,7 +32,7 @@ class PickAudioEnhancement extends AudioEnhancement {
     required EnhancementTriggerCause cause,
   }) async {
     AudioExportField audioField = field as AudioExportField;
-    FilePickerResult? pickedFile = await FilePicker.platform.pickFiles(
+    FilePickerResult? pickedFile = await FilePicker.pickFiles(
       type: FileType.audio,
     );
 

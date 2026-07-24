@@ -170,13 +170,17 @@ class _PlayerCommentsPageState extends BaseSourcePageState<PlayerCommentsPage> {
   }) {
     ScrollController controller = ScrollController();
 
-    return PagedListView<int, Comment>(
-      physics: const AlwaysScrollableScrollPhysics(
-        parent: BouncingScrollPhysics(),
-      ),
-      scrollController: controller,
-      pagingController: pagingController,
-      builderDelegate: PagedChildBuilderDelegate<Comment>(
+    return PagingListener(
+      controller: pagingController,
+      builder: (context, state, fetchNextPage) =>
+          PagedListView<int, Comment>(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        scrollController: controller,
+        state: state,
+        fetchNextPage: fetchNextPage,
+        builderDelegate: PagedChildBuilderDelegate<Comment>(
         firstPageProgressIndicatorBuilder: (context) {
           return buildLoading();
         },
@@ -199,6 +203,7 @@ class _PlayerCommentsPageState extends BaseSourcePageState<PlayerCommentsPage> {
             return buildComment(comment: comment);
           }
         },
+        ),
       ),
     );
   }

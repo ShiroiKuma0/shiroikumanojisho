@@ -160,10 +160,10 @@ class _DictionaryDialogPageState extends BasePageState with ChangeNotifier {
           debugPrint('[Dictionary Import] ${progressNotifier.value}');
         });
 
-        await FilePicker.platform.clearTemporaryFiles();
+        await FilePicker.clearTemporaryFiles();
 
         FileType type = appModel.lastSelectedDictionaryFormat.fileType;
-        FilePickerResult? result = await FilePicker.platform.pickFiles(
+        FilePickerResult? result = await FilePicker.pickFiles(
           /// Change when adding multiple dictionary formats.
           type: type,
           allowedExtensions: type == FileType.any
@@ -208,7 +208,7 @@ class _DictionaryDialogPageState extends BasePageState with ChangeNotifier {
           );
         }
 
-        await FilePicker.platform.clearTemporaryFiles();
+        await FilePicker.clearTemporaryFiles();
 
         if (mounted) {
           Navigator.pop(context);

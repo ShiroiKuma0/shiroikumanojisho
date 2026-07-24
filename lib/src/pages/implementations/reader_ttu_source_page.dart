@@ -1728,7 +1728,7 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
 
     FilePickerResult? picked;
     try {
-      picked = await FilePicker.platform.pickFiles(
+      picked = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['epub'],
         withData: true,

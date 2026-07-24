@@ -4,7 +4,8 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter_ffmpeg/flutter_ffmpeg.dart';
+import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
+import 'package:ffmpeg_kit_flutter_new/ffprobe_kit.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
@@ -91,14 +92,14 @@ class SubtitleOcr {
   ) async {
     lastProbedSubtitleCodecs = [];
     try {
-      final information =
-          await FlutterFFprobe().getMediaInformation(videoPath);
-      final streams = information.getStreams() ?? [];
+      final probeSession = await FFprobeKit.getMediaInformation(videoPath);
+      final information = probeSession.getMediaInformation();
+      final streams = information?.getStreams() ?? [];
 
       final tracks = <ImageSubtitleTrack>[];
       var subtitleOrdinal = 0;
       for (final stream in streams) {
-        final properties = stream.getAllProperties();
+        final properties = stream.getAllProperties() ?? {};
         if (properties['codec_type'] != 'subtitle') {
           continue;
         }
@@ -159,7 +160,7 @@ class SubtitleOcr {
     }
     final command = '-loglevel quiet -i "$videoPath" '
         '-map 0:s:${track.subtitleOrdinal} -c:s copy "${extractFile.path}"';
-    await FlutterFFmpeg().execute(command);
+    await FFmpegKit.execute(command);
     if (!extractFile.existsSync() ||
         extractFile.lengthSync() == 0 ||
         (!track.isPgs && !companionSub.existsSync())) {

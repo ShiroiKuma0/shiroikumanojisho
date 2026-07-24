@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_ffmpeg/flutter_ffmpeg.dart';
+import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_vlc_player/flutter_vlc_player.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -170,10 +170,9 @@ abstract class PlayerMediaSource extends MediaSource {
       String command =
           '-ss $timestamp -y -i "$inputPath" -frames:v 1 -q:v 2 "$outputPath"';
 
-      final FlutterFFmpeg flutterFFmpeg = FlutterFFmpeg();
-      await flutterFFmpeg.execute(command);
+      final session = await FFmpegKit.execute(command);
 
-      String output = await FlutterFFmpegConfig().getLastCommandOutput();
+      String output = await session.getOutput() ?? '';
 
       if (!output.contains('Output file is empty, nothing was encoded')) {
         while (!imageFile.existsSync()) {
@@ -264,8 +263,7 @@ abstract class PlayerMediaSource extends MediaSource {
     String command =
         '-ss $timeStart -to $timeEnd -y -i "$inputPath" -map 0:a:$audioIndex "$outputPath"';
 
-    final FlutterFFmpeg flutterFFmpeg = FlutterFFmpeg();
-    await flutterFFmpeg.execute(command);
+    await FFmpegKit.execute(command);
 
     return audioFile;
   }

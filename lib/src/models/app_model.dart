@@ -553,6 +553,11 @@ class AppModel with ChangeNotifier {
 
   /// Shows when the current mode is a light theme.
   ThemeData get theme => ThemeData(
+        // Material 3 opt-out (toolchain migration, decision 3): M3 has
+        // been the framework default since Flutter 3.16 and would
+        // restyle the entire black/yellow e-ink look. M3 adoption is a
+        // separate project.
+        useMaterial3: false,
         scaffoldBackgroundColor: Colors.white,
         unselectedWidgetColor: Colors.black54,
         textTheme: textTheme,
@@ -587,7 +592,7 @@ class AppModel with ChangeNotifier {
           color: Colors.white,
           shape: RoundedRectangleBorder(),
         ),
-        dialogTheme: const DialogTheme(
+        dialogTheme: const DialogThemeData(
           backgroundColor: Colors.white,
           shape: RoundedRectangleBorder(),
         ),
@@ -636,6 +641,8 @@ class AppModel with ChangeNotifier {
 
   /// Shows when the current mode is a dark theme.
   ThemeData get darkTheme => ThemeData(
+        // Material 3 opt-out — see [theme].
+        useMaterial3: false,
         scaffoldBackgroundColor: Colors.black,
         // Pure black across every panel surface — canvas (modal bottom
         // sheets like the player's track menu), cards, dialogs and popup
@@ -686,7 +693,7 @@ class AppModel with ChangeNotifier {
         // black/yellow identity: yellow rounded border on the panel,
         // and their TextButtons render as yellow-bordered pills (白い熊,
         // 2026-07-24).
-        dialogTheme: DialogTheme(
+        dialogTheme: DialogThemeData(
           backgroundColor: Colors.black,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -4361,7 +4368,8 @@ class AppModel with ChangeNotifier {
       directories.add(lastPickedDirectory);
     }
 
-    List<String> paths = await ExternalPath.getExternalStorageDirectories();
+    List<String> paths =
+        await ExternalPath.getExternalStorageDirectories() ?? [];
     for (String path in paths) {
       Directory directory = Directory(path);
       if (!directories.contains(directory)) {

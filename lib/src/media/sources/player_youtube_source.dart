@@ -683,24 +683,26 @@ class PlayerYoutubeSource extends PlayerMediaSource {
     PagingController<int, MediaItem>? pagingController =
         _pagingControllerCache[playlistId];
     if (pagingController == null) {
-      pagingController = PagingController(firstPageKey: 1);
+      // v5 PagingController: the whole playlist arrives as one page, so
+      // the next-page key is 1 for the first fetch and null afterwards.
+      pagingController = PagingController(
+        getNextPageKey: (state) => state.pages == null ? 1 : null,
+        fetchPage: (pageKey) async {
+          List<MediaItem> items = [];
+          List<Video> videos = [];
 
-      pagingController.addPageRequestListener((pageKey) async {
-        List<MediaItem> items = [];
-        List<Video> videos = [];
-
-        try {
-          videos = await _playlistClient
-              .getVideos(playlistId)
-              .where((e) => e.duration != null)
-              .toList();
-          for (Video video in videos) {
-            items.add(getMediaItem(video));
-          }
-        } finally {
-          pagingController?.appendLastPage(items);
-        }
-      });
+          try {
+            videos = await _playlistClient
+                .getVideos(playlistId)
+                .where((e) => e.duration != null)
+                .toList();
+            for (Video video in videos) {
+              items.add(getMediaItem(video));
+            }
+          } catch (_) {}
+          return items;
+        },
+      );
 
       _pagingControllerCache[playlistId] = pagingController;
     }
@@ -750,29 +752,30 @@ class PlayerYoutubeSource extends PlayerMediaSource {
     PagingController<int, MediaItem>? pagingController =
         _pagingControllerCache[channelId];
     if (pagingController == null) {
-      pagingController = PagingController(firstPageKey: 1);
-      pagingController.addPageRequestListener((pageKey) async {
-        List<MediaItem> items = [];
-        List<Video> videos = [];
+      // v5 PagingController: an empty page marks the end of the feed.
+      pagingController = PagingController(
+        getNextPageKey: (state) =>
+            state.lastPageIsEmpty ? null : state.nextIntPageKey,
+        fetchPage: (pageKey) async {
+          List<MediaItem> items = [];
+          List<Video> videos = [];
 
-        try {
-          videos = await _channelClient
-              .getUploads(channelId)
-              .skip(pagingController?.itemList?.length ?? 0)
-              .take(20)
-              .where((e) => e.duration != null)
-              .toList();
-          for (Video video in videos) {
-            items.add(getMediaItem(video));
-          }
-        } finally {
-          if (items.isEmpty) {
-            pagingController?.appendLastPage(items);
-          } else {
-            pagingController?.appendPage(items, pageKey + 1);
-          }
-        }
-      });
+          try {
+            videos = await _channelClient
+                .getUploads(channelId)
+                .skip(_pagingControllerCache[channelId]
+                        ?.value.items?.length ??
+                    0)
+                .take(20)
+                .where((e) => e.duration != null)
+                .toList();
+            for (Video video in videos) {
+              items.add(getMediaItem(video));
+            }
+          } catch (_) {}
+          return items;
+        },
+      );
       _pagingControllerCache[channelId] = pagingController;
     }
 
@@ -860,22 +863,19 @@ class PlayerYoutubeSource extends PlayerMediaSource {
     }
 
     CommentsList? commentsList = await _commentsClient.getComments(video);
-    pagingController = PagingController(firstPageKey: 1);
+    pagingController = PagingController(
+      getNextPageKey: (state) =>
+          state.lastPageIsEmpty ? null : state.nextIntPageKey,
+      fetchPage: (pageKey) async {
+        List<Comment> comments = [];
 
-    pagingController.addPageRequestListener((pageKey) async {
-      List<Comment> comments = [];
-
-      try {
-        comments.addAll(commentsList!.toList());
-        commentsList = await compute(computeCommentsList, commentsList);
-      } finally {
-        if (comments.isEmpty) {
-          pagingController?.appendLastPage(comments);
-        } else {
-          pagingController?.appendPage(comments, pageKey + 1);
-        }
-      }
-    });
+        try {
+          comments.addAll(commentsList!.toList());
+          commentsList = await compute(computeCommentsList, commentsList);
+        } catch (_) {}
+        return comments;
+      },
+    );
     _commentsPagingCache[video.id.value] = pagingController;
 
     return pagingController;
@@ -891,22 +891,19 @@ class PlayerYoutubeSource extends PlayerMediaSource {
     }
 
     CommentsList? commentsList = await _commentsClient.getReplies(comment);
-    pagingController = PagingController(firstPageKey: 1);
+    pagingController = PagingController(
+      getNextPageKey: (state) =>
+          state.lastPageIsEmpty ? null : state.nextIntPageKey,
+      fetchPage: (pageKey) async {
+        List<Comment> comments = [];
 
-    pagingController.addPageRequestListener((pageKey) async {
-      List<Comment> comments = [];
-
-      try {
-        comments.addAll(commentsList!.toList());
-        commentsList = await commentsList?.nextPage();
-      } finally {
-        if (comments.isEmpty) {
-          pagingController?.appendLastPage(comments);
-        } else {
-          pagingController?.appendPage(comments, pageKey + 1);
-        }
-      }
-    });
+        try {
+          comments.addAll(commentsList!.toList());
+          commentsList = await commentsList?.nextPage();
+        } catch (_) {}
+        return comments;
+      },
+    );
     _repliesPagingCache[comment] = pagingController;
 
     return pagingController;

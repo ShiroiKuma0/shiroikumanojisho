@@ -57,13 +57,17 @@ class _YoutubeVideoResultsPageState
   }
 
   Widget buildList() {
-    return PagedListView<int, MediaItem>(
-      physics:
-          const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-      scrollController: _scrollController,
-      pagingController: widget.pagingController,
-      key: UniqueKey(),
-      builderDelegate: PagedChildBuilderDelegate<MediaItem>(
+    return PagingListener(
+      controller: widget.pagingController,
+      builder: (context, state, fetchNextPage) =>
+          PagedListView<int, MediaItem>(
+        physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics()),
+        scrollController: _scrollController,
+        state: state,
+        fetchNextPage: fetchNextPage,
+        key: UniqueKey(),
+        builderDelegate: PagedChildBuilderDelegate<MediaItem>(
         noItemsFoundIndicatorBuilder: (context) {
           return Center(
             child: JidoujishoPlaceholderMessage(
@@ -81,6 +85,7 @@ class _YoutubeVideoResultsPageState
         itemBuilder: (context, item, index) {
           return buildMediaItem(item);
         },
+        ),
       ),
     );
   }

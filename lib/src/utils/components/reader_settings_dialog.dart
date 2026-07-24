@@ -394,7 +394,7 @@ class _ReaderSettingsDialogState extends State<ReaderSettingsDialog> {
   }
 
   Future<void> _pickFont(TextEditingController controller) async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
+    FilePickerResult? result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['ttf', 'otf'],
     );

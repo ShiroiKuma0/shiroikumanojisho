@@ -14,6 +14,12 @@ analyzer:
     - '**.freezed.dart'
     - '**.g.dart'
     - '**/generated_plugin_registrant.dart'
+    # Archived pre-fork source (chisa/jidoujisho era) — not built, not
+    # maintained; keep the analyzer out of it.
+    - 'legacy/**'
+    # Vendored packages are analyzed on their own terms; their tests
+    # and examples target older SDKs and drown the app's error list.
+    - 'vendor/**'
 
 linter:
   # The lint rules applied to this project can be customized in the

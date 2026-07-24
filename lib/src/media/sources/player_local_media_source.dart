@@ -3,7 +3,7 @@ import 'dart:io';
 
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_ffmpeg/flutter_ffmpeg.dart';
+import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_vlc_player/flutter_vlc_player.dart';
 import 'package:material_floating_search_bar_2/material_floating_search_bar_2.dart';
@@ -100,13 +100,12 @@ class PlayerLocalMediaSource extends PlayerMediaSource {
   Future<void> generateThumbnail(String inputPath, String targetPath) async {
     String timestamp =
         JidoujishoTimeFormat.getFfmpegTimestamp(const Duration(seconds: 30));
-    final FlutterFFmpeg flutterFFmpeg = FlutterFFmpeg();
 
     String command =
         '-ss $timestamp -y -i "$inputPath" -frames:v 1 -q:v 2 "$targetPath"';
 
-    await flutterFFmpeg.execute(command);
-    String output = await FlutterFFmpegConfig().getLastCommandOutput();
+    final session = await FFmpegKit.execute(command);
+    String output = await session.getOutput() ?? '';
 
     if (output.contains('Output file is empty, nothing was encoded')) {
       String timestamp =
@@ -114,7 +113,7 @@ class PlayerLocalMediaSource extends PlayerMediaSource {
 
       String command =
           '-ss $timestamp -y -i "$inputPath" -frames:v 1 -q:v 2 "$targetPath"';
-      await flutterFFmpeg.execute(command);
+      await FFmpegKit.execute(command);
     }
   }
 

@@ -12,7 +12,7 @@ import 'package:filesystem_picker/filesystem_picker.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_ffmpeg/flutter_ffmpeg.dart';
+import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit_config.dart';
 import 'package:flutter_vlc_player/flutter_vlc_player.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 // import 'package:google_fonts/google_fonts.dart';
@@ -977,8 +977,8 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
   void _trackFfmpegProgress(String label) {
     _subtitlePrepNotifier.value = '$label...';
     final int totalMs = _playerController.value.duration.inMilliseconds;
-    FlutterFFmpegConfig().enableStatisticsCallback((statistics) {
-      final int processedMs = statistics.time;
+    FFmpegKitConfig.enableStatisticsCallback((statistics) {
+      final int processedMs = statistics.getTime();
       if (totalMs > 0) {
         final int percent = (processedMs * 100 ~/ totalMs).clamp(0, 100);
         _subtitlePrepNotifier.value = '$label... $percent%';
@@ -991,7 +991,7 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
 
   /// Stop routing ffmpeg statistics and hide the banner.
   void _clearFfmpegProgress() {
-    FlutterFFmpegConfig().enableStatisticsCallback(null);
+    FFmpegKitConfig.enableStatisticsCallback(null);
     _subtitlePrepNotifier.value = '';
   }
 
@@ -3967,10 +3967,10 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
       // The demux pass over a large file takes minutes on its own —
       // surface ffmpeg's progress in the dialog until OCR takes over.
       final int totalMs = _playerController.value.duration.inMilliseconds;
-      FlutterFFmpegConfig().enableStatisticsCallback((statistics) {
+      FFmpegKitConfig.enableStatisticsCallback((statistics) {
         if (totalMs > 0) {
           tracker.detail('Extracting... '
-              '${(statistics.time * 100 ~/ totalMs).clamp(0, 100)}%');
+              '${(statistics.getTime() * 100 ~/ totalMs).clamp(0, 100)}%');
         }
       });
       File srtFile = await SubtitleOcr.ocrTrack(
@@ -4005,7 +4005,7 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
     } catch (e) {
       Fluttertoast.showToast(msg: 'Subtitle OCR failed: $e');
     } finally {
-      FlutterFFmpegConfig().enableStatisticsCallback(null);
+      FFmpegKitConfig.enableStatisticsCallback(null);
       await engine.dispose();
       appModel.isProcessingEmbeddedSubtitles = false;
       navigator.pop();

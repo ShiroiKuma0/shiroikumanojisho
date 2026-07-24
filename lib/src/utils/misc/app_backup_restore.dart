@@ -192,8 +192,9 @@ class AppBackupRestore {
             actions: [
               TextButton(
                 onPressed: () {
-                  Share.shareFiles([zipFile.path],
-                      mimeTypes: ['application/zip']);
+                  SharePlus.instance.share(ShareParams(
+                    files: [XFile(zipFile.path, mimeType: 'application/zip')],
+                  ));
                 },
                 child: const Text('Share'),
               ),

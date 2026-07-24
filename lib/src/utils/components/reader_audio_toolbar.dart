@@ -891,7 +891,7 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
   }
 
   Future<void> _pickSrt() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
+    FilePickerResult? result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['srt'],
     );

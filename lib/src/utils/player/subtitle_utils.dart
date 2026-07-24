@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter_ffmpeg/flutter_ffmpeg.dart';
+import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:subtitle/subtitle.dart';
 import 'package:path/path.dart' as path;
@@ -139,9 +139,7 @@ class SubtitleUtils {
       outputFile.deleteSync();
     }
 
-    final FlutterFFmpeg flutterFFmpeg = FlutterFFmpeg();
-
-    await flutterFFmpeg.execute(command);
+    await FFmpegKit.execute(command);
 
     await Future.delayed(const Duration(seconds: 1));
 
@@ -207,11 +205,10 @@ class SubtitleUtils {
         outputFile.deleteSync();
       }
 
-      final FlutterFFmpeg flutterFFmpeg = FlutterFFmpeg();
-      final FlutterFFmpegConfig flutterFFmpegConfig = FlutterFFmpegConfig();
-
-      await flutterFFmpeg.execute(command);
-      String output = await flutterFFmpegConfig.getLastCommandOutput();
+      // ffmpeg-kit has no global last-command log; the sentinel parse
+      // moves onto the session's own output.
+      final session = await FFmpegKit.execute(command);
+      String output = await session.getOutput() ?? '';
       if (output.contains("Stream map '0:s:$i' matches no streams.")) {
         break;
       }
@@ -249,9 +246,7 @@ class SubtitleUtils {
 
     String command = '-i "$inputPath" "$outputPath"';
 
-    final FlutterFFmpeg flutterFFmpeg = FlutterFFmpeg();
-
-    await flutterFFmpeg.execute(command);
+    await FFmpegKit.execute(command);
 
     return targetFile.readAsStringSync();
   }

@@ -76,33 +76,25 @@ abstract class BaseMediaSearchBarState<T extends BaseMediaSearchBar>
         _isSearching = true;
       });
 
-      pagingController = PagingController(firstPageKey: 1);
-      try {
-        List<MediaItem>? newItems = await mediaSource.searchMediaItems(
-          context: context,
-          searchTerm: query,
-          pageKey: 1,
-        );
-        if (newItems != null && newItems.isNotEmpty) {
-          pagingController?.appendPage(newItems, 2);
-        }
-      } catch (e) {
-        pagingController?.appendLastPage([]);
-      }
-      pagingController?.addPageRequestListener((pageKey) async {
-        try {
-          List<MediaItem>? newItems = await mediaSource.searchMediaItems(
-            context: context,
-            searchTerm: query,
-            pageKey: pageKey,
-          );
-          if (newItems != null && newItems.isNotEmpty) {
-            pagingController?.appendPage(newItems, pageKey);
+      // v5 PagingController: an empty or failed page ends the feed.
+      pagingController = PagingController(
+        getNextPageKey: (state) =>
+            state.lastPageIsEmpty ? null : state.nextIntPageKey,
+        fetchPage: (pageKey) async {
+          try {
+            List<MediaItem>? newItems = await mediaSource.searchMediaItems(
+              context: context,
+              searchTerm: query,
+              pageKey: pageKey,
+            );
+            return newItems ?? <MediaItem>[];
+          } catch (e) {
+            return <MediaItem>[];
           }
-        } catch (e) {
-          pagingController?.appendLastPage([]);
-        }
-      });
+        },
+      );
+      // Kick off the first page so results state is queryable below.
+      pagingController?.fetchNextPage();
       appModel.addToSearchHistory(
         historyKey: mediaSource.uniqueKey,
         searchTerm: mediaType.floatingSearchBarController.query,
@@ -235,7 +227,7 @@ abstract class BaseMediaSearchBarState<T extends BaseMediaSearchBar>
       );
     }
 
-    if (pagingController!.itemList != null) {
+    if (pagingController!.value.pages != null) {
       return RawScrollbar(
         thickness: 3,
         thumbVisibility: true,
