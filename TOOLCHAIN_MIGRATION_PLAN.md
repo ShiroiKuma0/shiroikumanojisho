@@ -42,12 +42,12 @@ same cadence as the OCR project.
 
 | Item | From (repo-verified) | To |
 |---|---|---|
-| Flutter | 3.13.5 (Dart 3.1), machine SDK `~/git/flutter` | **3.44.x** (Dart 3.12), second SDK checkout (see Phase 0) |
+| Flutter | 3.13.5 (Dart 3.1), machine SDK `~/git/flutter` | **3.44.8** (Dart 3.12.2), second SDK checkout at `~/git/flutter-3.44` (done, precached) |
 | pubspec `environment.sdk` | `>=3.0.0<4.0.0` | `>=3.12.0 <4.0.0` |
 | Gradle wrapper | 7.2 | **9.1.0** (3.44 template) |
 | AGP | 7.1.2 | **9.0.1** |
 | Kotlin | KGP 1.8.22 | AGP 9 built-in Kotlin per template (KGP 2.3.20 only if needed; `android.builtInKotlin=false` is a temporary escape hatch, not a destination) |
-| JDK | Zulu 11 (`/usr/lib/jvm/zulu11`) | **JDK 17+** (Zulu 17; hard floor — the tooling errors below 17) |
+| JDK | Zulu 11 (`/usr/lib/jvm/zulu11`) | **OpenJDK 21** (`/usr/lib/jvm/java-21-openjdk-amd64`, already installed; satisfies the ≥17 floor — no Zulu 17 install) |
 | Gradle integration | imperative `apply from: flutter.gradle` | declarative plugins DSL (mandatory since Flutter 3.29) |
 | compileSdk / targetSdk / minSdk | 34 / 32 / 24 | **36 / 32 / 24** (targetSdk deliberately unchanged) |
 | NDK | 21.4.7075529 (explicit pin) | no pin — inherit `flutter.ndkVersion` (28.2.x) |
@@ -58,10 +58,10 @@ same cadence as the OCR project.
 
 | Package | From (repo-verified) | To | Class |
 |---|---|---|---|
-| flutter_ffmpeg | 0.4.2, native variant `full-gpl-lts` (ext in `android/build.gradle`) | `ffmpeg_kit_flutter_new` 4.5.x, variant **full_gpl** (decision 4) | Critical — API reshape, 15 call sites / 5 files |
+| flutter_ffmpeg | 0.4.2, native variant `full-gpl-lts` (ext in `android/build.gradle`) | `ffmpeg_kit_flutter_new` 4.5.x, variant **full** (decision 4, audit-backed; `full_gpl` is the one-line fallback) | Critical — API reshape, 7 execute sites + probe + stats (see `migration/ffmpeg-audit.md`) |
 | isar / isar_flutter_libs / isar_generator | 3.1.0+1 | `isar_community` / `isar_community_flutter_libs` / `isar_community_generator` 3.3.x | Critical — unblocks codegen; same on-disk format (MUST verify on a DB copy) |
-| flutter_vlc_player | arianneorpilla fork (git) | upstream **7.4.4** (decision 5, gated on fork diff) | Major |
-| flutter_inappwebview | arianneorpilla fork, 2023 commit | upstream **6.1.x** (decision 5) | Major — biggest hand-edit, 54 hits / 8 files |
+| flutter_vlc_player | arianneorpilla fork (git, 7.2.x-dev base) | upstream **7.4.4** stock; fork's OpenSLES audio-output hook is the ONLY live patch — retest audio-cut on the Boox, re-apply the ~6-line hunk (vendored) only if it recurs | Major |
+| flutter_inappwebview | arianneorpilla fork = v6.0.0-beta.25 + furigana-filter patch | hosted upstream **6.1.5**, no fork; port the `<rt>`/`<rp>`-excluding `getSelectedText()` JS into the app's own helpers (3 pages) | Major — biggest hand-edit, 54 hits / 8 files |
 | wakelock (fork) | diegotori fork (git) | `wakelock_plus` (+ drop `wakelock_windows` override) | Major (mechanically simple) |
 | flutter_html / flutter_html_table | 3.0.0-beta.2 | 3.0.0 final | Major (watch-list) |
 | share_plus | ^4.0.10 | 13 (`SharePlus.instance.share(ShareParams(...))`) | Major |
@@ -85,11 +85,11 @@ same cadence as the OCR project.
 | infinite_scroll_pagination | ^3.1.0 | 4 | Mechanical |
 | build_runner / json_serializable / copy_with_extension / dart_mappable | current pins | latest + full regen | Mechanical |
 | flutter_launcher_icons / flutter_native_splash / restart_app / flutter_exit_app / flutter_logs | current pins | current | Mechanical |
-| material_floating_search_bar (fork) | arianneorpilla fork (git) | `material_floating_search_bar_2` (upstream discontinued) | Fork handling |
-| filesystem_picker (fork) | arianneorpilla fork (git) | try upstream 4.1.0 (gated on fork diff) | Fork handling |
-| receive_intent (fork) | arianneorpilla fork (git) | try upstream 0.2.7, else namespace shim | Fork handling |
+| material_floating_search_bar (fork) | arianneorpilla fork (0.3.7 mirror; upstream repo deleted) | hosted `material_floating_search_bar_2: ^0.5.0` — all 3 fork patches are in it verbatim; app uses no changed API | Fork handling |
+| filesystem_picker (fork) | arianneorpilla fork (heavy rewrite: multi-root, `usedFiles` highlighting, marquee, icons — all used at 4 call sites) | **keep fork, vendored** — upstream 4.1.0 lacks the customizations; fork only needs SDK constraint widened + `pedantic` dropped | Fork handling |
+| receive_intent (fork) | arianneorpilla fork (0.2.3 base + Jellyfin/mpv `setResult(action:)` patch the app needs) | upstream **0.2.7** + rebase the single ~15-line patch (applies cleanly), vendored | Fork handling |
 | mecab_dart | ^0.1.3 (old FFI plugin) | keep + namespace shim, or vendor if shim insufficient | Fork handling |
-| nowplaying (fork) | arianneorpilla fork (git) | keep fork + namespace | Fork handling |
+| nowplaying (fork) | arianneorpilla fork (upstream `shinyford/nowplaying` dormant; fork carries an unupstreamed NPE crash fix) | **keep fork, vendored** + add `namespace 'com.gomes.NowPlaying'` and compileSdk bump | Fork handling |
 | subtitle (fork) | arianneorpilla fork (git) | keep (pure Dart) | Fork handling |
 | spaces / ruby_text / ve_dart / blurrycontainer / marquee / expandable / reorderables / scrollable_positioned_list / clipboard / progress_indicators / multi_value_listenable_builder | various | keep; fix compile errors as they surface | Fork handling |
 | hive / hive_flutter | 2.2.3 / 1.1.0 | keep (hive_ce is fallback only) | Frozen |
@@ -114,19 +114,31 @@ the `spaces` fork is patched or replaced. `record_mp3_plus`: retest, then drop.
    project.
 3. **Material 3: opt out initially.** `useMaterial3: false` in both ThemeData
    constructions. Preserves the e-ink look; M3 adoption is a separate project.
-4. **ffmpeg variant: `full_gpl`.** Repo-verified: the current build already ships
-   `full-gpl-lts` (ext `flutterFFmpegPackage` in `android/build.gradle`), so `full_gpl`
-   is the behavior-preserving port — no codec/protocol we use today can go missing.
-   Phase 0 still audits the actual command strings (subtitle demux/SRT encode, JPEG
-   thumbnails, audio extraction) so we know whether a later slim to `https`/`audio` is
-   possible, but slimming is decoupled from the migration.
-5. **Forks: prefer upstream wherever upstream is alive**, gated per-package on a
-   Phase 0 diff of the fork against its base (to enumerate what the fork patched and
-   confirm upstream covers or obsoletes it): flutter_vlc_player → upstream 7.4.4,
-   flutter_inappwebview → upstream 6.1.x, filesystem_picker → upstream 4.1.0,
-   receive_intent → upstream 0.2.7, material_floating_search_bar →
-   `material_floating_search_bar_2`. Patch-the-fork only where the diff shows a
-   load-bearing patch upstream lacks. Pure-Dart forks (subtitle etc.) stay.
+4. **ffmpeg variant: `full` (LGPL)** — settled by the Phase 0 audit
+   (`migration/ffmpeg-audit.md`). The complete call-site inventory shows the only
+   external library exercised is libmp3lame (Anki MP3 clips) plus https protocol
+   support (YouTube stream inputs); nothing GPL is used (we decode H.264/H.265 with
+   native decoders, never encode). `full` is the minimal variant covering
+   lame + https; the current `full-gpl-lts` was strictly overkill. Fallback to
+   `full_gpl` is a one-line change if anything surfaces.
+5. **Forks — resolved per-package by the Phase 0 diffs**
+   (`migration/fork-diff-*.md`):
+   - flutter_inappwebview → **hosted 6.1.5, no fork**; the fork's one live patch
+     (furigana-excluding `getSelectedText()` JS) ports into the app's own helpers.
+   - flutter_vlc_player → **upstream 7.4.4 stock**; retest the audio-cut issue on
+     the Boox (fork's OpenSLES hook is the only live patch; re-apply vendored only
+     if the issue recurs with libVLC 3.6.3).
+   - material_floating_search_bar → **hosted `material_floating_search_bar_2`
+     ^0.5.0** (contains all fork patches verbatim; no app-visible API change).
+   - receive_intent → **upstream 0.2.7 + rebased ~15-line `setResult(action:)`
+     patch, vendored** (the mpv/Jellyfin result contract needs it; applies cleanly).
+   - filesystem_picker → **keep fork, vendored** (fork is a feature rewrite the app
+     uses at all 4 call sites; upstream 4.1.0 lacks it; needs only pubspec fixes).
+   - nowplaying → **keep fork, vendored** (carries an unupstreamed NPE crash fix;
+     needs namespace + compileSdk patch; upstream dormant).
+   - Pure-Dart forks (subtitle etc.) stay.
+   Vendoring note: packages we must patch live under `vendor/` (same pattern the
+   ML Kit vendoring used) — in-repo, no dependence on third-party git refs.
 
 ## 4. Branch, rollback, and safety model
 
@@ -165,6 +177,15 @@ the trench are therefore non-build gates (pub resolution, Gradle configuration,
 analyzer error count trending down). The first APK gate closes Phase 4.
 
 ### Phase 0 — Preparation (no repo code changes; ~1 session)
+
+> **Status 2026-07-24: complete except item 4** — JDK 21 confirmed present (no
+> install needed), Flutter 3.44.8 checked out to `~/git/flutter-3.44` and
+> precached, branch created, ffmpeg audit and all fork diffs done (results in
+> `migration/` and folded into Sections 2–3 above), `ConcatenatingAudioSource`
+> and `FlutterApplication` checks clear. Item 4 (device safety net) awaits the
+> in-app export bundle — the raw `adb pull` path turned out empty (Isar/Hive
+> live in internal storage; the external dir holds only logs), so the in-app
+> bundle IS the safety net, run by 白い熊 on the Palma, then pulled and archived.
 
 1. Install Zulu JDK 17 alongside Zulu 11; note its path.
 2. Second Flutter SDK checkout at `~/git/flutter-3.44` pinned to the current 3.44.x
@@ -233,8 +254,9 @@ evidence.
    2.17alpha14, RxLogs, `com.google.mlkit:text-recognition-japanese:16.0.1` — verify in
    Phase 2 whether the hosted plugin makes the explicit ML Kit model dep redundant).
 7. Gradle wrapper → 9.1.0. Update `local.properties` `flutter.sdk` to the new checkout.
-8. Session env discipline from here on: `JAVA_HOME` → Zulu 17, PATH → `~/git/flutter-3.44/bin`,
-   and `pkill -f '[G]radleDaemon'` when switching JDKs (the daemon caches its JDK).
+8. Session env discipline from here on: `JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64`,
+   PATH → `~/git/flutter-3.44/bin`, and `pkill -f '[G]radleDaemon'` when switching
+   JDKs (the daemon caches its JDK).
 
 **Gate:** `flutter pub get` still resolves (old constraints permitting) and
 `./gradlew :app:tasks` configures without evaluation errors. No APK expected.
@@ -247,14 +269,15 @@ In this order (each step keeping `flutter pub get` resolvable before the next):
 1. **isar → isar_community 3.3.x** (+ `isar_community_flutter_libs`,
    `isar_community_generator`). First because isar_generator's analyzer pin is the
    hard codegen blocker — nothing regenerates until this lands.
-2. **flutter_ffmpeg → ffmpeg_kit_flutter_new** (4.5.x, `full_gpl`); delete the
+2. **flutter_ffmpeg → ffmpeg_kit_flutter_new** (4.5.x, `full`); delete the
    `flutterFFmpegPackage` ext from the root Gradle file.
 3. **wakelock fork → wakelock_plus**; delete the `wakelock_windows` override.
-4. **Fork swaps per Phase 0 confirmations:** flutter_vlc_player → 7.4.4;
-   flutter_inappwebview → 6.1.x; filesystem_picker → upstream 4.1.0 or patched fork;
-   receive_intent → upstream 0.2.7 or namespaced fork; material_floating_search_bar →
-   material_floating_search_bar_2; nowplaying fork + namespace; mecab_dart kept
-   (namespace shim covers it, else vendor).
+4. **Fork swaps per the Phase 0 verdicts (Section 3, decision 5):**
+   flutter_vlc_player → hosted 7.4.4; flutter_inappwebview → hosted 6.1.5;
+   material_floating_search_bar → hosted material_floating_search_bar_2 ^0.5.0;
+   receive_intent → vendor/ (0.2.7 + rebased action patch); filesystem_picker →
+   vendor/ (fork tip + pubspec fixes); nowplaying → vendor/ (fork + namespace +
+   compileSdk); mecab_dart kept (namespace shim covers it, else vendor).
 5. **Un-vendor ML Kit:** `google_mlkit_text_recognition: ^0.16.0` hosted; delete
    `vendor/`; check whether the explicit `text-recognition-japanese` Gradle dep is
    still needed (the vendored plugin declared recognizers compileOnly; hosted may
@@ -310,7 +333,11 @@ Ordered from mechanical to surgical:
    (54 hits / 8 files): `InAppWebViewGroupOptions` → `InAppWebViewSettings`, merged
    callbacks, enum renames; `HeadlessInAppWebView`, `onConsoleMessage`,
    `callAsyncJavaScript` survive. Touches TTU reader (~3,600-line page), mokuro
-   browse, browser source. Merge back when those compile.
+   browse, browser source. **Includes porting the furigana-filter JS** (the fork's
+   `<rt>`/`<rp>`-excluding selection walker, extractable verbatim from the fork
+   commit — see `migration/fork-diff-inappwebview.md`) into the three pages'
+   `getSelectedText()` helpers via `evaluateJavascript`. Merge back when those
+   compile.
 8. flutter_vlc_player 7.4.4: API stated stable (`VlcPlayerController`, `getSpuTracks`,
    `setSpuTrack`) — expect small edits only.
 9. R8/proguard check: `minifyEnabled true` under AGP 9 with the new plugin set —
@@ -416,7 +443,7 @@ does not sit unbuildable across long gaps.
 | R4 | FFmpeg 4.x → 8.1 CLI/behavior drift breaks command strings (not just the Dart API) | Medium | Medium | Phase 0 command audit as reference; per-feature retest (subtitles, thumbnails, Anki audio); `full_gpl` keeps codec superset |
 | R5 | Legacy variant API removal breaks the versionCode/APK-rename port silently (wrong codes → device downgrade errors later) | Medium | High (it WILL break; risk is porting it wrong) | Explicit Phase 1 task; verify computed versionCode/versionName of the first Phase 4 APK via `aapt dump badging` |
 | R6 | Pub resolution deadlock across the 60+ package graph | Medium | High | Phase 2 step order, per-step commits, temporary overrides as documented crutches |
-| R7 | vlc 7.4 behavior changes (background playback, keep-alive removal) surprise the player UX | Medium | Medium | Named matrix row; fork diff in Phase 0 shows what the fork changed |
+| R7 | vlc 7.4 behavior changes (background playback, keep-alive removal) surprise the player UX; audio-cut issue returns without the fork's OpenSLES hook | Medium | Medium | Named matrix row incl. audio-cut listen test; re-apply the ~6-line OpenSLES hunk (vendored) if it recurs |
 | R8 | AGP 9 built-in Kotlin friction with old third-party plugin builds | Medium | Medium | Namespace shim; `android.builtInKotlin=false` escape hatch (temporary); vendor as last resort |
 | R9 | R8 under AGP 9 strips reflective code (ffmpeg-kit / ML Kit / Isar) in release builds only | Medium | Medium | Test release builds (we always build release); add keep rules on first symptom |
 | R10 | E-ink visual regressions despite M3 opt-out (default metric/typography drift 3.13→3.44) | Medium | Medium | Dedicated visual pass row; narrow-width checks from CLAUDE.md remain the bar |
