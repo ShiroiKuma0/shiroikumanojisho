@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [1.4.0+25] - 2026-07-24
+
 ### Added
 
 - "OCR image subtitles" action in the player's audio/subtitles menu (next to
@@ -269,7 +273,8 @@ Initial release after the rename and restructure from `ShiroiKuma0/jidoujisho2`.
 - App display name set to `白い熊の辞書` (Android and iOS); iOS identity also updated.
 - Version baseline reset to `1.0.0+1` post-rename.
 
-[Unreleased]: https://github.com/ShiroiKuma0/shiroikumanojisho/compare/1.4.0+6...HEAD
+[Unreleased]: https://github.com/ShiroiKuma0/shiroikumanojisho/compare/1.4.0+25...HEAD
+[1.4.0+25]: https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.4.0+25
 [1.4.0+6]: https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.4.0+6
 [1.4.0+3]: https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.4.0+3
 [1.4.0+2]: https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.4.0+2

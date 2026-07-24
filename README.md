@@ -6,13 +6,18 @@
 
 **An immersion language-learning suite: video player, audio-synced ebook reader, dictionary and Anki card factory in one app.**
 
-A fork of [arianneorpilla/jidoujisho](https://github.com/arianneorpilla/jidoujisho) with **major additions**: five new languages, an audio-synced reader with SRT subtitles and Tasker control, a dual-language translation split view, per-book appearance settings, cross-device backup, and an e-ink-friendly UI.
+A fork of [arianneorpilla/jidoujisho](https://github.com/arianneorpilla/jidoujisho) with **major additions**: on-device OCR for Blu-ray subtitles and scanned PDFs, five new languages, an audio-synced reader with SRT subtitles and Tasker control, a dual-language translation split view, per-book appearance settings, cross-device backup, and an e-ink-friendly UI.
 
 Installs **side-by-side** with jidoujisho (app id `shiroikuma.jisho`).
 
-**📥 Latest release: [`1.4.0+6`](https://github.com/ShiroiKuma0/shiroikumanojisho/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikumanojisho/releases)
+**📥 Latest release: [`1.4.0+25`](https://github.com/ShiroiKuma0/shiroikumanojisho/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikumanojisho/releases)
 
 </div>
+
+---
+
+## 🔍 On-device OCR — study what has no text
+Google ML Kit's Japanese recognizer, bundled and fully offline, turns image-only media into tappable study material. **Blu-ray PGS subtitles**: one tap in the player's track menu OCRs the bitmap track into a real subtitle file (saved beside the video, auto-loaded forever after) with dictionary tap-lookup and Anki export — and in pause-per-subtitle mode the original bitmap is shown alongside the recognised text, so OCR errors are caught at a glance. **Scanned PDFs**: the "Scanned PDF" reader source rasterises and OCRs every page on-device into a mokuro-style volume — the original page image with an invisible, tappable text overlay.
 
 ---
 
