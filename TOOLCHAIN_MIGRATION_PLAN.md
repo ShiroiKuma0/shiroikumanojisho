@@ -276,6 +276,23 @@ evidence.
 
 ### Phase 2 — Dependency graph rewrite (pubspec; ~1–2 sessions incl. Phase 3)
 
+> **Status 2026-07-25: done through the Android configuration gate.** 265
+> packages moved; `./gradlew :app:tasks` is BUILD SUCCESSFUL with all 42
+> Android plugins under Gradle 9.1.0 / AGP 9.0.1 / JDK 21. Deviations from
+> the plan below, all recorded in the pubspec comments and commit messages:
+> ffmpeg ships the mainline `ffmpeg_kit_flutter_new` 4.5.3 (which IS
+> full-gpl; the LGPL `_full` sibling is two majors stale — decision 4's
+> "full" idea died on staleness, netting out to the originally-approved
+> full-gpl); slang stays 3.32 (4.x unresolvable in this graph — config
+> migration dropped from the plan); additional vendors beyond the audit
+> list: async_zip, document_file_save_plus, mecab_dart (jcenter/old-AGP
+> poisons), flutter_inappwebview_android 1.1.3 (one-line AGP 9 proguard
+> fix; hosted fix exists only in 6.2 betas), nowplaying's package_info →
+> package_info_plus. `android.builtInKotlin=false` joins `newDsl=false`
+> as temporary scaffolding. Overrides: mecab_dart(path), ffi, mime, path,
+> win32, freezed_annotation, gap, record_mp3_plus. Remaining: Dart-side
+> import renames + codegen (Phase 3), then the compile-fix sweep.
+
 In this order (each step keeping `flutter pub get` resolvable before the next):
 
 1. **isar → isar_community 3.3.x** (+ `isar_community_flutter_libs`,
