@@ -21,7 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_vlc_player/flutter_vlc_player.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:isar/isar.dart';
+import 'package:isar_community/isar.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:path/path.dart' as path;
 import 'package:package_info_plus/package_info_plus.dart';
@@ -30,7 +30,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:remove_emoji/remove_emoji.dart';
 import 'package:restart_app/restart_app.dart';
 import 'package:subtitle/subtitle.dart';
-import 'package:wakelock/wakelock.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:shiroikumanojisho/creator.dart';
 import 'package:shiroikumanojisho/dictionary.dart';
 import 'package:shiroikumanojisho/language.dart';
@@ -3642,7 +3642,7 @@ class AppModel with ChangeNotifier {
     _overrideDictionaryColor = null;
     _overrideDictionaryTheme = null;
 
-    await Wakelock.enable();
+    await WakelockPlus.enable();
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
 
     if (item != null && mediaSource.implementsHistory) {
@@ -3684,7 +3684,7 @@ class AppModel with ChangeNotifier {
     _overrideDictionaryTheme = null;
     blockCreatorInitialMedia = false;
     isProcessingEmbeddedSubtitles = false;
-    await Wakelock.disable();
+    await WakelockPlus.disable();
     await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     await mediaSource.onSourceExit(
       appModel: this,

@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-import 'package:isar/isar.dart';
+import 'package:isar_community/isar.dart';
 import 'package:shiroikumanojisho/dictionary.dart';
 
 part 'dictionary_tag.g.dart';

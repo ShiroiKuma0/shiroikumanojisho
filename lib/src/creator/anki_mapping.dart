@@ -1,4 +1,4 @@
-import 'package:isar/isar.dart';
+import 'package:isar_community/isar.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:shiroikumanojisho/creator.dart';
 import 'package:shiroikumanojisho/language.dart';

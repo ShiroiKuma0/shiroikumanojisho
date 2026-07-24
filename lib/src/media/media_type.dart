@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:material_floating_search_bar/material_floating_search_bar.dart';
+import 'package:material_floating_search_bar_2/material_floating_search_bar_2.dart';
 
 /// A type of media that is significantly distinguishable from other media such
 /// that it is deserving of its own core functionality when viewing media items.

@@ -47,66 +47,34 @@ const AnkiMappingSchema = CollectionSchema(
       name: r'exportMediaTags',
       type: IsarType.bool,
     ),
-    r'hashCode': PropertySchema(
-      id: 6,
-      name: r'hashCode',
-      type: IsarType.long,
-    ),
+    r'hashCode': PropertySchema(id: 6, name: r'hashCode', type: IsarType.long),
     r'isExportFieldsEmpty': PropertySchema(
       id: 7,
       name: r'isExportFieldsEmpty',
       type: IsarType.bool,
     ),
-    r'label': PropertySchema(
-      id: 8,
-      name: r'label',
-      type: IsarType.string,
-    ),
-    r'model': PropertySchema(
-      id: 9,
-      name: r'model',
-      type: IsarType.string,
-    ),
-    r'order': PropertySchema(
-      id: 10,
-      name: r'order',
-      type: IsarType.long,
-    ),
+    r'label': PropertySchema(id: 8, name: r'label', type: IsarType.string),
+    r'model': PropertySchema(id: 9, name: r'model', type: IsarType.string),
+    r'order': PropertySchema(id: 10, name: r'order', type: IsarType.long),
     r'prependDictionaryNames': PropertySchema(
       id: 11,
       name: r'prependDictionaryNames',
       type: IsarType.bool,
     ),
-    r'tags': PropertySchema(
-      id: 12,
-      name: r'tags',
-      type: IsarType.stringList,
-    ),
+    r'tags': PropertySchema(id: 12, name: r'tags', type: IsarType.stringList),
     r'useBrTags': PropertySchema(
       id: 13,
       name: r'useBrTags',
       type: IsarType.bool,
-    )
+    ),
   },
+
   estimateSize: _ankiMappingEstimateSize,
   serialize: _ankiMappingSerialize,
   deserialize: _ankiMappingDeserialize,
   deserializeProp: _ankiMappingDeserializeProp,
   idName: r'id',
   indexes: {
-    r'label': IndexSchema(
-      id: 6902807635198700142,
-      name: r'label',
-      unique: true,
-      replace: true,
-      properties: [
-        IndexPropertySchema(
-          name: r'label',
-          type: IndexType.hash,
-          caseSensitive: true,
-        )
-      ],
-    ),
     r'order': IndexSchema(
       id: 5897270977454184057,
       name: r'order',
@@ -117,16 +85,30 @@ const AnkiMappingSchema = CollectionSchema(
           name: r'order',
           type: IndexType.value,
           caseSensitive: false,
-        )
+        ),
       ],
-    )
+    ),
+    r'label': IndexSchema(
+      id: 6902807635198700142,
+      name: r'label',
+      unique: true,
+      replace: true,
+      properties: [
+        IndexPropertySchema(
+          name: r'label',
+          type: IndexType.hash,
+          caseSensitive: true,
+        ),
+      ],
+    ),
   },
   links: {},
   embeddedSchemas: {},
+
   getId: _ankiMappingGetId,
   getLinks: _ankiMappingGetLinks,
   attach: _ankiMappingAttach,
-  version: '3.1.0+1',
+  version: '3.3.2',
 );
 
 int _ankiMappingEstimateSize(
@@ -267,64 +249,14 @@ List<IsarLinkBase<dynamic>> _ankiMappingGetLinks(AnkiMapping object) {
 }
 
 void _ankiMappingAttach(
-    IsarCollection<dynamic> col, Id id, AnkiMapping object) {
+  IsarCollection<dynamic> col,
+  Id id,
+  AnkiMapping object,
+) {
   object.id = id;
 }
 
 extension AnkiMappingByIndex on IsarCollection<AnkiMapping> {
-  Future<AnkiMapping?> getByLabel(String label) {
-    return getByIndex(r'label', [label]);
-  }
-
-  AnkiMapping? getByLabelSync(String label) {
-    return getByIndexSync(r'label', [label]);
-  }
-
-  Future<bool> deleteByLabel(String label) {
-    return deleteByIndex(r'label', [label]);
-  }
-
-  bool deleteByLabelSync(String label) {
-    return deleteByIndexSync(r'label', [label]);
-  }
-
-  Future<List<AnkiMapping?>> getAllByLabel(List<String> labelValues) {
-    final values = labelValues.map((e) => [e]).toList();
-    return getAllByIndex(r'label', values);
-  }
-
-  List<AnkiMapping?> getAllByLabelSync(List<String> labelValues) {
-    final values = labelValues.map((e) => [e]).toList();
-    return getAllByIndexSync(r'label', values);
-  }
-
-  Future<int> deleteAllByLabel(List<String> labelValues) {
-    final values = labelValues.map((e) => [e]).toList();
-    return deleteAllByIndex(r'label', values);
-  }
-
-  int deleteAllByLabelSync(List<String> labelValues) {
-    final values = labelValues.map((e) => [e]).toList();
-    return deleteAllByIndexSync(r'label', values);
-  }
-
-  Future<Id> putByLabel(AnkiMapping object) {
-    return putByIndex(r'label', object);
-  }
-
-  Id putByLabelSync(AnkiMapping object, {bool saveLinks = true}) {
-    return putByIndexSync(r'label', object, saveLinks: saveLinks);
-  }
-
-  Future<List<Id>> putAllByLabel(List<AnkiMapping> objects) {
-    return putAllByIndex(r'label', objects);
-  }
-
-  List<Id> putAllByLabelSync(List<AnkiMapping> objects,
-      {bool saveLinks = true}) {
-    return putAllByIndexSync(r'label', objects, saveLinks: saveLinks);
-  }
-
   Future<AnkiMapping?> getByOrder(int order) {
     return getByIndex(r'order', [order]);
   }
@@ -373,9 +305,66 @@ extension AnkiMappingByIndex on IsarCollection<AnkiMapping> {
     return putAllByIndex(r'order', objects);
   }
 
-  List<Id> putAllByOrderSync(List<AnkiMapping> objects,
-      {bool saveLinks = true}) {
+  List<Id> putAllByOrderSync(
+    List<AnkiMapping> objects, {
+    bool saveLinks = true,
+  }) {
     return putAllByIndexSync(r'order', objects, saveLinks: saveLinks);
+  }
+
+  Future<AnkiMapping?> getByLabel(String label) {
+    return getByIndex(r'label', [label]);
+  }
+
+  AnkiMapping? getByLabelSync(String label) {
+    return getByIndexSync(r'label', [label]);
+  }
+
+  Future<bool> deleteByLabel(String label) {
+    return deleteByIndex(r'label', [label]);
+  }
+
+  bool deleteByLabelSync(String label) {
+    return deleteByIndexSync(r'label', [label]);
+  }
+
+  Future<List<AnkiMapping?>> getAllByLabel(List<String> labelValues) {
+    final values = labelValues.map((e) => [e]).toList();
+    return getAllByIndex(r'label', values);
+  }
+
+  List<AnkiMapping?> getAllByLabelSync(List<String> labelValues) {
+    final values = labelValues.map((e) => [e]).toList();
+    return getAllByIndexSync(r'label', values);
+  }
+
+  Future<int> deleteAllByLabel(List<String> labelValues) {
+    final values = labelValues.map((e) => [e]).toList();
+    return deleteAllByIndex(r'label', values);
+  }
+
+  int deleteAllByLabelSync(List<String> labelValues) {
+    final values = labelValues.map((e) => [e]).toList();
+    return deleteAllByIndexSync(r'label', values);
+  }
+
+  Future<Id> putByLabel(AnkiMapping object) {
+    return putByIndex(r'label', object);
+  }
+
+  Id putByLabelSync(AnkiMapping object, {bool saveLinks = true}) {
+    return putByIndexSync(r'label', object, saveLinks: saveLinks);
+  }
+
+  Future<List<Id>> putAllByLabel(List<AnkiMapping> objects) {
+    return putAllByIndex(r'label', objects);
+  }
+
+  List<Id> putAllByLabelSync(
+    List<AnkiMapping> objects, {
+    bool saveLinks = true,
+  }) {
+    return putAllByIndexSync(r'label', objects, saveLinks: saveLinks);
   }
 }
 
@@ -400,15 +389,13 @@ extension AnkiMappingQueryWhere
     on QueryBuilder<AnkiMapping, AnkiMapping, QWhereClause> {
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterWhereClause> idEqualTo(Id id) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IdWhereClause.between(
-        lower: id,
-        upper: id,
-      ));
+      return query.addWhereClause(IdWhereClause.between(lower: id, upper: id));
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterWhereClause> idNotEqualTo(
-      Id id) {
+    Id id,
+  ) {
     return QueryBuilder.apply(this, (query) {
       if (query.whereSort == Sort.asc) {
         return query
@@ -430,8 +417,10 @@ extension AnkiMappingQueryWhere
     });
   }
 
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterWhereClause> idGreaterThan(Id id,
-      {bool include = false}) {
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterWhereClause> idGreaterThan(
+    Id id, {
+    bool include = false,
+  }) {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(
         IdWhereClause.greaterThan(lower: id, includeLower: include),
@@ -439,8 +428,10 @@ extension AnkiMappingQueryWhere
     });
   }
 
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterWhereClause> idLessThan(Id id,
-      {bool include = false}) {
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterWhereClause> idLessThan(
+    Id id, {
+    bool include = false,
+  }) {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(
         IdWhereClause.lessThan(upper: id, includeUpper: include),
@@ -455,101 +446,67 @@ extension AnkiMappingQueryWhere
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IdWhereClause.between(
-        lower: lowerId,
-        includeLower: includeLower,
-        upper: upperId,
-        includeUpper: includeUpper,
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterWhereClause> labelEqualTo(
-      String label) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IndexWhereClause.equalTo(
-        indexName: r'label',
-        value: [label],
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterWhereClause> labelNotEqualTo(
-      String label) {
-    return QueryBuilder.apply(this, (query) {
-      if (query.whereSort == Sort.asc) {
-        return query
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'label',
-              lower: [],
-              upper: [label],
-              includeUpper: false,
-            ))
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'label',
-              lower: [label],
-              includeLower: false,
-              upper: [],
-            ));
-      } else {
-        return query
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'label',
-              lower: [label],
-              includeLower: false,
-              upper: [],
-            ))
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'label',
-              lower: [],
-              upper: [label],
-              includeUpper: false,
-            ));
-      }
+      return query.addWhereClause(
+        IdWhereClause.between(
+          lower: lowerId,
+          includeLower: includeLower,
+          upper: upperId,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterWhereClause> orderEqualTo(
-      int order) {
+    int order,
+  ) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IndexWhereClause.equalTo(
-        indexName: r'order',
-        value: [order],
-      ));
+      return query.addWhereClause(
+        IndexWhereClause.equalTo(indexName: r'order', value: [order]),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterWhereClause> orderNotEqualTo(
-      int order) {
+    int order,
+  ) {
     return QueryBuilder.apply(this, (query) {
       if (query.whereSort == Sort.asc) {
         return query
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'order',
-              lower: [],
-              upper: [order],
-              includeUpper: false,
-            ))
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'order',
-              lower: [order],
-              includeLower: false,
-              upper: [],
-            ));
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'order',
+                lower: [],
+                upper: [order],
+                includeUpper: false,
+              ),
+            )
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'order',
+                lower: [order],
+                includeLower: false,
+                upper: [],
+              ),
+            );
       } else {
         return query
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'order',
-              lower: [order],
-              includeLower: false,
-              upper: [],
-            ))
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'order',
-              lower: [],
-              upper: [order],
-              includeUpper: false,
-            ));
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'order',
+                lower: [order],
+                includeLower: false,
+                upper: [],
+              ),
+            )
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'order',
+                lower: [],
+                upper: [order],
+                includeUpper: false,
+              ),
+            );
       }
     });
   }
@@ -559,12 +516,14 @@ extension AnkiMappingQueryWhere
     bool include = false,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IndexWhereClause.between(
-        indexName: r'order',
-        lower: [order],
-        includeLower: include,
-        upper: [],
-      ));
+      return query.addWhereClause(
+        IndexWhereClause.between(
+          indexName: r'order',
+          lower: [order],
+          includeLower: include,
+          upper: [],
+        ),
+      );
     });
   }
 
@@ -573,12 +532,14 @@ extension AnkiMappingQueryWhere
     bool include = false,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IndexWhereClause.between(
-        indexName: r'order',
-        lower: [],
-        upper: [order],
-        includeUpper: include,
-      ));
+      return query.addWhereClause(
+        IndexWhereClause.between(
+          indexName: r'order',
+          lower: [],
+          upper: [order],
+          includeUpper: include,
+        ),
+      );
     });
   }
 
@@ -589,13 +550,69 @@ extension AnkiMappingQueryWhere
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IndexWhereClause.between(
-        indexName: r'order',
-        lower: [lowerOrder],
-        includeLower: includeLower,
-        upper: [upperOrder],
-        includeUpper: includeUpper,
-      ));
+      return query.addWhereClause(
+        IndexWhereClause.between(
+          indexName: r'order',
+          lower: [lowerOrder],
+          includeLower: includeLower,
+          upper: [upperOrder],
+          includeUpper: includeUpper,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterWhereClause> labelEqualTo(
+    String label,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addWhereClause(
+        IndexWhereClause.equalTo(indexName: r'label', value: [label]),
+      );
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterWhereClause> labelNotEqualTo(
+    String label,
+  ) {
+    return QueryBuilder.apply(this, (query) {
+      if (query.whereSort == Sort.asc) {
+        return query
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'label',
+                lower: [],
+                upper: [label],
+                includeUpper: false,
+              ),
+            )
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'label',
+                lower: [label],
+                includeLower: false,
+                upper: [],
+              ),
+            );
+      } else {
+        return query
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'label',
+                lower: [label],
+                includeLower: false,
+                upper: [],
+              ),
+            )
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'label',
+                lower: [],
+                upper: [label],
+                includeUpper: false,
+              ),
+            );
+      }
     });
   }
 }
@@ -603,53 +620,56 @@ extension AnkiMappingQueryWhere
 extension AnkiMappingQueryFilter
     on QueryBuilder<AnkiMapping, AnkiMapping, QFilterCondition> {
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      actionsIsarEqualTo(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  actionsIsarEqualTo(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'actionsIsar',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'actionsIsar',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      actionsIsarGreaterThan(
-    String value, {
-    bool include = false,
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'actionsIsar',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      actionsIsarLessThan(
+  actionsIsarGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'actionsIsar',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'actionsIsar',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      actionsIsarBetween(
+  actionsIsarLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'actionsIsar',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  actionsIsarBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -657,135 +677,143 @@ extension AnkiMappingQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'actionsIsar',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'actionsIsar',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      actionsIsarStartsWith(
+  actionsIsarStartsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'actionsIsar',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  actionsIsarEndsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'actionsIsar',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  actionsIsarContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'actionsIsar',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  actionsIsarMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'actionsIsar',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  actionsIsarIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'actionsIsar', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  actionsIsarIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'actionsIsar', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  creatorCollapsedFieldKeysElementEqualTo(
     String value, {
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'actionsIsar',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'creatorCollapsedFieldKeys',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      actionsIsarEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'actionsIsar',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      actionsIsarContains(String value, {bool caseSensitive = true}) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'actionsIsar',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      actionsIsarMatches(String pattern, {bool caseSensitive = true}) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'actionsIsar',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      actionsIsarIsEmpty() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'actionsIsar',
-        value: '',
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      actionsIsarIsNotEmpty() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'actionsIsar',
-        value: '',
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorCollapsedFieldKeysElementEqualTo(
-    String value, {
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'creatorCollapsedFieldKeys',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorCollapsedFieldKeysElementGreaterThan(
-    String value, {
-    bool include = false,
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'creatorCollapsedFieldKeys',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorCollapsedFieldKeysElementLessThan(
+  creatorCollapsedFieldKeysElementGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'creatorCollapsedFieldKeys',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'creatorCollapsedFieldKeys',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorCollapsedFieldKeysElementBetween(
+  creatorCollapsedFieldKeysElementLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'creatorCollapsedFieldKeys',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  creatorCollapsedFieldKeysElementBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -793,91 +821,109 @@ extension AnkiMappingQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'creatorCollapsedFieldKeys',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'creatorCollapsedFieldKeys',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorCollapsedFieldKeysElementStartsWith(
+  creatorCollapsedFieldKeysElementStartsWith(
     String value, {
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'creatorCollapsedFieldKeys',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'creatorCollapsedFieldKeys',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorCollapsedFieldKeysElementEndsWith(
+  creatorCollapsedFieldKeysElementEndsWith(
     String value, {
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'creatorCollapsedFieldKeys',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'creatorCollapsedFieldKeys',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorCollapsedFieldKeysElementContains(String value,
-          {bool caseSensitive = true}) {
+  creatorCollapsedFieldKeysElementContains(
+    String value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'creatorCollapsedFieldKeys',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'creatorCollapsedFieldKeys',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorCollapsedFieldKeysElementMatches(String pattern,
-          {bool caseSensitive = true}) {
+  creatorCollapsedFieldKeysElementMatches(
+    String pattern, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'creatorCollapsedFieldKeys',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'creatorCollapsedFieldKeys',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorCollapsedFieldKeysElementIsEmpty() {
+  creatorCollapsedFieldKeysElementIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'creatorCollapsedFieldKeys',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'creatorCollapsedFieldKeys',
+          value: '',
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorCollapsedFieldKeysElementIsNotEmpty() {
+  creatorCollapsedFieldKeysElementIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'creatorCollapsedFieldKeys',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          property: r'creatorCollapsedFieldKeys',
+          value: '',
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorCollapsedFieldKeysLengthEqualTo(int length) {
+  creatorCollapsedFieldKeysLengthEqualTo(int length) {
     return QueryBuilder.apply(this, (query) {
       return query.listLength(
         r'creatorCollapsedFieldKeys',
@@ -890,20 +936,14 @@ extension AnkiMappingQueryFilter
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorCollapsedFieldKeysIsEmpty() {
+  creatorCollapsedFieldKeysIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'creatorCollapsedFieldKeys',
-        0,
-        true,
-        0,
-        true,
-      );
+      return query.listLength(r'creatorCollapsedFieldKeys', 0, true, 0, true);
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorCollapsedFieldKeysIsNotEmpty() {
+  creatorCollapsedFieldKeysIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
       return query.listLength(
         r'creatorCollapsedFieldKeys',
@@ -916,10 +956,7 @@ extension AnkiMappingQueryFilter
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorCollapsedFieldKeysLengthLessThan(
-    int length, {
-    bool include = false,
-  }) {
+  creatorCollapsedFieldKeysLengthLessThan(int length, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
       return query.listLength(
         r'creatorCollapsedFieldKeys',
@@ -932,7 +969,7 @@ extension AnkiMappingQueryFilter
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorCollapsedFieldKeysLengthGreaterThan(
+  creatorCollapsedFieldKeysLengthGreaterThan(
     int length, {
     bool include = false,
   }) {
@@ -948,7 +985,7 @@ extension AnkiMappingQueryFilter
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorCollapsedFieldKeysLengthBetween(
+  creatorCollapsedFieldKeysLengthBetween(
     int lower,
     int upper, {
     bool includeLower = true,
@@ -966,53 +1003,56 @@ extension AnkiMappingQueryFilter
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorFieldKeysElementEqualTo(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  creatorFieldKeysElementEqualTo(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'creatorFieldKeys',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'creatorFieldKeys',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorFieldKeysElementGreaterThan(
-    String value, {
-    bool include = false,
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'creatorFieldKeys',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorFieldKeysElementLessThan(
+  creatorFieldKeysElementGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'creatorFieldKeys',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'creatorFieldKeys',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorFieldKeysElementBetween(
+  creatorFieldKeysElementLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'creatorFieldKeys',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  creatorFieldKeysElementBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -1020,149 +1060,119 @@ extension AnkiMappingQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'creatorFieldKeys',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorFieldKeysElementStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'creatorFieldKeys',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorFieldKeysElementEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'creatorFieldKeys',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorFieldKeysElementContains(String value,
-          {bool caseSensitive = true}) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'creatorFieldKeys',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorFieldKeysElementMatches(String pattern,
-          {bool caseSensitive = true}) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'creatorFieldKeys',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorFieldKeysElementIsEmpty() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'creatorFieldKeys',
-        value: '',
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorFieldKeysElementIsNotEmpty() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'creatorFieldKeys',
-        value: '',
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorFieldKeysLengthEqualTo(int length) {
-    return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'creatorFieldKeys',
-        length,
-        true,
-        length,
-        true,
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'creatorFieldKeys',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
       );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorFieldKeysIsEmpty() {
+  creatorFieldKeysElementStartsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'creatorFieldKeys',
-        0,
-        true,
-        0,
-        true,
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'creatorFieldKeys',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
       );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorFieldKeysIsNotEmpty() {
+  creatorFieldKeysElementEndsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'creatorFieldKeys',
-        0,
-        false,
-        999999,
-        true,
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'creatorFieldKeys',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
       );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorFieldKeysLengthLessThan(
-    int length, {
-    bool include = false,
-  }) {
+  creatorFieldKeysElementContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'creatorFieldKeys',
-        0,
-        true,
-        length,
-        include,
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'creatorFieldKeys',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
       );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorFieldKeysLengthGreaterThan(
-    int length, {
-    bool include = false,
-  }) {
+  creatorFieldKeysElementMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'creatorFieldKeys',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  creatorFieldKeysElementIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'creatorFieldKeys', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  creatorFieldKeysElementIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'creatorFieldKeys', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  creatorFieldKeysLengthEqualTo(int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(r'creatorFieldKeys', length, true, length, true);
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  creatorFieldKeysIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(r'creatorFieldKeys', 0, true, 0, true);
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  creatorFieldKeysIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(r'creatorFieldKeys', 0, false, 999999, true);
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  creatorFieldKeysLengthLessThan(int length, {bool include = false}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(r'creatorFieldKeys', 0, true, length, include);
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  creatorFieldKeysLengthGreaterThan(int length, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
       return query.listLength(
         r'creatorFieldKeys',
@@ -1175,7 +1185,7 @@ extension AnkiMappingQueryFilter
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      creatorFieldKeysLengthBetween(
+  creatorFieldKeysLengthBetween(
     int lower,
     int upper, {
     bool includeLower = true,
@@ -1193,53 +1203,56 @@ extension AnkiMappingQueryFilter
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      enhancementsIsarEqualTo(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  enhancementsIsarEqualTo(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'enhancementsIsar',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'enhancementsIsar',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      enhancementsIsarGreaterThan(
-    String value, {
-    bool include = false,
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'enhancementsIsar',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      enhancementsIsarLessThan(
+  enhancementsIsarGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'enhancementsIsar',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'enhancementsIsar',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      enhancementsIsarBetween(
+  enhancementsIsarLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'enhancementsIsar',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  enhancementsIsarBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -1247,153 +1260,158 @@ extension AnkiMappingQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'enhancementsIsar',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'enhancementsIsar',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      enhancementsIsarStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  enhancementsIsarStartsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'enhancementsIsar',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'enhancementsIsar',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      enhancementsIsarEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  enhancementsIsarEndsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'enhancementsIsar',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'enhancementsIsar',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      enhancementsIsarContains(String value, {bool caseSensitive = true}) {
+  enhancementsIsarContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'enhancementsIsar',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'enhancementsIsar',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      enhancementsIsarMatches(String pattern, {bool caseSensitive = true}) {
+  enhancementsIsarMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'enhancementsIsar',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'enhancementsIsar',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      enhancementsIsarIsEmpty() {
+  enhancementsIsarIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'enhancementsIsar',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'enhancementsIsar', value: ''),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      enhancementsIsarIsNotEmpty() {
+  enhancementsIsarIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'enhancementsIsar',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'enhancementsIsar', value: ''),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      exportFieldKeysElementIsNull() {
+  exportFieldKeysElementIsNull() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(const FilterCondition.elementIsNull(
-        property: r'exportFieldKeys',
-      ));
+      return query.addFilterCondition(
+        const FilterCondition.elementIsNull(property: r'exportFieldKeys'),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      exportFieldKeysElementIsNotNull() {
+  exportFieldKeysElementIsNotNull() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(const FilterCondition.elementIsNotNull(
-        property: r'exportFieldKeys',
-      ));
+      return query.addFilterCondition(
+        const FilterCondition.elementIsNotNull(property: r'exportFieldKeys'),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      exportFieldKeysElementEqualTo(
-    String? value, {
-    bool caseSensitive = true,
-  }) {
+  exportFieldKeysElementEqualTo(String? value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'exportFieldKeys',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'exportFieldKeys',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      exportFieldKeysElementGreaterThan(
-    String? value, {
-    bool include = false,
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'exportFieldKeys',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      exportFieldKeysElementLessThan(
+  exportFieldKeysElementGreaterThan(
     String? value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'exportFieldKeys',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'exportFieldKeys',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      exportFieldKeysElementBetween(
+  exportFieldKeysElementLessThan(
+    String? value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'exportFieldKeys',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  exportFieldKeysElementBetween(
     String? lower,
     String? upper, {
     bool includeLower = true,
@@ -1401,149 +1419,119 @@ extension AnkiMappingQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'exportFieldKeys',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      exportFieldKeysElementStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'exportFieldKeys',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      exportFieldKeysElementEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'exportFieldKeys',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      exportFieldKeysElementContains(String value,
-          {bool caseSensitive = true}) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'exportFieldKeys',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      exportFieldKeysElementMatches(String pattern,
-          {bool caseSensitive = true}) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'exportFieldKeys',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      exportFieldKeysElementIsEmpty() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'exportFieldKeys',
-        value: '',
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      exportFieldKeysElementIsNotEmpty() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'exportFieldKeys',
-        value: '',
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      exportFieldKeysLengthEqualTo(int length) {
-    return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'exportFieldKeys',
-        length,
-        true,
-        length,
-        true,
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'exportFieldKeys',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
       );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      exportFieldKeysIsEmpty() {
+  exportFieldKeysElementStartsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'exportFieldKeys',
-        0,
-        true,
-        0,
-        true,
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'exportFieldKeys',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
       );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      exportFieldKeysIsNotEmpty() {
+  exportFieldKeysElementEndsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'exportFieldKeys',
-        0,
-        false,
-        999999,
-        true,
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'exportFieldKeys',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
       );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      exportFieldKeysLengthLessThan(
-    int length, {
-    bool include = false,
-  }) {
+  exportFieldKeysElementContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'exportFieldKeys',
-        0,
-        true,
-        length,
-        include,
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'exportFieldKeys',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
       );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      exportFieldKeysLengthGreaterThan(
-    int length, {
-    bool include = false,
-  }) {
+  exportFieldKeysElementMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'exportFieldKeys',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  exportFieldKeysElementIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'exportFieldKeys', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  exportFieldKeysElementIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'exportFieldKeys', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  exportFieldKeysLengthEqualTo(int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(r'exportFieldKeys', length, true, length, true);
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  exportFieldKeysIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(r'exportFieldKeys', 0, true, 0, true);
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  exportFieldKeysIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(r'exportFieldKeys', 0, false, 999999, true);
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  exportFieldKeysLengthLessThan(int length, {bool include = false}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(r'exportFieldKeys', 0, true, length, include);
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  exportFieldKeysLengthGreaterThan(int length, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
       return query.listLength(
         r'exportFieldKeys',
@@ -1556,7 +1544,7 @@ extension AnkiMappingQueryFilter
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      exportFieldKeysLengthBetween(
+  exportFieldKeysLengthBetween(
     int lower,
     int upper, {
     bool includeLower = true,
@@ -1574,68 +1562,65 @@ extension AnkiMappingQueryFilter
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      exportMediaTagsIsNull() {
+  exportMediaTagsIsNull() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(const FilterCondition.isNull(
-        property: r'exportMediaTags',
-      ));
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'exportMediaTags'),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      exportMediaTagsIsNotNull() {
+  exportMediaTagsIsNotNull() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(const FilterCondition.isNotNull(
-        property: r'exportMediaTags',
-      ));
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'exportMediaTags'),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      exportMediaTagsEqualTo(bool? value) {
+  exportMediaTagsEqualTo(bool? value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'exportMediaTags',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'exportMediaTags', value: value),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition> hashCodeEqualTo(
-      int value) {
+    int value,
+  ) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'hashCode',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'hashCode', value: value),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      hashCodeGreaterThan(
-    int value, {
-    bool include = false,
-  }) {
+  hashCodeGreaterThan(int value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'hashCode',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'hashCode',
+          value: value,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      hashCodeLessThan(
-    int value, {
-    bool include = false,
-  }) {
+  hashCodeLessThan(int value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'hashCode',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'hashCode',
+          value: value,
+        ),
+      );
     });
   }
 
@@ -1646,39 +1631,41 @@ extension AnkiMappingQueryFilter
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'hashCode',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'hashCode',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition> idIsNull() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(const FilterCondition.isNull(
-        property: r'id',
-      ));
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'id'),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition> idIsNotNull() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(const FilterCondition.isNotNull(
-        property: r'id',
-      ));
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'id'),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition> idEqualTo(
-      Id? value) {
+    Id? value,
+  ) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'id',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'id', value: value),
+      );
     });
   }
 
@@ -1687,11 +1674,13 @@ extension AnkiMappingQueryFilter
     bool include = false,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'id',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'id',
+          value: value,
+        ),
+      );
     });
   }
 
@@ -1700,11 +1689,13 @@ extension AnkiMappingQueryFilter
     bool include = false,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'id',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'id',
+          value: value,
+        ),
+      );
     });
   }
 
@@ -1715,23 +1706,24 @@ extension AnkiMappingQueryFilter
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'id',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'id',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      isExportFieldsEmptyEqualTo(bool value) {
+  isExportFieldsEmptyEqualTo(bool value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'isExportFieldsEmpty',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'isExportFieldsEmpty', value: value),
+      );
     });
   }
 
@@ -1740,27 +1732,31 @@ extension AnkiMappingQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'label',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'label',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      labelGreaterThan(
+  labelGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'label',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'label',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
@@ -1770,12 +1766,14 @@ extension AnkiMappingQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'label',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'label',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
@@ -1787,14 +1785,16 @@ extension AnkiMappingQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'label',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'label',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
@@ -1803,11 +1803,13 @@ extension AnkiMappingQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'label',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'label',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
@@ -1816,54 +1818,60 @@ extension AnkiMappingQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'label',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'label',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition> labelContains(
-      String value,
-      {bool caseSensitive = true}) {
+    String value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'label',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'label',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition> labelMatches(
-      String pattern,
-      {bool caseSensitive = true}) {
+    String pattern, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'label',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'label',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition> labelIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'label',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'label', value: ''),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      labelIsNotEmpty() {
+  labelIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'label',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'label', value: ''),
+      );
     });
   }
 
@@ -1872,27 +1880,31 @@ extension AnkiMappingQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'model',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'model',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      modelGreaterThan(
+  modelGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'model',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'model',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
@@ -1902,12 +1914,14 @@ extension AnkiMappingQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'model',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'model',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
@@ -1919,14 +1933,16 @@ extension AnkiMappingQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'model',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'model',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
@@ -1935,11 +1951,13 @@ extension AnkiMappingQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'model',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'model',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
@@ -1948,78 +1966,83 @@ extension AnkiMappingQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'model',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'model',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition> modelContains(
-      String value,
-      {bool caseSensitive = true}) {
+    String value, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'model',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'model',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition> modelMatches(
-      String pattern,
-      {bool caseSensitive = true}) {
+    String pattern, {
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'model',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'model',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition> modelIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'model',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'model', value: ''),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      modelIsNotEmpty() {
+  modelIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'model',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'model', value: ''),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition> orderEqualTo(
-      int value) {
+    int value,
+  ) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'order',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'order', value: value),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      orderGreaterThan(
-    int value, {
-    bool include = false,
-  }) {
+  orderGreaterThan(int value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'order',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'order',
+          value: value,
+        ),
+      );
     });
   }
 
@@ -2028,11 +2051,13 @@ extension AnkiMappingQueryFilter
     bool include = false,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'order',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'order',
+          value: value,
+        ),
+      );
     });
   }
 
@@ -2043,92 +2068,99 @@ extension AnkiMappingQueryFilter
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'order',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'order',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      prependDictionaryNamesIsNull() {
+  prependDictionaryNamesIsNull() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(const FilterCondition.isNull(
-        property: r'prependDictionaryNames',
-      ));
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'prependDictionaryNames'),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      prependDictionaryNamesIsNotNull() {
+  prependDictionaryNamesIsNotNull() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(const FilterCondition.isNotNull(
-        property: r'prependDictionaryNames',
-      ));
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'prependDictionaryNames'),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      prependDictionaryNamesEqualTo(bool? value) {
+  prependDictionaryNamesEqualTo(bool? value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'prependDictionaryNames',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'prependDictionaryNames',
+          value: value,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      tagsElementEqualTo(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  tagsElementEqualTo(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'tags',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'tags',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      tagsElementGreaterThan(
-    String value, {
-    bool include = false,
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'tags',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      tagsElementLessThan(
+  tagsElementGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'tags',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'tags',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      tagsElementBetween(
+  tagsElementLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'tags',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  tagsElementBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -2136,159 +2168,125 @@ extension AnkiMappingQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'tags',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      tagsElementStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'tags',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      tagsElementEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'tags',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      tagsElementContains(String value, {bool caseSensitive = true}) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'tags',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      tagsElementMatches(String pattern, {bool caseSensitive = true}) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'tags',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      tagsElementIsEmpty() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'tags',
-        value: '',
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      tagsElementIsNotEmpty() {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'tags',
-        value: '',
-      ));
-    });
-  }
-
-  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      tagsLengthEqualTo(int length) {
-    return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'tags',
-        length,
-        true,
-        length,
-        true,
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'tags',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
       );
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  tagsElementStartsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'tags',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  tagsElementEndsWith(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'tags',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  tagsElementContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'tags',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  tagsElementMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'tags',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  tagsElementIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'tags', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  tagsElementIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'tags', value: ''),
+      );
+    });
+  }
+
+  QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
+  tagsLengthEqualTo(int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(r'tags', length, true, length, true);
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition> tagsIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'tags',
-        0,
-        true,
-        0,
-        true,
-      );
+      return query.listLength(r'tags', 0, true, 0, true);
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      tagsIsNotEmpty() {
+  tagsIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'tags',
-        0,
-        false,
-        999999,
-        true,
-      );
+      return query.listLength(r'tags', 0, false, 999999, true);
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      tagsLengthLessThan(
-    int length, {
-    bool include = false,
-  }) {
+  tagsLengthLessThan(int length, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'tags',
-        0,
-        true,
-        length,
-        include,
-      );
+      return query.listLength(r'tags', 0, true, length, include);
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      tagsLengthGreaterThan(
-    int length, {
-    bool include = false,
-  }) {
+  tagsLengthGreaterThan(int length, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.listLength(
-        r'tags',
-        length,
-        include,
-        999999,
-        true,
-      );
+      return query.listLength(r'tags', length, include, 999999, true);
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      tagsLengthBetween(
+  tagsLengthBetween(
     int lower,
     int upper, {
     bool includeLower = true,
@@ -2306,30 +2304,29 @@ extension AnkiMappingQueryFilter
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      useBrTagsIsNull() {
+  useBrTagsIsNull() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(const FilterCondition.isNull(
-        property: r'useBrTags',
-      ));
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'useBrTags'),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      useBrTagsIsNotNull() {
+  useBrTagsIsNotNull() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(const FilterCondition.isNotNull(
-        property: r'useBrTags',
-      ));
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'useBrTags'),
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterFilterCondition>
-      useBrTagsEqualTo(bool? value) {
+  useBrTagsEqualTo(bool? value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'useBrTags',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'useBrTags', value: value),
+      );
     });
   }
 }
@@ -2355,14 +2352,14 @@ extension AnkiMappingQuerySortBy
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterSortBy>
-      sortByEnhancementsIsar() {
+  sortByEnhancementsIsar() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'enhancementsIsar', Sort.asc);
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterSortBy>
-      sortByEnhancementsIsarDesc() {
+  sortByEnhancementsIsarDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'enhancementsIsar', Sort.desc);
     });
@@ -2375,7 +2372,7 @@ extension AnkiMappingQuerySortBy
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterSortBy>
-      sortByExportMediaTagsDesc() {
+  sortByExportMediaTagsDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'exportMediaTags', Sort.desc);
     });
@@ -2394,14 +2391,14 @@ extension AnkiMappingQuerySortBy
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterSortBy>
-      sortByIsExportFieldsEmpty() {
+  sortByIsExportFieldsEmpty() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isExportFieldsEmpty', Sort.asc);
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterSortBy>
-      sortByIsExportFieldsEmptyDesc() {
+  sortByIsExportFieldsEmptyDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isExportFieldsEmpty', Sort.desc);
     });
@@ -2444,14 +2441,14 @@ extension AnkiMappingQuerySortBy
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterSortBy>
-      sortByPrependDictionaryNames() {
+  sortByPrependDictionaryNames() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'prependDictionaryNames', Sort.asc);
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterSortBy>
-      sortByPrependDictionaryNamesDesc() {
+  sortByPrependDictionaryNamesDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'prependDictionaryNames', Sort.desc);
     });
@@ -2485,14 +2482,14 @@ extension AnkiMappingQuerySortThenBy
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterSortBy>
-      thenByEnhancementsIsar() {
+  thenByEnhancementsIsar() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'enhancementsIsar', Sort.asc);
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterSortBy>
-      thenByEnhancementsIsarDesc() {
+  thenByEnhancementsIsarDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'enhancementsIsar', Sort.desc);
     });
@@ -2505,7 +2502,7 @@ extension AnkiMappingQuerySortThenBy
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterSortBy>
-      thenByExportMediaTagsDesc() {
+  thenByExportMediaTagsDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'exportMediaTags', Sort.desc);
     });
@@ -2536,14 +2533,14 @@ extension AnkiMappingQuerySortThenBy
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterSortBy>
-      thenByIsExportFieldsEmpty() {
+  thenByIsExportFieldsEmpty() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isExportFieldsEmpty', Sort.asc);
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterSortBy>
-      thenByIsExportFieldsEmptyDesc() {
+  thenByIsExportFieldsEmptyDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isExportFieldsEmpty', Sort.desc);
     });
@@ -2586,14 +2583,14 @@ extension AnkiMappingQuerySortThenBy
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterSortBy>
-      thenByPrependDictionaryNames() {
+  thenByPrependDictionaryNames() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'prependDictionaryNames', Sort.asc);
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QAfterSortBy>
-      thenByPrependDictionaryNamesDesc() {
+  thenByPrependDictionaryNamesDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'prependDictionaryNames', Sort.desc);
     });
@@ -2614,44 +2611,48 @@ extension AnkiMappingQuerySortThenBy
 
 extension AnkiMappingQueryWhereDistinct
     on QueryBuilder<AnkiMapping, AnkiMapping, QDistinct> {
-  QueryBuilder<AnkiMapping, AnkiMapping, QDistinct> distinctByActionsIsar(
-      {bool caseSensitive = true}) {
+  QueryBuilder<AnkiMapping, AnkiMapping, QDistinct> distinctByActionsIsar({
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'actionsIsar', caseSensitive: caseSensitive);
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QDistinct>
-      distinctByCreatorCollapsedFieldKeys() {
+  distinctByCreatorCollapsedFieldKeys() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'creatorCollapsedFieldKeys');
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QDistinct>
-      distinctByCreatorFieldKeys() {
+  distinctByCreatorFieldKeys() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'creatorFieldKeys');
     });
   }
 
-  QueryBuilder<AnkiMapping, AnkiMapping, QDistinct> distinctByEnhancementsIsar(
-      {bool caseSensitive = true}) {
+  QueryBuilder<AnkiMapping, AnkiMapping, QDistinct> distinctByEnhancementsIsar({
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addDistinctBy(r'enhancementsIsar',
-          caseSensitive: caseSensitive);
+      return query.addDistinctBy(
+        r'enhancementsIsar',
+        caseSensitive: caseSensitive,
+      );
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QDistinct>
-      distinctByExportFieldKeys() {
+  distinctByExportFieldKeys() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'exportFieldKeys');
     });
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QDistinct>
-      distinctByExportMediaTags() {
+  distinctByExportMediaTags() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'exportMediaTags');
     });
@@ -2664,21 +2665,23 @@ extension AnkiMappingQueryWhereDistinct
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QDistinct>
-      distinctByIsExportFieldsEmpty() {
+  distinctByIsExportFieldsEmpty() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'isExportFieldsEmpty');
     });
   }
 
-  QueryBuilder<AnkiMapping, AnkiMapping, QDistinct> distinctByLabel(
-      {bool caseSensitive = true}) {
+  QueryBuilder<AnkiMapping, AnkiMapping, QDistinct> distinctByLabel({
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'label', caseSensitive: caseSensitive);
     });
   }
 
-  QueryBuilder<AnkiMapping, AnkiMapping, QDistinct> distinctByModel(
-      {bool caseSensitive = true}) {
+  QueryBuilder<AnkiMapping, AnkiMapping, QDistinct> distinctByModel({
+    bool caseSensitive = true,
+  }) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'model', caseSensitive: caseSensitive);
     });
@@ -2691,7 +2694,7 @@ extension AnkiMappingQueryWhereDistinct
   }
 
   QueryBuilder<AnkiMapping, AnkiMapping, QDistinct>
-      distinctByPrependDictionaryNames() {
+  distinctByPrependDictionaryNames() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'prependDictionaryNames');
     });
@@ -2725,28 +2728,28 @@ extension AnkiMappingQueryProperty
   }
 
   QueryBuilder<AnkiMapping, List<String>, QQueryOperations>
-      creatorCollapsedFieldKeysProperty() {
+  creatorCollapsedFieldKeysProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'creatorCollapsedFieldKeys');
     });
   }
 
   QueryBuilder<AnkiMapping, List<String>, QQueryOperations>
-      creatorFieldKeysProperty() {
+  creatorFieldKeysProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'creatorFieldKeys');
     });
   }
 
   QueryBuilder<AnkiMapping, String, QQueryOperations>
-      enhancementsIsarProperty() {
+  enhancementsIsarProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'enhancementsIsar');
     });
   }
 
   QueryBuilder<AnkiMapping, List<String?>, QQueryOperations>
-      exportFieldKeysProperty() {
+  exportFieldKeysProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'exportFieldKeys');
     });
@@ -2765,7 +2768,7 @@ extension AnkiMappingQueryProperty
   }
 
   QueryBuilder<AnkiMapping, bool, QQueryOperations>
-      isExportFieldsEmptyProperty() {
+  isExportFieldsEmptyProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'isExportFieldsEmpty');
     });
@@ -2790,7 +2793,7 @@ extension AnkiMappingQueryProperty
   }
 
   QueryBuilder<AnkiMapping, bool?, QQueryOperations>
-      prependDictionaryNamesProperty() {
+  prependDictionaryNamesProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'prependDictionaryNames');
     });
@@ -2813,36 +2816,38 @@ extension AnkiMappingQueryProperty
 // JsonSerializableGenerator
 // **************************************************************************
 
-AnkiMapping _$AnkiMappingFromJson(Map<String, dynamic> json) => AnkiMapping(
-      label: json['label'] as String,
-      model: json['model'] as String,
-      exportFieldKeys: (json['exportFieldKeys'] as List<dynamic>)
-          .map((e) => e as String?)
-          .toList(),
-      creatorFieldKeys: (json['creatorFieldKeys'] as List<dynamic>)
-          .map((e) => e as String)
-          .toList(),
-      creatorCollapsedFieldKeys:
-          (json['creatorCollapsedFieldKeys'] as List<dynamic>)
-              .map((e) => e as String)
-              .toList(),
-      order: (json['order'] as num).toInt(),
-      tags: (json['tags'] as List<dynamic>).map((e) => e as String).toList(),
-      exportMediaTags: json['exportMediaTags'] as bool?,
-      useBrTags: json['useBrTags'] as bool?,
-      prependDictionaryNames: json['prependDictionaryNames'] as bool?,
-      enhancements: (json['enhancements'] as Map<String, dynamic>?)?.map(
-        (k, e) => MapEntry(
+AnkiMapping _$AnkiMappingFromJson(Map<String, dynamic> json) =>
+    AnkiMapping(
+        label: json['label'] as String,
+        model: json['model'] as String,
+        exportFieldKeys: (json['exportFieldKeys'] as List<dynamic>)
+            .map((e) => e as String?)
+            .toList(),
+        creatorFieldKeys: (json['creatorFieldKeys'] as List<dynamic>)
+            .map((e) => e as String)
+            .toList(),
+        creatorCollapsedFieldKeys:
+            (json['creatorCollapsedFieldKeys'] as List<dynamic>)
+                .map((e) => e as String)
+                .toList(),
+        order: (json['order'] as num).toInt(),
+        tags: (json['tags'] as List<dynamic>).map((e) => e as String).toList(),
+        exportMediaTags: json['exportMediaTags'] as bool?,
+        useBrTags: json['useBrTags'] as bool?,
+        prependDictionaryNames: json['prependDictionaryNames'] as bool?,
+        enhancements: (json['enhancements'] as Map<String, dynamic>?)?.map(
+          (k, e) => MapEntry(
             k,
             (e as Map<String, dynamic>).map(
               (k, e) => MapEntry(int.parse(k), e as String),
-            )),
-      ),
-      actions: (json['actions'] as Map<String, dynamic>?)?.map(
-        (k, e) => MapEntry(int.parse(k), e as String),
-      ),
-      id: (json['id'] as num?)?.toInt(),
-    )
+            ),
+          ),
+        ),
+        actions: (json['actions'] as Map<String, dynamic>?)?.map(
+          (k, e) => MapEntry(int.parse(k), e as String),
+        ),
+        id: (json['id'] as num?)?.toInt(),
+      )
       ..actionsIsar = json['actionsIsar'] as String
       ..enhancementsIsar = json['enhancementsIsar'] as String;
 
@@ -2858,7 +2863,8 @@ Map<String, dynamic> _$AnkiMappingToJson(AnkiMapping instance) =>
       'actions': instance.actions?.map((k, e) => MapEntry(k.toString(), e)),
       'actionsIsar': instance.actionsIsar,
       'enhancements': instance.enhancements?.map(
-          (k, e) => MapEntry(k, e.map((k, e) => MapEntry(k.toString(), e)))),
+        (k, e) => MapEntry(k, e.map((k, e) => MapEntry(k.toString(), e))),
+      ),
       'enhancementsIsar': instance.enhancementsIsar,
       'exportMediaTags': instance.exportMediaTags,
       'useBrTags': instance.useBrTags,

@@ -31,8 +31,9 @@ const SearchHistoryItemSchema = CollectionSchema(
       id: 2,
       name: r'uniqueKey',
       type: IsarType.string,
-    )
+    ),
   },
+
   estimateSize: _searchHistoryItemEstimateSize,
   serialize: _searchHistoryItemSerialize,
   deserialize: _searchHistoryItemDeserialize,
@@ -49,7 +50,7 @@ const SearchHistoryItemSchema = CollectionSchema(
           name: r'historyKey',
           type: IndexType.hash,
           caseSensitive: true,
-        )
+        ),
       ],
     ),
     r'searchTerm': IndexSchema(
@@ -62,7 +63,7 @@ const SearchHistoryItemSchema = CollectionSchema(
           name: r'searchTerm',
           type: IndexType.hash,
           caseSensitive: true,
-        )
+        ),
       ],
     ),
     r'uniqueKey': IndexSchema(
@@ -75,16 +76,17 @@ const SearchHistoryItemSchema = CollectionSchema(
           name: r'uniqueKey',
           type: IndexType.hash,
           caseSensitive: true,
-        )
+        ),
       ],
-    )
+    ),
   },
   links: {},
   embeddedSchemas: {},
+
   getId: _searchHistoryItemGetId,
   getLinks: _searchHistoryItemGetLinks,
   attach: _searchHistoryItemAttach,
-  version: '3.1.0+1',
+  version: '3.3.2',
 );
 
 int _searchHistoryItemEstimateSize(
@@ -147,12 +149,16 @@ Id _searchHistoryItemGetId(SearchHistoryItem object) {
 }
 
 List<IsarLinkBase<dynamic>> _searchHistoryItemGetLinks(
-    SearchHistoryItem object) {
+  SearchHistoryItem object,
+) {
   return [];
 }
 
 void _searchHistoryItemAttach(
-    IsarCollection<dynamic> col, Id id, SearchHistoryItem object) {
+  IsarCollection<dynamic> col,
+  Id id,
+  SearchHistoryItem object,
+) {
   object.id = id;
 }
 
@@ -174,7 +180,8 @@ extension SearchHistoryItemByIndex on IsarCollection<SearchHistoryItem> {
   }
 
   Future<List<SearchHistoryItem?>> getAllByUniqueKey(
-      List<String> uniqueKeyValues) {
+    List<String> uniqueKeyValues,
+  ) {
     final values = uniqueKeyValues.map((e) => [e]).toList();
     return getAllByIndex(r'uniqueKey', values);
   }
@@ -206,8 +213,10 @@ extension SearchHistoryItemByIndex on IsarCollection<SearchHistoryItem> {
     return putAllByIndex(r'uniqueKey', objects);
   }
 
-  List<Id> putAllByUniqueKeySync(List<SearchHistoryItem> objects,
-      {bool saveLinks = true}) {
+  List<Id> putAllByUniqueKeySync(
+    List<SearchHistoryItem> objects, {
+    bool saveLinks = true,
+  }) {
     return putAllByIndexSync(r'uniqueKey', objects, saveLinks: saveLinks);
   }
 }
@@ -224,17 +233,14 @@ extension SearchHistoryItemQueryWhereSort
 extension SearchHistoryItemQueryWhere
     on QueryBuilder<SearchHistoryItem, SearchHistoryItem, QWhereClause> {
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterWhereClause>
-      idEqualTo(Id id) {
+  idEqualTo(Id id) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IdWhereClause.between(
-        lower: id,
-        upper: id,
-      ));
+      return query.addWhereClause(IdWhereClause.between(lower: id, upper: id));
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterWhereClause>
-      idNotEqualTo(Id id) {
+  idNotEqualTo(Id id) {
     return QueryBuilder.apply(this, (query) {
       if (query.whereSort == Sort.asc) {
         return query
@@ -257,7 +263,7 @@ extension SearchHistoryItemQueryWhere
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterWhereClause>
-      idGreaterThan(Id id, {bool include = false}) {
+  idGreaterThan(Id id, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(
         IdWhereClause.greaterThan(lower: id, includeLower: include),
@@ -266,7 +272,7 @@ extension SearchHistoryItemQueryWhere
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterWhereClause>
-      idLessThan(Id id, {bool include = false}) {
+  idLessThan(Id id, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
       return query.addWhereClause(
         IdWhereClause.lessThan(upper: id, includeUpper: include),
@@ -275,153 +281,176 @@ extension SearchHistoryItemQueryWhere
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterWhereClause>
-      idBetween(
+  idBetween(
     Id lowerId,
     Id upperId, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IdWhereClause.between(
-        lower: lowerId,
-        includeLower: includeLower,
-        upper: upperId,
-        includeUpper: includeUpper,
-      ));
+      return query.addWhereClause(
+        IdWhereClause.between(
+          lower: lowerId,
+          includeLower: includeLower,
+          upper: upperId,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterWhereClause>
-      historyKeyEqualTo(String historyKey) {
+  historyKeyEqualTo(String historyKey) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IndexWhereClause.equalTo(
-        indexName: r'historyKey',
-        value: [historyKey],
-      ));
+      return query.addWhereClause(
+        IndexWhereClause.equalTo(indexName: r'historyKey', value: [historyKey]),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterWhereClause>
-      historyKeyNotEqualTo(String historyKey) {
+  historyKeyNotEqualTo(String historyKey) {
     return QueryBuilder.apply(this, (query) {
       if (query.whereSort == Sort.asc) {
         return query
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'historyKey',
-              lower: [],
-              upper: [historyKey],
-              includeUpper: false,
-            ))
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'historyKey',
-              lower: [historyKey],
-              includeLower: false,
-              upper: [],
-            ));
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'historyKey',
+                lower: [],
+                upper: [historyKey],
+                includeUpper: false,
+              ),
+            )
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'historyKey',
+                lower: [historyKey],
+                includeLower: false,
+                upper: [],
+              ),
+            );
       } else {
         return query
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'historyKey',
-              lower: [historyKey],
-              includeLower: false,
-              upper: [],
-            ))
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'historyKey',
-              lower: [],
-              upper: [historyKey],
-              includeUpper: false,
-            ));
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'historyKey',
+                lower: [historyKey],
+                includeLower: false,
+                upper: [],
+              ),
+            )
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'historyKey',
+                lower: [],
+                upper: [historyKey],
+                includeUpper: false,
+              ),
+            );
       }
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterWhereClause>
-      searchTermEqualTo(String searchTerm) {
+  searchTermEqualTo(String searchTerm) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IndexWhereClause.equalTo(
-        indexName: r'searchTerm',
-        value: [searchTerm],
-      ));
+      return query.addWhereClause(
+        IndexWhereClause.equalTo(indexName: r'searchTerm', value: [searchTerm]),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterWhereClause>
-      searchTermNotEqualTo(String searchTerm) {
+  searchTermNotEqualTo(String searchTerm) {
     return QueryBuilder.apply(this, (query) {
       if (query.whereSort == Sort.asc) {
         return query
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'searchTerm',
-              lower: [],
-              upper: [searchTerm],
-              includeUpper: false,
-            ))
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'searchTerm',
-              lower: [searchTerm],
-              includeLower: false,
-              upper: [],
-            ));
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'searchTerm',
+                lower: [],
+                upper: [searchTerm],
+                includeUpper: false,
+              ),
+            )
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'searchTerm',
+                lower: [searchTerm],
+                includeLower: false,
+                upper: [],
+              ),
+            );
       } else {
         return query
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'searchTerm',
-              lower: [searchTerm],
-              includeLower: false,
-              upper: [],
-            ))
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'searchTerm',
-              lower: [],
-              upper: [searchTerm],
-              includeUpper: false,
-            ));
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'searchTerm',
+                lower: [searchTerm],
+                includeLower: false,
+                upper: [],
+              ),
+            )
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'searchTerm',
+                lower: [],
+                upper: [searchTerm],
+                includeUpper: false,
+              ),
+            );
       }
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterWhereClause>
-      uniqueKeyEqualTo(String uniqueKey) {
+  uniqueKeyEqualTo(String uniqueKey) {
     return QueryBuilder.apply(this, (query) {
-      return query.addWhereClause(IndexWhereClause.equalTo(
-        indexName: r'uniqueKey',
-        value: [uniqueKey],
-      ));
+      return query.addWhereClause(
+        IndexWhereClause.equalTo(indexName: r'uniqueKey', value: [uniqueKey]),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterWhereClause>
-      uniqueKeyNotEqualTo(String uniqueKey) {
+  uniqueKeyNotEqualTo(String uniqueKey) {
     return QueryBuilder.apply(this, (query) {
       if (query.whereSort == Sort.asc) {
         return query
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'uniqueKey',
-              lower: [],
-              upper: [uniqueKey],
-              includeUpper: false,
-            ))
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'uniqueKey',
-              lower: [uniqueKey],
-              includeLower: false,
-              upper: [],
-            ));
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'uniqueKey',
+                lower: [],
+                upper: [uniqueKey],
+                includeUpper: false,
+              ),
+            )
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'uniqueKey',
+                lower: [uniqueKey],
+                includeLower: false,
+                upper: [],
+              ),
+            );
       } else {
         return query
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'uniqueKey',
-              lower: [uniqueKey],
-              includeLower: false,
-              upper: [],
-            ))
-            .addWhereClause(IndexWhereClause.between(
-              indexName: r'uniqueKey',
-              lower: [],
-              upper: [uniqueKey],
-              includeUpper: false,
-            ));
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'uniqueKey',
+                lower: [uniqueKey],
+                includeLower: false,
+                upper: [],
+              ),
+            )
+            .addWhereClause(
+              IndexWhereClause.between(
+                indexName: r'uniqueKey',
+                lower: [],
+                upper: [uniqueKey],
+                includeUpper: false,
+              ),
+            );
       }
     });
   }
@@ -430,53 +459,56 @@ extension SearchHistoryItemQueryWhere
 extension SearchHistoryItemQueryFilter
     on QueryBuilder<SearchHistoryItem, SearchHistoryItem, QFilterCondition> {
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      historyKeyEqualTo(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  historyKeyEqualTo(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'historyKey',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'historyKey',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      historyKeyGreaterThan(
-    String value, {
-    bool include = false,
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'historyKey',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      historyKeyLessThan(
+  historyKeyGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'historyKey',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'historyKey',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      historyKeyBetween(
+  historyKeyLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'historyKey',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
+  historyKeyBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -484,209 +516,213 @@ extension SearchHistoryItemQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'historyKey',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'historyKey',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      historyKeyStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  historyKeyStartsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'historyKey',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'historyKey',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      historyKeyEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  historyKeyEndsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'historyKey',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'historyKey',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      historyKeyContains(String value, {bool caseSensitive = true}) {
+  historyKeyContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'historyKey',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'historyKey',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      historyKeyMatches(String pattern, {bool caseSensitive = true}) {
+  historyKeyMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'historyKey',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'historyKey',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      historyKeyIsEmpty() {
+  historyKeyIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'historyKey',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'historyKey', value: ''),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      historyKeyIsNotEmpty() {
+  historyKeyIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'historyKey',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'historyKey', value: ''),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      idIsNull() {
+  idIsNull() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(const FilterCondition.isNull(
-        property: r'id',
-      ));
+      return query.addFilterCondition(
+        const FilterCondition.isNull(property: r'id'),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      idIsNotNull() {
+  idIsNotNull() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(const FilterCondition.isNotNull(
-        property: r'id',
-      ));
+      return query.addFilterCondition(
+        const FilterCondition.isNotNull(property: r'id'),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      idEqualTo(Id? value) {
+  idEqualTo(Id? value) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'id',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'id', value: value),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      idGreaterThan(
-    Id? value, {
-    bool include = false,
-  }) {
+  idGreaterThan(Id? value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'id',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'id',
+          value: value,
+        ),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      idLessThan(
-    Id? value, {
-    bool include = false,
-  }) {
+  idLessThan(Id? value, {bool include = false}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'id',
-        value: value,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'id',
+          value: value,
+        ),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      idBetween(
+  idBetween(
     Id? lower,
     Id? upper, {
     bool includeLower = true,
     bool includeUpper = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'id',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'id',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+        ),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      searchTermEqualTo(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  searchTermEqualTo(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'searchTerm',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'searchTerm',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      searchTermGreaterThan(
-    String value, {
-    bool include = false,
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'searchTerm',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      searchTermLessThan(
+  searchTermGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'searchTerm',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'searchTerm',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      searchTermBetween(
+  searchTermLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'searchTerm',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
+  searchTermBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -694,135 +730,140 @@ extension SearchHistoryItemQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'searchTerm',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'searchTerm',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      searchTermStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  searchTermStartsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'searchTerm',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'searchTerm',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      searchTermEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  searchTermEndsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'searchTerm',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'searchTerm',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      searchTermContains(String value, {bool caseSensitive = true}) {
+  searchTermContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'searchTerm',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'searchTerm',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      searchTermMatches(String pattern, {bool caseSensitive = true}) {
+  searchTermMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'searchTerm',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'searchTerm',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      searchTermIsEmpty() {
+  searchTermIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'searchTerm',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'searchTerm', value: ''),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      searchTermIsNotEmpty() {
+  searchTermIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'searchTerm',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'searchTerm', value: ''),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      uniqueKeyEqualTo(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  uniqueKeyEqualTo(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'uniqueKey',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(
+          property: r'uniqueKey',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      uniqueKeyGreaterThan(
-    String value, {
-    bool include = false,
-    bool caseSensitive = true,
-  }) {
-    return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        include: include,
-        property: r'uniqueKey',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
-    });
-  }
-
-  QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      uniqueKeyLessThan(
+  uniqueKeyGreaterThan(
     String value, {
     bool include = false,
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.lessThan(
-        include: include,
-        property: r'uniqueKey',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(
+          include: include,
+          property: r'uniqueKey',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      uniqueKeyBetween(
+  uniqueKeyLessThan(
+    String value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(
+        FilterCondition.lessThan(
+          include: include,
+          property: r'uniqueKey',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
+    });
+  }
+
+  QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
+  uniqueKeyBetween(
     String lower,
     String upper, {
     bool includeLower = true,
@@ -830,84 +871,86 @@ extension SearchHistoryItemQueryFilter
     bool caseSensitive = true,
   }) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.between(
-        property: r'uniqueKey',
-        lower: lower,
-        includeLower: includeLower,
-        upper: upper,
-        includeUpper: includeUpper,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.between(
+          property: r'uniqueKey',
+          lower: lower,
+          includeLower: includeLower,
+          upper: upper,
+          includeUpper: includeUpper,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      uniqueKeyStartsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  uniqueKeyStartsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.startsWith(
-        property: r'uniqueKey',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.startsWith(
+          property: r'uniqueKey',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      uniqueKeyEndsWith(
-    String value, {
-    bool caseSensitive = true,
-  }) {
+  uniqueKeyEndsWith(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.endsWith(
-        property: r'uniqueKey',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.endsWith(
+          property: r'uniqueKey',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      uniqueKeyContains(String value, {bool caseSensitive = true}) {
+  uniqueKeyContains(String value, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.contains(
-        property: r'uniqueKey',
-        value: value,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.contains(
+          property: r'uniqueKey',
+          value: value,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      uniqueKeyMatches(String pattern, {bool caseSensitive = true}) {
+  uniqueKeyMatches(String pattern, {bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.matches(
-        property: r'uniqueKey',
-        wildcard: pattern,
-        caseSensitive: caseSensitive,
-      ));
+      return query.addFilterCondition(
+        FilterCondition.matches(
+          property: r'uniqueKey',
+          wildcard: pattern,
+          caseSensitive: caseSensitive,
+        ),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      uniqueKeyIsEmpty() {
+  uniqueKeyIsEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.equalTo(
-        property: r'uniqueKey',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.equalTo(property: r'uniqueKey', value: ''),
+      );
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterFilterCondition>
-      uniqueKeyIsNotEmpty() {
+  uniqueKeyIsNotEmpty() {
     return QueryBuilder.apply(this, (query) {
-      return query.addFilterCondition(FilterCondition.greaterThan(
-        property: r'uniqueKey',
-        value: '',
-      ));
+      return query.addFilterCondition(
+        FilterCondition.greaterThan(property: r'uniqueKey', value: ''),
+      );
     });
   }
 }
@@ -921,42 +964,42 @@ extension SearchHistoryItemQueryLinks
 extension SearchHistoryItemQuerySortBy
     on QueryBuilder<SearchHistoryItem, SearchHistoryItem, QSortBy> {
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterSortBy>
-      sortByHistoryKey() {
+  sortByHistoryKey() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'historyKey', Sort.asc);
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterSortBy>
-      sortByHistoryKeyDesc() {
+  sortByHistoryKeyDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'historyKey', Sort.desc);
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterSortBy>
-      sortBySearchTerm() {
+  sortBySearchTerm() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'searchTerm', Sort.asc);
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterSortBy>
-      sortBySearchTermDesc() {
+  sortBySearchTermDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'searchTerm', Sort.desc);
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterSortBy>
-      sortByUniqueKey() {
+  sortByUniqueKey() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'uniqueKey', Sort.asc);
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterSortBy>
-      sortByUniqueKeyDesc() {
+  sortByUniqueKeyDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'uniqueKey', Sort.desc);
     });
@@ -966,14 +1009,14 @@ extension SearchHistoryItemQuerySortBy
 extension SearchHistoryItemQuerySortThenBy
     on QueryBuilder<SearchHistoryItem, SearchHistoryItem, QSortThenBy> {
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterSortBy>
-      thenByHistoryKey() {
+  thenByHistoryKey() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'historyKey', Sort.asc);
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterSortBy>
-      thenByHistoryKeyDesc() {
+  thenByHistoryKeyDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'historyKey', Sort.desc);
     });
@@ -986,35 +1029,35 @@ extension SearchHistoryItemQuerySortThenBy
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterSortBy>
-      thenByIdDesc() {
+  thenByIdDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'id', Sort.desc);
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterSortBy>
-      thenBySearchTerm() {
+  thenBySearchTerm() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'searchTerm', Sort.asc);
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterSortBy>
-      thenBySearchTermDesc() {
+  thenBySearchTermDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'searchTerm', Sort.desc);
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterSortBy>
-      thenByUniqueKey() {
+  thenByUniqueKey() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'uniqueKey', Sort.asc);
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QAfterSortBy>
-      thenByUniqueKeyDesc() {
+  thenByUniqueKeyDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'uniqueKey', Sort.desc);
     });
@@ -1024,21 +1067,21 @@ extension SearchHistoryItemQuerySortThenBy
 extension SearchHistoryItemQueryWhereDistinct
     on QueryBuilder<SearchHistoryItem, SearchHistoryItem, QDistinct> {
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QDistinct>
-      distinctByHistoryKey({bool caseSensitive = true}) {
+  distinctByHistoryKey({bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'historyKey', caseSensitive: caseSensitive);
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QDistinct>
-      distinctBySearchTerm({bool caseSensitive = true}) {
+  distinctBySearchTerm({bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'searchTerm', caseSensitive: caseSensitive);
     });
   }
 
   QueryBuilder<SearchHistoryItem, SearchHistoryItem, QDistinct>
-      distinctByUniqueKey({bool caseSensitive = true}) {
+  distinctByUniqueKey({bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'uniqueKey', caseSensitive: caseSensitive);
     });
@@ -1054,21 +1097,21 @@ extension SearchHistoryItemQueryProperty
   }
 
   QueryBuilder<SearchHistoryItem, String, QQueryOperations>
-      historyKeyProperty() {
+  historyKeyProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'historyKey');
     });
   }
 
   QueryBuilder<SearchHistoryItem, String, QQueryOperations>
-      searchTermProperty() {
+  searchTermProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'searchTerm');
     });
   }
 
   QueryBuilder<SearchHistoryItem, String, QQueryOperations>
-      uniqueKeyProperty() {
+  uniqueKeyProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'uniqueKey');
     });

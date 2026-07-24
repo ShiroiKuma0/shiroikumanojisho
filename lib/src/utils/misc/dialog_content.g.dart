@@ -13,7 +13,4 @@ DialogContent _$DialogContentFromJson(Map<String, dynamic> json) =>
     );
 
 Map<String, dynamic> _$DialogContentToJson(DialogContent instance) =>
-    <String, dynamic>{
-      'title': instance.title,
-      'content': instance.content,
-    };
+    <String, dynamic>{'title': instance.title, 'content': instance.content};
