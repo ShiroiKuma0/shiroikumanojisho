@@ -682,14 +682,26 @@ class AppModel with ChangeNotifier {
           color: Colors.black,
           shape: RoundedRectangleBorder(),
         ),
-        dialogTheme: const DialogTheme(
+        // Dialogs ("Exit Media" and every other AlertDialog) carry the
+        // black/yellow identity: yellow rounded border on the panel,
+        // and their TextButtons render as yellow-bordered pills (白い熊,
+        // 2026-07-24).
+        dialogTheme: DialogTheme(
           backgroundColor: Colors.black,
-          shape: RoundedRectangleBorder(),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Colors.yellow, width: 2),
+          ),
         ),
         cardColor: Colors.black,
         textButtonTheme: TextButtonThemeData(
           style: TextButton.styleFrom(
             foregroundColor: Color(darkThemeTextColor),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            shape: const StadiumBorder(
+              side: BorderSide(color: Colors.yellow, width: 1.5),
+            ),
           ),
         ),
         listTileTheme: ListTileThemeData(
@@ -1112,6 +1124,7 @@ class AppModel with ChangeNotifier {
       ReaderMediaType.instance: [
         ReaderTtuSource.instance,
         ReaderMokuroSource.instance,
+        ReaderScannedPdfSource.instance,
         ReaderBrowserSource.instance,
         ReaderLyricsSource.instance,
         ReaderChatgptSource.instance,
@@ -4538,6 +4551,22 @@ class AppModel with ChangeNotifier {
   /// Get the saved secondary subtitle index for a media item.
   int getSecondarySubtitleIndex(MediaItem item) {
     return _preferences.get('secondary_subtitle_index/${item.uniqueKey}', defaultValue: -1);
+  }
+
+  /// Get the saved primary subtitle selection key for a media item, or
+  /// the empty string when nothing was ever saved. Keys are stable
+  /// item descriptors ('embedded:N', 'external:<metadata>', 'none') —
+  /// NOT list indexes, whose order shifts between sessions as sidecars
+  /// appear.
+  String getSubtitleKey(MediaItem item) {
+    return _preferences.get('subtitle_key/${item.uniqueKey}',
+        defaultValue: '');
+  }
+
+  /// Persist the primary subtitle selection key for a media item so
+  /// the track picked during playback survives reopening the video.
+  void setSubtitleKey(MediaItem item, String key) {
+    _preferences.put('subtitle_key/${item.uniqueKey}', key);
   }
 
   /// Set the saved secondary subtitle index for a media item.

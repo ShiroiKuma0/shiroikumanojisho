@@ -22,12 +22,25 @@ import 'package:collection/collection.dart';
 class ReaderMokuroSource extends ReaderMediaSource {
   /// Define this media source.
   ReaderMokuroSource._privateConstructor()
-      : super(
+      : this.forSubclass(
           uniqueKey: 'reader_mokuro',
           sourceName: 'Mokuro',
           description:
               'Read manga volumes pre-processed as a single HTML file via Mokuro.',
           icon: Icons.dashboard_outlined,
+        );
+
+  /// Constructor for sources that reuse the mokuro-format display
+  /// pipeline ([MokuroCatalogBrowsePage] and its settings/card-image
+  /// machinery) with a different identity and import flow — e.g. the
+  /// scanned-PDF OCR source, whose generated volumes are legacy-mokuro
+  /// HTML files.
+  ReaderMokuroSource.forSubclass({
+    required super.uniqueKey,
+    required super.sourceName,
+    required super.description,
+    required super.icon,
+  }) : super(
           implementsSearch: false,
           implementsHistory: true,
           overridesAutoImage: true,

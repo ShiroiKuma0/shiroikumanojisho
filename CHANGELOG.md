@@ -6,7 +6,104 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- "OCR image subtitles" action in the player's audio/subtitles menu (next to
+  "Load subtitles"): converts a Blu-ray PGS subtitle track to real text via
+  on-device OCR. Image tracks are detected with ffprobe
+  (`hdmv_pgs_subtitle` / `dvd_subtitle`); the chosen track is demuxed with a
+  stream copy, decoded by a pure-Dart PGS `.sup` parser (palette/RLE, small
+  renders upscaled 2x), each event recognised with the ML Kit Japanese
+  engine, and the result written as a `<video-basename>.ocr.srt` sidecar
+  next to the video (falling back to the app's `ocrSubtitles/` directory if
+  the video's folder is not writable — both locations auto-load on every
+  later open). The progress dialog shows ffmpeg extraction percentage, then
+  per-event OCR counts; the generated track then behaves like any text
+  subtitle: display, tap-to-lookup, and Anki export. VobSub (DVD) tracks
+  are detected and listed as not yet supported: a `.idx`/`.sub` SPU parser
+  is in the tree, but ffmpeg has no VobSub muxer to extract with — the
+  extraction route is future work.
+- The player now shows a small top-center status pill while ffmpeg scans a
+  newly opened video for embedded subtitles ("Scanning embedded
+  subtitles... N%"), so multi-minute passes over large files no longer look
+  like a hang. Text-only by design — no spinner — to stay calm on e-ink.
+- When OCR'd subtitles are active, the player also renders the original
+  bitmap track natively (via VLC's own SPU renderer, enabled only in this
+  mode) under the OCR'd tappable text — recognition errors are visible by
+  direct comparison. Selecting any other subtitle turns the bitmap overlay
+  back off. OCR'd cues end 50 ms before the bitmap's own clear time so
+  pause-on-subtitle-end stops while the bitmap is still on screen
+  (regenerate an existing `.ocr.srt` via the "OCR image subtitles" menu
+  action to pick up the new timing). Image tracks are excluded from the
+  per-open embedded-extraction scan — their bitmaps are only unpacked when
+  OCR or the comparison overlay needs them, saving a full-file ffmpeg pass
+  per image track on every open.
+- Bottom-sheet menus restyled: rows are yellow (dark theme) with the active
+  option in red plus a trailing red check mark. Previously every row's icon
+  was red, drowning the red active highlight.
+- In pause-on-subtitle mode with the bitmap comparison overlay active, the
+  cue plays to its natural end (speech uncut) and the playhead stays put:
+  the just-ended cue's original bitmap is drawn back over the paused frame
+  by the app itself, from a per-event bitmap store (PNG per subtitle event
+  plus timing index) saved during the OCR pass. No seeking, no playback
+  nudging — resume simply continues, replaying nothing. During playback
+  VLC still renders the live bitmap track natively. OCR runs from before
+  this build have no bitmap store; re-run OCR on the track to create it.
+- Local videos now open paused at the persisted resume position, with that
+  position's frame displayed: playback is held as soon as VLC reports the
+  resume seek applied (position past zero) and a frame decoded. The
+  persisted subtitle track loads and is selected while paused; playback
+  starts on the user's play press — the first cue no longer renders with
+  the wrong (first) track.
+- The primary subtitle track selected during playback is now persisted per
+  video (like the secondary track always was) and restored on reopen —
+  including the OCR'd track, which brings the bitmap comparison overlay
+  back with it. "None" is remembered too. Persistence is by stable track
+  key, not list position.
+- Each image track now gets its own OCR sidecar (`<basename>.ocr-sN-lang
+  .srt`), so videos with several PGS tracks (e.g. eng+cze+jpn) track their
+  OCR state independently — "✓ OCRed" and the active mark apply per track,
+  not globally. Sidecars named with the old `.ocr.srt` scheme keep loading
+  as plain external subtitles; re-run OCR to adopt per-track naming.
+- Bottom-sheet menus (e.g. "Select subtitle") carry a yellow rounded
+  border in the dark theme, matching the dialogs.
+- Dialogs ("Exit Media" and all other alert dialogs) restyled in the dark
+  theme: yellow rounded border on the panel, and dialog buttons rendered as
+  yellow-bordered pills.
+- The player status pill now covers the whole loading sequence: it appears
+  as "Loading video..." over the black window from the moment the player
+  page opens (this phase grows with file size), switches to the ffmpeg
+  scanning/extraction percentages, and clears when subtitles are ready.
+  Styled yellow-on-black with a yellow rounded border, as is the OCR
+  completion flash.
+- The "Select subtitle" sheet now integrates the image-subtitle OCR flow:
+  a PGS/VobSub track's line reads "(run OCR to use)" and tapping it starts
+  the OCR pass directly; once the `.ocr.srt` exists the same line shows a
+  green "✓ OCRed" tick and selecting it displays the OCR'd subtitles. The
+  dead extraction entries image tracks used to produce, and the redundant
+  raw "[.ocr.srt]" external line, no longer appear.
+
+- "Scanned PDF" Reader media source: import an image-only PDF and study it
+  as a mokuro-style volume — each page is rasterised on-device (native
+  Android `PdfRenderer` over the new `shiroikuma.jisho/pdf` MethodChannel,
+  JPEG pages capped at 2000 px wide), OCR'd with the ML Kit Japanese engine,
+  and emitted as a legacy-mokuro HTML file that opens in the existing mokuro
+  browse page with full tap-to-lookup, sentence mining, and page-image card
+  creation. Import shows a "Page X/N" progress dialog; generated volumes
+  live under the app documents `scannedPdf/` directory and appear in the
+  source's own history. Viewer settings (volume-key paging, dark theme,
+  highlight-on-tap, etc.) are shared with the Mokuro source. The mokuro
+  0.2.5 legacy HTML runtime (GPL-3, kha-white/mokuro) is vendored under
+  `assets/mokuro-template/`.
+
+- On-device Japanese OCR engine (Google ML Kit text recognition v2, bundled
+  Japanese model — works offline, ~4 MB APK growth) as the groundwork for
+  studying image-based (non-SRT) subtitles such as Blu-ray PGS tracks. The
+  `google_mlkit_text_recognition` 0.16.0 / `google_mlkit_commons` 0.12.0
+  plugins are vendored under `vendor/` with their SDK/AGP constraints relaxed
+  to build on this project's pinned toolchain. A temporary "OCR test (image)"
+  entry in the home settings menu picks an image file and shows the raw
+  recognition result; it will be replaced by the real subtitle-OCR flow.
 
 ## [1.4.0+6] - 2026-07-22
 

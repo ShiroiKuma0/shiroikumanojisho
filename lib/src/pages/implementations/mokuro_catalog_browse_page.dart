@@ -40,7 +40,15 @@ class _MokuroCatalogBrowsePageState
   late InAppWebViewController _controller;
   MediaItem? _mediaItem;
 
-  ReaderMokuroSource get mediaSource => ReaderMokuroSource.instance;
+  /// Resolve to the launching source when it is mokuro-format-capable
+  /// (covers [ReaderScannedPdfSource], whose generated volumes open in
+  /// this page) so sentence/image context reaches the right source;
+  /// otherwise — catalog browsing outside a media session — fall back
+  /// to the mokuro source proper.
+  ReaderMokuroSource get mediaSource =>
+      appModel.currentMediaSource is ReaderMokuroSource
+          ? appModel.currentMediaSource! as ReaderMokuroSource
+          : ReaderMokuroSource.instance;
 
   @override
   void initState() {

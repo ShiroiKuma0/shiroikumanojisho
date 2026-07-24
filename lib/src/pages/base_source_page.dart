@@ -113,7 +113,8 @@ class BaseSourcePageState<T extends BaseSourcePage> extends BasePageState<T> {
     }
 
     Widget alertDialog = AlertDialog(
-      shape: const RoundedRectangleBorder(),
+      // Shape inherited from the dialog theme (yellow rounded border in
+      // dark mode).
       title: Text(t.exit_media_title),
       content: Text(t.exit_media_description),
       actions: <Widget>[

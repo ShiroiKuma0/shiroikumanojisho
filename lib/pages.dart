@@ -56,6 +56,7 @@ export 'src/pages/implementations/reader_clipboard_page.dart';
 export 'src/pages/implementations/audio_recorder_page.dart';
 export 'src/pages/implementations/reader_chatgpt_page.dart';
 export 'src/pages/implementations/reader_mokuro_history_page.dart';
+export 'src/pages/implementations/reader_scanned_pdf_history_page.dart';
 export 'src/pages/implementations/mokuro_catalog_dialog_page.dart';
 export 'src/pages/implementations/mokuro_catalog_manage_dialog_page.dart';
 export 'src/pages/implementations/mokuro_catalog_edit_dialog_page.dart';

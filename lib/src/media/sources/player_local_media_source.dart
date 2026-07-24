@@ -13,6 +13,7 @@ import 'package:shiroikumanojisho/pages.dart';
 import 'package:shiroikumanojisho/utils.dart';
 import 'package:filesystem_picker/filesystem_picker.dart';
 import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 
 /// A media source that allows the user to watch videos in their local device
 /// storage.
@@ -363,6 +364,31 @@ class PlayerLocalMediaSource extends PlayerMediaSource {
           type: SubtitleItemType.externalSubtitle,
         );
         items.add(item);
+      }
+    }
+
+    // OCR'd image-subtitle sidecars normally land next to the video
+    // (covered by the scan above), but fall back to the app-internal
+    // `ocrSubtitles/` directory when the video's directory is not
+    // writable — pick those up too so they keep auto-loading. One
+    // sidecar per OCR'd track (`<basename>.ocr-sN-lang.srt`).
+    Directory appDocDir = await getApplicationDocumentsDirectory();
+    Directory ocrDir = Directory('${appDocDir.path}/ocrSubtitles');
+    if (ocrDir.existsSync()) {
+      for (FileSystemEntity entity in ocrDir.listSync()) {
+        if (entity is File &&
+            path.basename(entity.path).startsWith(videoFileBasename) &&
+            path.extension(entity.path).toLowerCase() == '.srt') {
+          items.add(
+            await SubtitleUtils.subtitlesFromFile(
+              file: entity,
+              metadata: path
+                  .basename(entity.path)
+                  .replaceAll(videoFileBasename, ''),
+              type: SubtitleItemType.externalSubtitle,
+            ),
+          );
+        }
       }
     }
 

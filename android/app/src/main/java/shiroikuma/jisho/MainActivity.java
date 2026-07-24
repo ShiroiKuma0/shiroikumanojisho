@@ -185,6 +185,9 @@ public class MainActivity extends AudioServiceActivity {
     public void configureFlutterEngine(@NonNull FlutterEngine flutterEngine) {
         super.configureFlutterEngine(flutterEngine);
 
+        // Rasterises scanned PDFs to page JPEGs for the OCR importer.
+        new PdfRendererBridge().register(flutterEngine);
+
         new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), ANKIDROID_CHANNEL)
             .setMethodCallHandler(
                 (call, result) -> {

@@ -171,11 +171,16 @@ class SubtitleUtils {
     }
   }
 
-  /// Gets a list of subtitles from a video file.
+  /// Gets a list of subtitles from a video file. [skipIndexes] names
+  /// subtitle-stream ordinals to leave untouched — image-based (PGS/
+  /// VobSub) tracks, whose SRT extraction can never succeed; skipping
+  /// them saves a full-file ffmpeg scan per track on every open. Their
+  /// bitmaps are only unpacked on demand by the OCR flow.
   static Future<List<SubtitleItem>> subtitlesFromVideo({
     required File file,
     required int embeddedTrackCount,
     required Function(SubtitleItem) onItemComplete,
+    Set<int> skipIndexes = const {},
   }) async {
     List<File> outputFiles = [];
     List<SubtitleItem> items = [];
@@ -189,6 +194,9 @@ class SubtitleUtils {
     String inputPath = file.path;
 
     for (int i = 0; i < embeddedTrackCount - 1; i++) {
+      if (skipIndexes.contains(i)) {
+        continue;
+      }
       String outputPath = '${subsDir.path}/extractSrt$i.srt';
       String command =
           '-loglevel quiet -i "$inputPath" -map 0:s:$i "$outputPath"';

@@ -1,5 +1,6 @@
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'dart:ui';
@@ -11,6 +12,7 @@ import 'package:filesystem_picker/filesystem_picker.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_ffmpeg/flutter_ffmpeg.dart';
 import 'package:flutter_vlc_player/flutter_vlc_player.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 // import 'package:google_fonts/google_fonts.dart';
@@ -26,6 +28,9 @@ import 'package:shiroikumanojisho/creator.dart';
 import 'package:shiroikumanojisho/media.dart';
 import 'package:shiroikumanojisho/pages.dart';
 import 'package:shiroikumanojisho/src/pages/implementations/player_comments_page.dart';
+import 'package:shiroikumanojisho/src/utils/misc/app_export_import.dart';
+import 'package:shiroikumanojisho/src/utils/ocr/ocr_engine.dart';
+import 'package:shiroikumanojisho/src/utils/ocr/subtitle_ocr.dart';
 import 'package:shiroikumanojisho/utils.dart';
 import 'package:path/path.dart' as path;
 
@@ -252,6 +257,10 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
     if (_playerInitialised) {
       return;
     }
+    // From the very first frame of the black loading window until the
+    // embedded-subtitle scan takes over, keep the status pill up so a
+    // long open of a large file never looks like a hang.
+    _subtitlePrepNotifier.value = 'Loading video...';
     await Future.delayed(const Duration(seconds: 1), () {});
 
     appModel.currentMediaPauseStream.listen((event) {
@@ -555,6 +564,27 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
     }
 
     if (_playerController.value.isInitialized) {
+      // Local videos open paused (see [_holdOpenPaused]): VLC needs a
+      // moment of playback to parse tracks/duration, so autoplay is
+      // left on and playback is paused right here — but only once the
+      // reported position has moved past zero, which means the
+      // `--start-time` resume seek has applied and a frame at the
+      // persisted position is actually on screen. Pausing on the very
+      // first playing tick instead could freeze a blank or frame-zero
+      // surface.
+      if (_holdOpenPaused &&
+          _playerController.value.isPlaying &&
+          _playerController.value.position > Duration.zero) {
+        _holdOpenPaused = false;
+        _playerController.pause();
+      }
+
+      // The paused-frame bitmap overlay lives only while paused.
+      if (_playerController.value.isPlaying &&
+          _pausedBitmapNotifier.value != null) {
+        _pausedBitmapNotifier.value = null;
+      }
+
       if (_durationNotifier.value == Duration.zero) {
         appModel.audioHandler?.mediaItem.add(
           appModel.audioHandler?.mediaItem.value?.copyWith.call(
@@ -657,6 +687,14 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
           dialogSmartPause();
           _autoPauseMemory = _currentSubtitle.value;
           _autoPauseNotifier.value = _currentSubtitle.value;
+
+          // Comparison overlay: the cue played to its end uncut and
+          // the playhead stays put — the just-ended cue's original
+          // bitmap is drawn back over the paused frame from the saved
+          // store, so resume replays nothing.
+          if (_activeBitmapTrack != null) {
+            showPausedBitmapForCue(_autoPauseNotifier.value!);
+          }
         }
 
         if (_autoPauseNotifier.value != null) {
@@ -769,12 +807,214 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
   final ValueNotifier<Subtitle?> _autoPauseNotifier =
       ValueNotifier<Subtitle?>(null);
 
+  /// Non-empty while ffmpeg is scanning the video for embedded
+  /// subtitles (or OCR-extracting an image track): drives the small
+  /// status banner so a minutes-long pass on a large file doesn't look
+  /// like a hang.
+  final ValueNotifier<String> _subtitlePrepNotifier =
+      ValueNotifier<String>('');
+
+  /// Image-based (PGS/VobSub) subtitle tracks found in the current
+  /// local video by ffprobe. Populated once at open; drives the OCR
+  /// affordances in the "Select subtitle" sheet.
+  List<ImageSubtitleTrack> _imageSubtitleTracks = [];
+
+  /// The image track VLC is currently rendering natively under the
+  /// OCR'd text subtitles, or null when the bitmap overlay is off.
+  /// Displaying both lets the reader spot OCR errors by comparing the
+  /// recognised text against the original bitmap.
+  ImageSubtitleTrack? _activeBitmapTrack;
+
+  /// Timing index of the active track's saved event bitmaps
+  /// (`[{s,e,f}]` in ms) and their directory, loaded when comparison
+  /// mode turns on. Empty when the OCR run predates bitmap saving.
+  List<dynamic> _bitmapIndex = [];
+  String? _bitmapDirPath;
+
+  /// The PNG shown over the paused frame at an auto-pause — the just
+  /// ended cue's original bitmap. VLC clears its own SPU at the cue
+  /// boundary; this overlay puts the bitmap back WITHOUT moving the
+  /// playhead, so resuming replays nothing.
+  final ValueNotifier<Uint8List?> _pausedBitmapNotifier =
+      ValueNotifier<Uint8List?>(null);
+
+  /// While true, the first playback tick after opening is immediately
+  /// paused: local videos open paused so the persisted subtitle track
+  /// finishes loading before the user starts playback. Cleared by any
+  /// user play/pause interaction.
+  bool _holdOpenPaused = false;
+
+  /// Ask VLC to render [track]'s original bitmaps natively. The
+  /// controller was created with `--sub-track=99999` (nothing), so
+  /// this is the only place a VLC SPU track ever gets switched on.
+  Future<void> enableBitmapSubtitleTrack(ImageSubtitleTrack track) async {
+    try {
+      final spuTracks = await _playerController.getSpuTracks();
+      final trackIds = spuTracks.keys.toList();
+      if (track.subtitleOrdinal < trackIds.length) {
+        await _playerController.setSpuTrack(trackIds[track.subtitleOrdinal]);
+        setState(() {
+          _activeBitmapTrack = track;
+        });
+      }
+    } catch (e) {
+      // Comparison overlay is best-effort; the OCR text still shows.
+    }
+
+    // Load the saved per-event bitmaps for the paused-frame overlay.
+    _bitmapIndex = [];
+    _bitmapDirPath = null;
+    try {
+      final bitmapDir = await SubtitleOcr.bitmapDirForTrack(
+        videoPath: _playerController.dataSource,
+        track: track,
+      );
+      if (bitmapDir != null) {
+        final indexFile = File('${bitmapDir.path}/index.json');
+        if (indexFile.existsSync()) {
+          _bitmapIndex = jsonDecode(indexFile.readAsStringSync());
+          _bitmapDirPath = bitmapDir.path;
+        }
+      }
+    } catch (e) {
+      // Without an index the paused overlay is simply absent.
+    }
+  }
+
+  /// Turn the native bitmap rendering back off (any non-OCR subtitle
+  /// selection).
+  Future<void> disableBitmapSubtitleTrack() async {
+    if (_activeBitmapTrack == null) {
+      return;
+    }
+    setState(() {
+      _activeBitmapTrack = null;
+    });
+    _bitmapIndex = [];
+    _bitmapDirPath = null;
+    _pausedBitmapNotifier.value = null;
+    try {
+      await _playerController.setSpuTrack(-1);
+    } catch (e) {
+      // Best-effort as above.
+    }
+  }
+
+  /// Show [subtitle]'s original bitmap from the saved store over the
+  /// paused frame. Looked up 100 ms before the cue's end — safely
+  /// inside the bitmap's own display window, which outlives the SRT
+  /// cue by 50 ms.
+  Future<void> showPausedBitmapForCue(Subtitle subtitle) async {
+    if (_bitmapIndex.isEmpty || _bitmapDirPath == null) {
+      return;
+    }
+    final lookupMs = subtitle.end.inMilliseconds - 100;
+    final entry = _bitmapIndex.firstWhereOrNull(
+        (e) => e['s'] <= lookupMs && lookupMs <= e['e']);
+    if (entry == null) {
+      return;
+    }
+    try {
+      _pausedBitmapNotifier.value =
+          File('$_bitmapDirPath/${entry['f']}').readAsBytesSync();
+    } catch (e) {
+      // Missing file: overlay simply absent for this cue.
+    }
+  }
+
+  /// The paused-frame bitmap overlay, sitting above the subtitle text.
+  Widget buildPausedBitmapOverlay() {
+    return ValueListenableBuilder<Uint8List?>(
+      valueListenable: _pausedBitmapNotifier,
+      builder: (_, bytes, __) {
+        if (bytes == null) {
+          return const SizedBox.shrink();
+        }
+        return Align(
+          alignment: Alignment.bottomCenter,
+          child: IgnorePointer(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 140),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.9,
+                  maxHeight: MediaQuery.of(context).size.height * 0.25,
+                ),
+                child: Image.memory(bytes, fit: BoxFit.contain),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Yellow-on-black bordered flash, the style requested for OCR
+  /// completion notices ([Fluttertoast.showToast] cannot draw borders).
+  void showYellowFlash(String message) {
+    final fToast = FToast()..init(context);
+    fToast.showToast(
+      gravity: ToastGravity.BOTTOM,
+      toastDuration: const Duration(seconds: 4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.9),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.yellow, width: 2),
+        ),
+        child: Text(
+          message,
+          style: const TextStyle(color: Colors.yellow, fontSize: 14),
+        ),
+      ),
+    );
+  }
+
+  /// Route ffmpeg statistics into the on-screen banner. [label] names
+  /// the current pass; the percentage comes from the processed
+  /// timestamp against the video duration when VLC knows it.
+  void _trackFfmpegProgress(String label) {
+    _subtitlePrepNotifier.value = '$label...';
+    final int totalMs = _playerController.value.duration.inMilliseconds;
+    FlutterFFmpegConfig().enableStatisticsCallback((statistics) {
+      final int processedMs = statistics.time;
+      if (totalMs > 0) {
+        final int percent = (processedMs * 100 ~/ totalMs).clamp(0, 100);
+        _subtitlePrepNotifier.value = '$label... $percent%';
+      } else if (processedMs > 0) {
+        _subtitlePrepNotifier.value =
+            '$label... ${processedMs ~/ 60000}:${((processedMs ~/ 1000) % 60).toString().padLeft(2, '0')} scanned';
+      }
+    });
+  }
+
+  /// Stop routing ffmpeg statistics and hide the banner.
+  void _clearFfmpegProgress() {
+    FlutterFFmpegConfig().enableStatisticsCallback(null);
+    _subtitlePrepNotifier.value = '';
+  }
+
   /// This prepares the subtitles included with the video for use.
   void initialiseEmbeddedSubtitles(VlcPlayerController controller) async {
     if (controller.dataSourceType != DataSourceType.file) {
+      // No ffmpeg pass for network sources — retire the "Loading
+      // video..." pill from [initialisePlayer] here.
+      _subtitlePrepNotifier.value = '';
       return;
     }
     appModel.isProcessingEmbeddedSubtitles = true;
+    // Open paused: the user starts playback once subtitles (and the
+    // persisted track selection) are ready, so the first cue never
+    // renders with the wrong track.
+    _holdOpenPaused = true;
+
+    // Cheap ffprobe pass first: identify image-based tracks so the
+    // subtitle picker can offer OCR for them.
+    _imageSubtitleTracks =
+        await SubtitleOcr.detectImageTracks(controller.dataSource);
+
+    _trackFfmpegProgress('Scanning embedded subtitles');
 
     await SubtitleUtils.targetSubtitleFromVideo(
       file: File(controller.dataSource),
@@ -798,9 +1038,15 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
 
     int embeddedTrackCount = await _playerController.getSpuTracksCount() ?? 0;
 
+    _trackFfmpegProgress('Extracting subtitle tracks');
     await SubtitleUtils.subtitlesFromVideo(
       file: File(controller.dataSource),
       embeddedTrackCount: embeddedTrackCount,
+      // Never attempt SRT extraction of image tracks — a wasted
+      // full-file scan each; their bitmaps unpack only when OCR or the
+      // comparison overlay actually needs them.
+      skipIndexes:
+          _imageSubtitleTracks.map((track) => track.subtitleOrdinal).toSet(),
       onItemComplete: (item) async {
         _subtitleItems.add(item);
         if (_subtitleItem.type == SubtitleItemType.noneSubtitle) {
@@ -823,8 +1069,39 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
           _secondarySubtitleItem.controller.initial();
         }
       }
+
+      // Restore the saved primary subtitle selection, overriding the
+      // first-loaded default. Matching is by stable item key, not list
+      // index — the item order shifts between sessions.
+      String savedKey = appModel.getSubtitleKey(widget.item!);
+      if (savedKey == 'none') {
+        _subtitleItem = _emptySubtitleItem;
+        _currentSubtitle.value = null;
+        refreshSubtitleWidget();
+      } else if (savedKey.isNotEmpty) {
+        SubtitleItem? savedItem = _subtitleItems
+            .firstWhereOrNull((item) => subtitleItemKey(item) == savedKey);
+        if (savedItem != null) {
+          _subtitleItem = savedItem;
+          if (!_subtitleItem.controller.initialized) {
+            await _subtitleItem.controller.initial();
+          }
+          _currentSubtitle.value = null;
+          refreshSubtitleWidget();
+          // A restored OCR-sidecar selection restores the bitmap
+          // comparison overlay of its own track with it.
+          final restoredTrack = _imageSubtitleTracks.firstWhereOrNull(
+              (track) =>
+                  savedItem.metadata?.endsWith(track.sidecarSuffix) ??
+                  false);
+          if (restoredTrack != null) {
+            enableBitmapSubtitleTrack(restoredTrack);
+          }
+        }
+      }
     }
 
+    _clearFfmpegProgress();
     appModel.isProcessingEmbeddedSubtitles = false;
   }
 
@@ -890,7 +1167,14 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
   Widget buildBody() {
     if (!_playerInitialised) {
       initialisePlayer();
-      return buildLoading();
+      // The status pill must ride on top of the pre-init black window
+      // too — that phase is the longest wait on big files.
+      return Stack(
+        children: [
+          buildLoading(),
+          buildSubtitlePrepBanner(),
+        ],
+      );
     }
 
     Widget buildBuffering() {
@@ -915,7 +1199,9 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
         buildBuffering(),
         buildMenuArea(),
         buildSecondarySubtitleArea(),
+        buildPausedBitmapOverlay(),
         buildSubtitleArea(),
+        buildSubtitlePrepBanner(),
         buildCentralPlayPause(),
         Padding(
           padding: MediaQuery.of(context).orientation == Orientation.landscape
@@ -2156,6 +2442,16 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
           }
         },
       ),
+      JidoujishoBottomSheetOption(
+        label: 'OCR image subtitles',
+        icon: Icons.document_scanner,
+        action: () async {
+          await dialogSmartPause();
+          await ocrImageSubtitles();
+          // Deliberately no auto-resume: the OCR pass takes minutes and
+          // the user decides when to continue watching.
+        },
+      ),
     ]);
 
     return Material(
@@ -2289,11 +2585,109 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
     }
   }
 
+  /// The OCR sidecar item belonging to [track], if loaded — matched by
+  /// the per-track suffix (`.ocr-sN-lang.srt`) in the item metadata.
+  SubtitleItem? ocrSubtitleItemForTrack(ImageSubtitleTrack track) =>
+      _subtitleItems.firstWhereOrNull((item) =>
+          item.type == SubtitleItemType.externalSubtitle &&
+          (item.metadata?.endsWith(track.sidecarSuffix) ?? false));
+
+  /// Whether [item] is any image track's OCR sidecar.
+  bool isOcrSubtitleItem(SubtitleItem item) =>
+      item.type == SubtitleItemType.externalSubtitle &&
+      _imageSubtitleTracks.any((track) =>
+          item.metadata?.endsWith(track.sidecarSuffix) ?? false);
+
+  /// A stable descriptor for a subtitle item, safe to persist across
+  /// sessions (unlike a list index, whose order shifts as sidecars
+  /// appear between opens).
+  String subtitleItemKey(SubtitleItem item) {
+    if (item == _emptySubtitleItem ||
+        item.type == SubtitleItemType.noneSubtitle) {
+      return 'none';
+    }
+    if (item.type == SubtitleItemType.embeddedSubtitle) {
+      return 'embedded:${item.index ?? -1}';
+    }
+    return '${item.type.name}:${item.metadata ?? item.source ?? ''}';
+  }
+
+  /// Persist the current primary subtitle selection for this video so
+  /// it is restored on reopen ('none' records a deliberate "None").
+  void persistSubtitleSelection() {
+    if (widget.item == null) {
+      return;
+    }
+    appModel.setSubtitleKey(widget.item!, subtitleItemKey(_subtitleItem));
+  }
+
+  /// The image track backing an embedded [item], if any — both sides
+  /// use the ffmpeg/ffprobe subtitle-stream ordinal.
+  ImageSubtitleTrack? _imageTrackForItem(SubtitleItem item) {
+    if (item.type != SubtitleItemType.embeddedSubtitle ||
+        item.index == null) {
+      return null;
+    }
+    return _imageSubtitleTracks
+        .firstWhereOrNull((track) => track.subtitleOrdinal == item.index);
+  }
+
+  /// The subtitle-picker line for an image-based track. Before OCR it
+  /// explains what to do and tapping it starts the OCR run; after, it
+  /// shows a green tick and selects that track's own generated sidecar.
+  JidoujishoBottomSheetOption getImageTrackOption(ImageSubtitleTrack track) {
+    final ocrItem = ocrSubtitleItemForTrack(track);
+    if (ocrItem == null) {
+      return JidoujishoBottomSheetOption(
+        label: '${t.player_option_subtitle} - ${track.label} '
+            '(run OCR to use)',
+        icon: Icons.document_scanner,
+        action: () => ocrImageSubtitleTrack(track),
+      );
+    }
+    return JidoujishoBottomSheetOption(
+      label: '${t.player_option_subtitle} - ${track.label} ✓ OCRed',
+      icon: Icons.check_circle,
+      iconColor: Colors.green,
+      active: _subtitleItem == ocrItem,
+      action: () {
+        _subtitleItem = ocrItem;
+        if (!_subtitleItem.controller.initialized) {
+          _subtitleItem.controller.initial();
+        }
+        _currentSubtitle.value = null;
+        widget.source.clearCurrentSentence();
+        refreshSubtitleWidget();
+        persistSubtitleSelection();
+        // Render the original bitmaps under the OCR'd text so
+        // recognition errors are visible at a glance.
+        enableBitmapSubtitleTrack(track);
+      },
+    );
+  }
+
   /// This lists all the current available subtitles.
   List<JidoujishoBottomSheetOption> getSubtitleDialogOptions(
       Map<int, String> embeddedTracks) {
     List<JidoujishoBottomSheetOption> options = [];
     for (SubtitleItem item in _subtitleItems) {
+      // An embedded item backed by an image track is a dead entry (its
+      // ffmpeg SRT extraction produced nothing) — replace it with the
+      // OCR affordance line.
+      final imageTrack = _imageTrackForItem(item);
+      if (imageTrack != null) {
+        options.add(getImageTrackOption(imageTrack));
+        continue;
+      }
+
+      // A track's own sidecar line is redundant — its image-track line
+      // represents it (as "✓ OCRed"). Legacy `.ocr.srt` sidecars from
+      // before per-track naming don't match any track and stay listed
+      // as plain external subtitles.
+      if (isOcrSubtitleItem(item)) {
+        continue;
+      }
+
       JidoujishoBottomSheetOption option = JidoujishoBottomSheetOption(
         label: getSubtitleLabel(item: item, embeddedTracks: embeddedTracks),
         icon: Icons.subtitles_outlined,
@@ -2306,10 +2700,26 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
           _currentSubtitle.value = null;
           widget.source.clearCurrentSentence();
           refreshSubtitleWidget();
+          persistSubtitleSelection();
+          disableBitmapSubtitleTrack();
         },
       );
 
       options.add(option);
+    }
+
+    // Image tracks with no embedded item at all (e.g. the per-track
+    // extraction loop never reached them) still deserve a line.
+    final coveredOrdinals = _subtitleItems
+        .where((item) =>
+            item.type == SubtitleItemType.embeddedSubtitle &&
+            item.index != null)
+        .map((item) => item.index)
+        .toSet();
+    for (final track in _imageSubtitleTracks) {
+      if (!coveredOrdinals.contains(track.subtitleOrdinal)) {
+        options.add(getImageTrackOption(track));
+      }
     }
 
     options.add(
@@ -2323,6 +2733,8 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
           _currentSubtitle.value = null;
           widget.source.clearCurrentSentence();
           refreshSubtitleWidget();
+          persistSubtitleSelection();
+          disableBitmapSubtitleTrack();
         },
       ),
     );
@@ -2779,7 +3191,8 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
           alignment: Alignment.bottomCenter,
           child: Padding(
             padding: EdgeInsets.only(
-                bottom: (20 + _subtitleOptionsNotifier.value.verticalOffset).clamp(0, double.infinity)),
+                bottom: (20 + _subtitleOptionsNotifier.value.verticalOffset)
+                    .clamp(0, double.infinity)),
             child: child,
           ),
         );
@@ -3245,6 +3658,7 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
     _autoPauseNotifier.value = null;
 
     _dialogSmartPaused = false;
+    _holdOpenPaused = false;
 
     final isFinished = _playerController.value.isEnded;
 
@@ -3428,6 +3842,174 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
     _currentSubtitle.value = null;
     widget.source.clearCurrentSentence();
     refreshSubtitleWidget();
+    persistSubtitleSelection();
+    disableBitmapSubtitleTrack();
+  }
+
+  /// Small non-interactive status pill near the top of the player,
+  /// visible while ffmpeg passes run (embedded subtitle scan, OCR
+  /// extraction). Text-only — deliberately no spinner, so it stays
+  /// calm on e-ink; the advancing percentage is the liveness signal.
+  Widget buildSubtitlePrepBanner() {
+    return Positioned(
+      // Below the player's top controls bar, so the pill stays visible
+      // whether or not the controls overlay is showing.
+      top: MediaQuery.of(context).padding.top + 64,
+      left: 0,
+      right: 0,
+      child: IgnorePointer(
+        child: ValueListenableBuilder<String>(
+          valueListenable: _subtitlePrepNotifier,
+          builder: (_, value, __) {
+            if (value.isEmpty) {
+              return const SizedBox.shrink();
+            }
+            return Center(
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.85),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.yellow, width: 2),
+                ),
+                child: Text(
+                  value,
+                  style: const TextStyle(fontSize: 13, color: Colors.yellow),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  /// Detect image-based subtitle tracks (Blu-ray PGS / DVD VobSub) in
+  /// the current local video and OCR one of them into an `.ocr.srt`
+  /// sidecar. The player's sidecar scan auto-loads that file on every
+  /// later open, so this is a once-per-video operation.
+  Future<void> ocrImageSubtitles() async {
+    if (_playerController.dataSourceType != DataSourceType.file) {
+      Fluttertoast.showToast(msg: 'OCR is only available for local files.');
+      return;
+    }
+    if (appModel.isProcessingEmbeddedSubtitles) {
+      Fluttertoast.showToast(msg: t.processing_embedded_subtitles);
+      return;
+    }
+
+    List<ImageSubtitleTrack> tracks =
+        await SubtitleOcr.detectImageTracks(_playerController.dataSource);
+    if (tracks.isEmpty) {
+      // Name what WAS found so a detection failure is diagnosable from
+      // the toast alone.
+      final codecs = SubtitleOcr.lastProbedSubtitleCodecs;
+      Fluttertoast.showToast(
+          msg: codecs.isEmpty
+              ? 'No subtitle tracks found in this video.'
+              : 'No image-based subtitle tracks found '
+                  '(subtitle codecs: ${codecs.join(', ')}).');
+      return;
+    }
+
+    if (tracks.length == 1) {
+      await ocrImageSubtitleTrack(tracks.first);
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      useRootNavigator: true,
+      builder: (_) => JidoujishoBottomSheet(
+        options: tracks
+            .map(
+              (imageTrack) => JidoujishoBottomSheetOption(
+                label: imageTrack.label,
+                icon: Icons.image_outlined,
+                action: () => ocrImageSubtitleTrack(imageTrack),
+              ),
+            )
+            .toList(),
+      ),
+    );
+  }
+
+  /// Run the OCR pass for one [track] with a progress dialog, then load
+  /// the resulting SRT as the active subtitle.
+  Future<void> ocrImageSubtitleTrack(ImageSubtitleTrack track) async {
+    if (!mounted) {
+      return;
+    }
+
+    final navigator = Navigator.of(context, rootNavigator: true);
+    final tracker = LongOpProgressTracker(
+      operation: 'OCR subtitles',
+      totalSteps: 2,
+    );
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      useRootNavigator: true,
+      builder: (_) => LongOpProgressDialog(
+        titleNotifier: tracker.titleNotifier,
+        bodyNotifier: tracker.bodyNotifier,
+      ),
+    );
+
+    appModel.isProcessingEmbeddedSubtitles = true;
+    final OcrEngine engine = MlkitOcrEngine();
+    try {
+      tracker.step('Extracting ${track.label}...');
+      // The demux pass over a large file takes minutes on its own —
+      // surface ffmpeg's progress in the dialog until OCR takes over.
+      final int totalMs = _playerController.value.duration.inMilliseconds;
+      FlutterFFmpegConfig().enableStatisticsCallback((statistics) {
+        if (totalMs > 0) {
+          tracker.detail('Extracting... '
+              '${(statistics.time * 100 ~/ totalMs).clamp(0, 100)}%');
+        }
+      });
+      File srtFile = await SubtitleOcr.ocrTrack(
+        videoPath: _playerController.dataSource,
+        track: track,
+        engine: engine,
+        onProgress: (current, total) =>
+            tracker.detail('Recognising subtitle $current of $total...'),
+      );
+
+      tracker.step('Loading subtitles...');
+      SubtitleItem item = await SubtitleUtils.subtitlesFromFile(
+        file: srtFile,
+        type: SubtitleItemType.externalSubtitle,
+        metadata: track.sidecarSuffix,
+      );
+      await item.controller.initial();
+
+      _subtitleItems.add(item);
+      _subtitleItem = item;
+      _currentSubtitle.value = null;
+      widget.source.clearCurrentSentence();
+      refreshSubtitleWidget();
+      persistSubtitleSelection();
+      // Show the original bitmaps under the fresh OCR text for
+      // proofreading, and announce in the requested yellow style.
+      await enableBitmapSubtitleTrack(track);
+      if (mounted) {
+        showYellowFlash(
+            'OCR subtitles saved: ${path.basename(srtFile.path)}');
+      }
+    } catch (e) {
+      Fluttertoast.showToast(msg: 'Subtitle OCR failed: $e');
+    } finally {
+      FlutterFFmpegConfig().enableStatisticsCallback(null);
+      await engine.dispose();
+      appModel.isProcessingEmbeddedSubtitles = false;
+      navigator.pop();
+    }
   }
 
   Future<void> loadSavedFont() async {
