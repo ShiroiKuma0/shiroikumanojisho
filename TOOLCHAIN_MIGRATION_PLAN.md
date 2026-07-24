@@ -212,6 +212,18 @@ evidence.
 
 ### Phase 1 — Toolchain skeleton (Gradle files + SDK/env pins; ~1 session)
 
+> **Status 2026-07-24: done.** Two discoveries beyond the plan: (a) Flutter 3.44
+> requires `android.newDsl=false` in `gradle.properties` under AGP 9 (its own
+> migrator injects it on `flutter build`; temporary scaffolding like the
+> built-in-Kotlin escape hatch); (b) the legacy `applicationVariants`
+> rename/versionCodeOverride block was **deleted, not ported** — delivery reads
+> the Flutter-named `flutter-apk/` artifact and all ABIs share one versionCode,
+> so nothing consumed it (risk R5 eliminated). `:app` also dropped the
+> kotlin-android plugin + stdlib (no Kotlin sources). Gate result: our files
+> all evaluate; remaining configuration failures are legacy third-party
+> plugins (first: `:async_zip`, added to the Phase 2 bump list), which is
+> expected trench behavior — full configuration lands with Phase 2.
+
 1. `pubspec.yaml` environment → Dart `>=3.12.0 <4.0.0`, flutter `^3.44.0`.
 2. `android/settings.gradle` → declarative form: `pluginManagement {}` reading
    `flutter.sdk` from `local.properties`, `includeBuild(".../flutter_tools/gradle")`,
@@ -283,7 +295,8 @@ In this order (each step keeping `flutter pub get` resolvable before the next):
    still needed (the vendored plugin declared recognizers compileOnly; hosted may
    differ) — keep it if in doubt, it is harmless.
 6. **Mechanical bumps** — everything in the "Mechanical" class of the table above,
-   plus flutter_html 3.0.0 final and share_plus 13.
+   plus flutter_html 3.0.0 final, share_plus 13, and async_zip (0.1.0's Android
+   build breaks under AGP 9 — first configuration casualty in the Phase 1 gate).
 7. **Prune `dependency_overrides`:** drop `collection`, `ffi`, `http`, `logging`;
    keep `freezed_annotation`/`gap` until `spaces` is dealt with; keep
    `record_mp3_plus` flagged for retest-then-drop.

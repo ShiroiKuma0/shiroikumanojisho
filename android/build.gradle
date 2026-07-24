@@ -1,44 +1,54 @@
-buildscript {
-    ext.kotlin_version = '1.8.22'
-    repositories {
-        google()
-        mavenCentral()
-        maven { url "https://jitpack.io" }
-        maven { url 'https://maven.aliyun.com/repository/public' }
-        maven { url 'https://maven.aliyun.com/repository/central' }
-        maven { url 'https://maven.aliyun.com/repository/google' }
-        maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
-        maven { url 'https://maven.aliyun.com/repository/apache-snapshots' }
-    }
-    dependencies {
-        classpath 'com.android.tools.build:gradle:7.1.2'
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-    }
-}
 allprojects {
     repositories {
         google()
         mavenCentral()
+        // AnkiDroid API and RxLogs are published on JitPack only.
         maven { url "https://jitpack.io" }
-maven { url "$rootDir/local-repo" }
-        maven { url "https://maven.aliyun.com/repository/jcenter" }
-        maven { url 'https://maven.aliyun.com/repository/public' }
-        maven { url 'https://maven.aliyun.com/repository/central' }
-        maven { url 'https://maven.aliyun.com/repository/google' }
-        maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
-        maven { url 'https://maven.aliyun.com/repository/apache-snapshots' }
+        maven { url "$rootDir/local-repo" }
     }
 }
-rootProject.buildDir = '../build'
+
+def newBuildDir = rootProject.layout.buildDirectory.dir("../../build").get()
+rootProject.layout.buildDirectory.value(newBuildDir)
 subprojects {
-    project.buildDir = "${rootProject.buildDir}/${project.name}"
+    project.layout.buildDirectory.value(newBuildDir.dir(project.name))
 }
 subprojects {
     project.evaluationDependsOn(':app')
 }
-tasks.register("clean", Delete) {
-    delete rootProject.buildDir
+
+// AGP 8+ requires a `namespace` on every Android module. Legacy plugins
+// that predate the requirement declare only a manifest `package`; this
+// shim fills the namespace from the plugin's group so they still
+// configure. Plugins that already declare a namespace are untouched.
+subprojects {
+    def applyNamespaceShim = { project ->
+        if (project.hasProperty('android')) {
+            project.android {
+                if (namespace == null) {
+                    namespace project.group
+                }
+            }
+        }
+    }
+    // evaluationDependsOn(':app') above forces plugin projects to
+    // evaluate before the root project finishes, so some subprojects
+    // are already evaluated when this closure runs — afterEvaluate
+    // would throw on those; apply the shim directly instead.
+    if (project.state.executed) {
+        applyNamespaceShim(project)
+    } else {
+        project.afterEvaluate { applyNamespaceShim(project) }
+    }
 }
+
+tasks.register("clean", Delete) {
+    delete rootProject.layout.buildDirectory
+}
+
 ext {
+    // TODO(toolchain-migration Phase 2): remove together with the
+    // flutter_ffmpeg dependency — ffmpeg_kit_flutter_new selects its
+    // native variant through the package name, not this ext.
     flutterFFmpegPackage = "full-gpl-lts"
 }

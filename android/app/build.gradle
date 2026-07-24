@@ -1,21 +1,8 @@
-def localProperties = new Properties()
-def localPropertiesFile = rootProject.file('local.properties')
-if (localPropertiesFile.exists()) {
-    localPropertiesFile.withReader('UTF-8') { reader ->
-        localProperties.load(reader)
-    }
+plugins {
+    id "com.android.application"
+    // The Flutter Gradle Plugin must be applied after the Android plugin.
+    id "dev.flutter.flutter-gradle-plugin"
 }
-
-def flutterRoot = localProperties.getProperty('flutter.sdk')
-if (flutterRoot == null) {
-    throw new GradleException("Flutter SDK not found. Define location with flutter.sdk in the local.properties file.")
-}
-
-def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
-if (flutterVersionCode == null) {
-    flutterVersionCode = '1'
-}
-
 
 // Compute an Android `versionCode` that is strictly monotonic across
 // all builds — releases and dev iterations alike. Flutter's default
@@ -85,93 +72,41 @@ def computedVersionCode =
     pubspecPatch * 100 +
     pubspecBuildN
 
-apply plugin: 'com.android.application'
-apply plugin: 'kotlin-android'
-apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
-
 android {
-    compileSdkVersion 34
-    ndkVersion '21.4.7075529'
+    namespace "shiroikuma.jisho"
+    compileSdk flutter.compileSdkVersion
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
-    }
-
-    kotlinOptions {
-        jvmTarget = '1.8'
-    }
-
-    sourceSets {
-        main.java.srcDirs += 'src/main/kotlin'
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 
     defaultConfig {
         applicationId "shiroikuma.jisho"
         minSdkVersion 24
+        // targetSdk deliberately held at 32 through the toolchain
+        // migration — raising it is its own follow-up project (see
+        // TOOLCHAIN_MIGRATION_PLAN.md, decision 2).
         targetSdkVersion 32
         versionCode computedVersionCode
         versionName pubspecVersionName
     }
 
     buildTypes {
-      release {
-         minifyEnabled true
-         signingConfig signingConfigs.debug
-      }
+        release {
+            minifyEnabled true
+            signingConfig signingConfigs.debug
+        }
 
-      debug {
-        
-      }
-   }
-
-    packagingOptions {
-       // Fixes duplicate libraries build issue, 
-       // when your project uses more than one plugin that depend on C++ libs.
-        pickFirst 'lib/**/libc++_shared.so'
+        debug {
+        }
     }
 
-    applicationVariants.all { variant ->
-        variant.outputs.all { output ->
-            def appName = "jidoujisho_yuuna"
-            def buildType = variant.buildType.name
-            def architecture = output.getFilter(com.android.build.OutputFile.ABI)
-            def newName
-
-            if ("${architecture}" == "arm64-v8a") {
-                architecture = "arm64"
-            } else if ("${architecture}" == "armeabi-v7a") {
-                architecture = "armeabi"
-            }
-
-            if ("${architecture}" == "null") {
-                if (buildType == 'debug') {
-                    newName = "${appName}_${defaultConfig.versionName}-debug.apk"
-                } else {
-                    newName = "${appName}_${defaultConfig.versionName}.apk"
-                }
-
-                // Universal APK uses the computed code directly.
-                output.versionCodeOverride = project.android.defaultConfig.versionCode
-            } else {
-                if (buildType == 'debug') {
-                    newName = "${appName}_${defaultConfig.versionName}-${architecture}-debug.apk"
-                } else {
-                    newName = "${appName}_${defaultConfig.versionName}-${architecture}.apk"
-                }
-
-                outputFileName = newName
-                // All per-ABI variants share the same versionCode as
-                // the universal build. A given device installs only
-                // one ABI's APK, so no collision on the device. The
-                // previous code here added a per-ABI offset (1..3)
-                // to keep the codes distinct — that only matters
-                // when uploading every variant to a store backend
-                // like Google Play that rejects duplicates. This
-                // project distributes APKs directly without that
-                // constraint, so the offset is unnecessary.
-                output.versionCodeOverride = project.android.defaultConfig.versionCode
-            }
+    packagingOptions {
+        // Fixes duplicate libraries build issue, when your project
+        // uses more than one plugin that depend on C++ libs.
+        jniLibs {
+            pickFirsts += ['lib/**/libc++_shared.so']
         }
     }
 }
@@ -181,7 +116,6 @@ flutter {
 }
 
 dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     implementation 'com.github.ankidroid:Anki-Android:2.17alpha14'
     implementation 'com.github.umair13adil:RxLogs:v1.0.18'
     // Bundled ML Kit Japanese text-recognition model (~4 MB on arm64). The
