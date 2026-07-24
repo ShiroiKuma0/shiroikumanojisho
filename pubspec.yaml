@@ -31,7 +31,10 @@ dependencies:
   dart_mappable: ^4.0.0-dev.1
   device_info_plus: ^13.2.0
   dio: ^5.1.1
-  document_file_save_plus: ^2.0.0
+  document_file_save_plus:
+    # Vendored: jcenter() + embedded AGP-7 buildscript break Gradle 9;
+    # namespace added. See vendor/document_file_save_plus.
+    path: vendor/document_file_save_plus
   expandable: ^5.0.1
   external_app_launcher: ^4.0.3
   external_path: ^2.2.0
@@ -99,7 +102,10 @@ dependencies:
   # Community continuation of the deleted bnxm upstream; contains all
   # three fork patches verbatim.
   material_floating_search_bar_2: ^0.5.0
-  mecab_dart: ^0.1.3
+  mecab_dart:
+    # Vendored: jcenter() + embedded AGP-3.5 buildscript break Gradle 9;
+    # namespace added. See vendor/mecab_dart.
+    path: vendor/mecab_dart
   multi_value_listenable_builder: ^0.0.2
   network_to_file_image: ^7.0.0
   nowplaying:
@@ -153,6 +159,10 @@ dependencies:
   youtube_explode_dart: ^3.1.0
   
 dependency_overrides:
+  mecab_dart: # ve_dart requires hosted mecab_dart; force the vendored copy
+    path: vendor/mecab_dart
+  flutter_inappwebview_android: # hosted 1.1.3 + one-line AGP 9 proguard fix
+    path: vendor/flutter_inappwebview_android
   ffi: ^2.2.0 # Caused by mecab_dart 0.1.3 (via ve_dart) pinning ffi ^1
   mime: ^2.0.0 # Caused by local_assets_server 2.0.2+12 (latest) pinning mime ^1; share_plus 13 needs ^2
   path: ^1.9.1 # Caused by the subtitle fork pinning path <1.9
