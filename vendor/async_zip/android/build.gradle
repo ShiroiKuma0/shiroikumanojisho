@@ -1,0 +1,23 @@
+// Vendored for shiroikumanojisho (toolchain migration): the upstream
+// buildscript block pinned AGP 4.1.3, which cannot load under the
+// app's Gradle 9 / AGP 9 build — plugin projects inherit AGP from the
+// main build via the Flutter plugin loader, so the block is removed.
+group "ch.perron2.async_zip"
+version "1.0"
+
+apply plugin: "com.android.library"
+
+android {
+    namespace "ch.perron2.async_zip"
+    compileSdkVersion 34
+
+    defaultConfig {
+        minSdkVersion 21
+    }
+
+    externalNativeBuild {
+        cmake {
+            path "CMakeLists.txt"
+        }
+    }
+}

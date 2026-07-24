@@ -1,0 +1,29 @@
+name: filesystem_picker
+description: FileSystem file or folder picker dialog. Allows the user to browse the file system and pick a folder or file.
+version: 2.0.0-nullsafety.0
+# author: Andy Chentsov <chentsov@gmail.com>
+homepage: https://github.com/andyduke/filesystem_picker/tree/master/package
+repository: https://github.com/andyduke/filesystem_picker
+issue_tracker: https://github.com/andyduke/filesystem_picker/issues
+
+# Vendored for shiroikumanojisho (toolchain migration): SDK upper
+# bound widened for Dart 3 and the unused (discontinued) pedantic
+# dependency dropped. Source: arianneorpilla/filesystem_picker fork,
+# branch jidoujisho, package/ subtree — carries the multi-root /
+# usedFiles-highlighting / marquee rewrite the app depends on.
+environment:
+  sdk: '>=2.12.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  path: ^1.8.0
+  marquee: ^2.2.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+
+flutter:

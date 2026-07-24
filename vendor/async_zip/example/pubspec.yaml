@@ -1,0 +1,33 @@
+name: async_zip_example
+description: Demonstrates how to use the async_zip plugin.
+version: 0.0.1+1
+publish_to: 'none'
+
+environment:
+  sdk: ^3.0.0
+  flutter: ">=1.20.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  async_zip:
+    # When depending on this package from a real application you should use:
+    #   async_zip: ^x.y.z
+    # See https://dart.dev/tools/pub/dependencies#version-constraints
+    # The example app is bundled with the plugin so we use a path dependency on
+    # the parent directory to use the current plugin's version.
+    path: ../
+
+  # The following adds the Cupertino Icons font to your application.
+  # Use with the CupertinoIcons class for iOS style icons.
+  cupertino_icons: ^1.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/

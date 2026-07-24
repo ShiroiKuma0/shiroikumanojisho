@@ -1,0 +1,53 @@
+group 'com.bhikadia.receive_intent'
+version '1.0-SNAPSHOT'
+
+apply plugin: 'com.android.library'
+
+// For Flutter < 3.44 (AGP < 9): apply KGP manually since Flutter's built-in Kotlin
+// is not available in those environments.
+//
+// For Flutter >= 3.44 (AGP >= 9): KGP is injected by Flutter's built-in Kotlin mechanism.
+// We deliberately use pluginManager.apply() instead of `apply plugin: 'kotlin-android'`
+// so that Flutter's KGP regex scanner does NOT find a manual declaration and correctly
+// triggers its built-in Kotlin injection path.
+def agpMajor = com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION.tokenize('.')[0] as int
+if (agpMajor < 9) {
+    pluginManager.apply("kotlin-android")
+}
+
+android {
+    if (project.android.hasProperty("namespace")) {
+        namespace 'com.bhikadia.receive_intent'
+    }
+
+    compileSdk 35
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    sourceSets {
+        main.java.srcDirs += 'src/main/kotlin'
+    }
+    defaultConfig {
+        minSdkVersion 16
+    }
+}
+
+// Configure JVM target without relying on the host app.
+// pluginManager.withPlugin() is a lazy callback: it fires as soon as KGP is applied,
+// whether that happens immediately above (AGP < 9) or later via Flutter's built-in
+// Kotlin injection (AGP >= 9). This avoids the "method not found" error that a bare
+// kotlin {} block would throw when evaluated before KGP is applied.
+pluginManager.withPlugin("org.jetbrains.kotlin.android") {
+    kotlin {
+        compilerOptions {
+            jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+        }
+    }
+}
+
+dependencies {
+    implementation "androidx.annotation:annotation:1.8.2"
+}

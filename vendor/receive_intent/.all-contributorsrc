@@ -1,0 +1,91 @@
+{
+  "projectName": "receive_intent",
+  "projectOwner": "daadu",
+  "repoType": "github",
+  "repoHost": "https://github.com",
+  "files": [
+    "README.md"
+  ],
+  "imageSize": 100,
+  "commit": false,
+  "commitConvention": "none",
+  "contributors": [
+    {
+      "login": "daadu",
+      "name": "Harsh Bhikadia",
+      "avatar_url": "https://avatars.githubusercontent.com/u/4963236?v=4",
+      "profile": "https://bhikadia.com/",
+      "contributions": [
+        "ideas",
+        "code"
+      ]
+    },
+    {
+      "login": "TheLastGimbus",
+      "name": "Mateusz Soszyński",
+      "avatar_url": "https://avatars.githubusercontent.com/u/40139196?v=4",
+      "profile": "https://the.lastgimbus.com/",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "luckyrat",
+      "name": "Chris Tomlinson",
+      "avatar_url": "https://avatars.githubusercontent.com/u/1211375?v=4",
+      "profile": "https://github.com/luckyrat",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "eric-nextsense",
+      "name": "eric-nextsense",
+      "avatar_url": "https://avatars.githubusercontent.com/u/78733538?v=4",
+      "profile": "https://github.com/eric-nextsense",
+      "contributions": [
+        "bug",
+        "code"
+      ]
+    },
+    {
+      "login": "tneotia",
+      "name": "Tanay Neotia",
+      "avatar_url": "https://avatars.githubusercontent.com/u/50850142?v=4",
+      "profile": "https://github.com/tneotia",
+      "contributions": [
+        "bug",
+        "code"
+      ]
+    },
+    {
+      "login": "GeertJohan",
+      "name": "Geert-Johan Riemer",
+      "avatar_url": "https://avatars.githubusercontent.com/u/564501?v=4",
+      "profile": "https://stack11.io/",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "derrickgw",
+      "name": "Derrick Gibelyou",
+      "avatar_url": "https://avatars.githubusercontent.com/u/26449929?v=4",
+      "profile": "https://github.com/derrickgw",
+      "contributions": [
+        "code"
+      ]
+    },
+    {
+      "login": "nacuta",
+      "name": "Nacuta Claudiu",
+      "avatar_url": "https://avatars.githubusercontent.com/u/3910139?v=4",
+      "profile": "https://github.com/nacuta",
+      "contributions": [
+        "bug"
+      ]
+    }
+  ],
+  "contributorsPerLine": 7,
+  "badgeTemplate": "<a href=\"#contributors-\"><img src=\"https://img.shields.io/badge/all_contributors-<%= contributors.length %>-orange.svg\" alt=\"All Contributors\" /></a>"
+}

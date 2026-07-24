@@ -1,0 +1,32 @@
+name: nowplaying
+description: A plugin to reveal metadata for the currently playing audio track
+repository: https://github.com/shinyford/nowplaying
+version: 2.0.6
+
+environment:
+  sdk: ">=2.12.0 <3.0.0"
+  flutter: ">=1.12.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  package_info: ^2.0.0
+  path_provider: ^2.0.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+# For information on the generic Dart part of this file, see the
+# following page: https://dart.dev/tools/pub/pubspec
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.gomes.nowplaying
+        pluginClass: NowPlayingPlugin
+      ios:
+        pluginClass: NowPlayingPlugin
+
+  assets:
+    - assets/apple_music.png

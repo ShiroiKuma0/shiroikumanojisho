@@ -1,0 +1,19 @@
+// Vendored for shiroikumanojisho (toolchain migration): the upstream
+// buildscript block pinned AGP 3.5.4, which cannot load under the
+// app's Gradle 9 / AGP 9 build — plugin projects inherit AGP from the
+// main build via the Flutter plugin loader, so the block is removed.
+// namespace added (AGP 8+ requirement); lintOptions DSL removed
+// (deleted in AGP 8).
+group 'com.gomes.NowPlaying'
+version '1.0'
+
+apply plugin: 'com.android.library'
+
+android {
+    namespace 'com.gomes.NowPlaying'
+    compileSdkVersion 34
+
+    defaultConfig {
+        minSdkVersion 21
+    }
+}
