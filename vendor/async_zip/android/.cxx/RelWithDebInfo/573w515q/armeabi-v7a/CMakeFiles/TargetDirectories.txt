@@ -1,0 +1,3 @@
+/home/shiroikuma/git/shiroikuma-jisho/vendor/async_zip/android/.cxx/RelWithDebInfo/573w515q/armeabi-v7a/CMakeFiles/async_zip.dir
+/home/shiroikuma/git/shiroikuma-jisho/vendor/async_zip/android/.cxx/RelWithDebInfo/573w515q/armeabi-v7a/CMakeFiles/edit_cache.dir
+/home/shiroikuma/git/shiroikuma-jisho/vendor/async_zip/android/.cxx/RelWithDebInfo/573w515q/armeabi-v7a/CMakeFiles/rebuild_cache.dir

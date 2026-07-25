@@ -1,0 +1,1 @@
+/home/shiroikuma/git/shiroikuma-jisho/build/async_zip/intermediates/cxx/RelWithDebInfo/573w515q/obj/x86

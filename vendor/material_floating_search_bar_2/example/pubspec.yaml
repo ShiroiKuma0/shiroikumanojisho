@@ -1,0 +1,37 @@
+name: example
+description: Example project for the material_floating_search_bar
+version: 1.0.0+1
+publish_to: none
+
+environment:
+  sdk: ">=2.17.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^0.13.5
+  implicitly_animated_reorderable_list_2: ^0.5.1
+  material_design_icons_flutter: ^6.0.7096
+  material_floating_search_bar_2:
+    path: ../
+  provider: ^6.0.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/map.jpg
+  
+  fonts:
+    - family: Montserrat
+      fonts:
+        - asset: assets/fonts/Montserrat/Montserrat-SemiBold.ttf
+          weight: 500
+        - asset: assets/fonts/Montserrat/Montserrat-ExtraBold.ttf
+          weight: 600
+        - asset: assets/fonts/Montserrat/Montserrat-Black.ttf
+          weight: 700

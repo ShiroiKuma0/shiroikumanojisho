@@ -11,9 +11,17 @@ plugins {
 // has code 1 — installer rejects as a downgrade).
 //
 // Pack `X.Y.Z+N` into a single integer with per-component slots:
-//   code = X * 1_000_000 + Y * 10_000 + Z * 100 + min(N, 99)
-// Each axis has comfortable headroom: 99 patches per minor, 99
-// minors per major, 99 dev iterations per patch.
+//   code = X * 100_000_000 + Y * 1_000_000 + Z * 10_000 + min(N, 99)
+// Headroom: X ≤ 21 (int32 ceiling), 99 minors, 99 patches, 99 dev
+// iterations. The 1_000s digit is deliberately left at zero: under
+// `--split-per-abi` Flutter's Gradle plugin unconditionally adds
+// `abi * 1000` (armeabi-v7a 1, arm64-v8a 2, x86-64 4) through the
+// legacy versionCodeOverride, whose first write FINALIZES the
+// property — it cannot be overridden from the app build (verified
+// 2026-07-25 on Flutter 3.44.8 / AGP 9; both the new-API
+// output.versionCode.set and a later afterEvaluate write lose). So
+// the scheme reserves that digit as Flutter's ABI slot instead of
+// fighting it: an arm64 build of 1.4.0+26 reads 1_04_00_2_026.
 //
 // IMPORTANT: the `N` value is read DIRECTLY from pubspec.yaml here,
 // not from `flutter.versionCode`, because Flutter smooshes bare
@@ -22,19 +30,17 @@ plugins {
 // (+1, N=1). Reading pubspec.yaml directly preserves the
 // distinction: bare → N=0, `+K` → N=K.
 //
-// Examples:
-//   1.0.0+25   → 1_000_025    (dev iteration)
-//   1.0.1      → 1_000_100    (release — cleanly > 1.0.0+25)
-//   1.0.1+1    → 1_000_101    (first dev after release, cleanly >)
-//   1.0.1+5    → 1_000_105    (dev)
-//   1.0.2      → 1_000_200    (next release, cleanly > 1.0.1+99)
-//   1.1.0      → 1_010_000
-//   2.0.0      → 2_000_000
+// Examples (base code; the shipped arm64 APK carries base + 2_000):
+//   1.0.0+25   → 100_000_025    (dev iteration)
+//   1.0.1      → 100_010_000    (release — cleanly > 1.0.0+99)
+//   1.0.1+1    → 100_010_001    (first dev after release, cleanly >)
+//   1.4.0+26   → 104_000_026
+//   2.0.0      → 200_000_000
 //
-// One-time migration: builds before this change used formula
-// `100 * N + abi_offset`, max ever produced was ~2500. New scheme
-// starts at 1_000_000+, so every new build is comfortably greater
-// than every legacy one.
+// One-time migrations: pre-2026-06 builds used `100 * N +
+// abi_offset` (max ~2500); the 2026-06 scheme used X*1e6 + Y*1e4 +
+// Z*100 + N (max shipped: 1_040_025). This scheme starts at
+// 100_000_000+, comfortably greater than both.
 def pubspecFile = file("${rootProject.projectDir}/../pubspec.yaml")
 def pubspecVersionLine = pubspecFile.readLines().find { it =~ /^version:\s/ }
 if (pubspecVersionLine == null) {
@@ -67,14 +73,21 @@ def pubspecVersionName = pubspecVersionMatcher[0][4] != null
 // the dev slot from spilling into the next patch's slot.
 if (pubspecBuildN > 99) pubspecBuildN = 99
 def computedVersionCode =
-    pubspecMajor * 1000000 +
-    pubspecMinor * 10000 +
-    pubspecPatch * 100 +
+    pubspecMajor * 100000000 +
+    pubspecMinor * 1000000 +
+    pubspecPatch * 10000 +
     pubspecBuildN
 
 android {
     namespace "shiroikuma.jisho"
     compileSdk flutter.compileSdkVersion
+
+    buildFeatures {
+        // AGP 8+ stops generating BuildConfig by default;
+        // MainActivity uses BuildConfig.APPLICATION_ID for the
+        // FileProvider authority.
+        buildConfig true
+    }
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -96,6 +109,7 @@ android {
         release {
             minifyEnabled true
             signingConfig signingConfigs.debug
+            proguardFiles 'proguard-rules.pro'
         }
 
         debug {
@@ -114,6 +128,7 @@ android {
 flutter {
     source '../..'
 }
+
 
 dependencies {
     implementation 'com.github.ankidroid:Anki-Android:2.17alpha14'

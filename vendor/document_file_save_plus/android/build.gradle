@@ -10,6 +10,16 @@ apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 
 android {
+    // Match Java and Kotlin JVM targets (KGP 2.3 defaults to the
+    // toolchain JDK, javac to 11 -- Gradle rejects the mismatch).
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
     namespace 'com.advoques.document_file_save_plus'
     compileSdkVersion 34
 

@@ -1,5 +1,13 @@
 cmake_minimum_required(VERSION 3.4.1)  # for example
 
+# Vendored for shiroikumanojisho (toolchain migration): the bundled
+# MeCab sources are C++98-era. NDK 28 defaults to C++17, where the
+# `register` storage class and std::unary/binary_function are gone --
+# pin C++14 (and silence the register warning) for this module only.
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+add_compile_options(-Wno-register -Wno-deprecated-declarations)
+
 add_library( mecab_dart
 
              # Sets the library as a shared library.

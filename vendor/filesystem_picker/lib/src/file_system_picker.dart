@@ -312,7 +312,7 @@ class _FilesystemPickerState extends State<FilesystemPicker> {
       child: Theme(
         data: ThemeData(
           textTheme: TextTheme(
-            button: TextStyle(
+            labelLarge: TextStyle(
               color: Theme.of(context).textTheme.titleLarge?.color ??
                   (widget.themeData ?? Theme.of(context))
                       .primaryTextTheme
