@@ -9,6 +9,7 @@ import 'package:restart_app/restart_app.dart';
 
 import 'package:shiroikumanojisho/models.dart';
 import 'package:shiroikumanojisho/pages.dart';
+import 'package:shiroikumanojisho/src/utils/misc/app_export_import.dart';
 import 'package:shiroikumanojisho/src/utils/ui_settings/ui_settings_export.dart';
 
 /// The 白い熊 辞書 UI settings page: every attribute of the black/yellow
@@ -603,12 +604,29 @@ class _ExportImportPanelState extends State<_ExportImportPanel> {
   Color get _accent => Color(ui.textColor);
   Color get _border => Color(ui.borderColor);
 
+  static const String _categoryAppData = 'App data (cross-device bundle)';
+  static const String _categoryArtifacts =
+      'Generated artifacts (OCR volumes · bitmaps · fonts)';
+
+  /// Settings categories all on; artifacts on; the heavyweight
+  /// cross-device bundle deliberately OFF by default.
   late final Set<String> _selected = {
     for (final category in UiSettingsExport.categories) category.key,
+    _categoryArtifacts,
   };
 
-  bool get _allSelected =>
-      _selected.length == UiSettingsExport.categories.length;
+  List<String> get _allCategories => [
+        for (final category in UiSettingsExport.categories) category.key,
+        _categoryAppData,
+        _categoryArtifacts,
+      ];
+
+  bool get _allSelected => _selected.length == _allCategories.length;
+
+  Set<String> get _selectedSettings => {
+        for (final category in UiSettingsExport.categories)
+          if (_selected.contains(category.key)) category.key,
+      };
 
   @override
   Widget build(BuildContext context) {
@@ -709,24 +727,21 @@ class _ExportImportPanelState extends State<_ExportImportPanel> {
                   setState(() {
                     _selected.clear();
                     if (checked ?? false) {
-                      _selected.addAll([
-                        for (final category in UiSettingsExport.categories)
-                          category.key,
-                      ]);
+                      _selected.addAll(_allCategories);
                     }
                   });
                 },
               ),
-              for (final category in UiSettingsExport.categories)
+              for (final category in _allCategories)
                 _checkboxRow(
-                  label: category.key,
-                  value: _selected.contains(category.key),
+                  label: category,
+                  value: _selected.contains(category),
                   onChanged: (checked) {
                     setState(() {
                       if (checked ?? false) {
-                        _selected.add(category.key);
+                        _selected.add(category);
                       } else {
-                        _selected.remove(category.key);
+                        _selected.remove(category);
                       }
                     });
                   },
@@ -807,12 +822,40 @@ class _ExportImportPanelState extends State<_ExportImportPanel> {
       return;
     }
     try {
-      final file = UiSettingsExport.exportTo(
-        box: widget.appModel.preferences,
-        directory: ui.exportDirectory,
-        selectedCategories: _selected,
-        appVersion: widget.appModel.packageInfo.version,
-      );
+      final saved = <String>[];
+      if (_selectedSettings.isNotEmpty) {
+        final file = UiSettingsExport.exportTo(
+          box: widget.appModel.preferences,
+          directory: ui.exportDirectory,
+          selectedCategories: _selectedSettings,
+          appVersion: widget.appModel.packageInfo.version,
+        );
+        saved.add(path.basename(file.path));
+      }
+      if (_selected.contains(_categoryArtifacts)) {
+        final zip = await UiSettingsExport.exportArtifacts(
+          directory: ui.exportDirectory,
+          appVersion: widget.appModel.packageInfo.version,
+        );
+        saved.add(zip == null
+            ? 'Artifacts: nothing to export yet.'
+            : path.basename(zip.path));
+      }
+      if (_selected.contains(_categoryAppData)) {
+        // The heavyweight bundle drives its own progress dialog;
+        // quiet suppresses its success dialog so ours runs the chain.
+        final bundle = await AppExportImport.exportData(
+          appModel: widget.appModel,
+          context: context,
+          outputDirectory: ui.exportDirectory,
+          quiet: true,
+        );
+        if (bundle == null) {
+          // Its own failure dialog already showed; keep the panel.
+          return;
+        }
+        saved.add(path.basename(bundle.path));
+      }
       widget.onExported();
       if (!mounted) {
         return;
@@ -828,7 +871,7 @@ class _ExportImportPanelState extends State<_ExportImportPanel> {
                 fontSize: 19, fontWeight: FontWeight.bold, color: _accent),
           ),
           content: Text(
-            'Saved:\n${path.basename(file.path)}',
+            'Saved:\n${saved.join('\n')}',
             style: TextStyle(fontSize: 14, color: _accent),
           ),
           actions: [
@@ -854,9 +897,12 @@ class _ExportImportPanelState extends State<_ExportImportPanel> {
       return;
     }
     // Choose among the directory's exports, newest first; fall back to
-    // a file picker when no directory is set.
+    // a file picker when no directory is set. Only needed when settings
+    // categories are ticked — artifacts/bundle use latest-of-kind.
     File? file;
-    if (ui.exportDirectory.isNotEmpty) {
+    if (_selectedSettings.isEmpty) {
+      // No settings JSON wanted.
+    } else if (ui.exportDirectory.isNotEmpty) {
       final dir = Directory(ui.exportDirectory);
       final candidates = !dir.existsSync()
           ? <File>[]
@@ -872,10 +918,14 @@ class _ExportImportPanelState extends State<_ExportImportPanel> {
                 .statSync()
                 .modified
                 .compareTo(a.statSync().modified)));
-      if (candidates.isEmpty) {
+      if (candidates.isEmpty && _selected.length == _selectedSettings.length) {
         Fluttertoast.showToast(msg: 'No export in this directory yet.');
         return;
       }
+      if (candidates.isEmpty) {
+        // Settings JSON missing but artifacts/bundle still wanted.
+        file = null;
+      } else
       file = await showDialog<File>(
         context: context,
         builder: (dialogContext) => AlertDialog(
@@ -913,23 +963,57 @@ class _ExportImportPanelState extends State<_ExportImportPanel> {
         file = File(pickedPath);
       }
     }
-    if (file == null) {
+    final wantsSettings = _selectedSettings.isNotEmpty;
+    if (wantsSettings && file == null) {
       return;
     }
 
-    Map<String, int> summary;
+    final summary = <String, int>{};
     try {
-      summary = UiSettingsExport.importFrom(
-        box: widget.appModel.preferences,
-        file: file,
-        selectedCategories: _selected,
-      );
+      if (wantsSettings && file != null) {
+        summary.addAll(UiSettingsExport.importFrom(
+          box: widget.appModel.preferences,
+          file: file,
+          selectedCategories: _selectedSettings,
+        ));
+      }
+      if (_selected.contains(_categoryArtifacts)) {
+        final archive =
+            UiSettingsExport.latestArtifacts(ui.exportDirectory);
+        if (archive == null) {
+          summary[_categoryArtifacts] = 0;
+        } else {
+          await UiSettingsExport.importArtifacts(archive: archive);
+          summary[_categoryArtifacts] = 1;
+        }
+      }
     } catch (e) {
       Fluttertoast.showToast(msg: 'Import failed: $e');
       return;
     }
     await ui.loadExternalFonts();
     widget.appModel.notifyListeners();
+
+    // The cross-device bundle import runs LAST: it confirms, replaces
+    // the app's data wholesale, and exits the app itself — no chain
+    // to close after it.
+    if (_selected.contains(_categoryAppData)) {
+      final bundle = UiSettingsExport.latestBundle(ui.exportDirectory);
+      if (bundle == null) {
+        Fluttertoast.showToast(
+            msg: 'No cross-device bundle in this directory yet.');
+        return;
+      }
+      if (!mounted) {
+        return;
+      }
+      await AppExportImport.importData(
+        appModel: widget.appModel,
+        context: context,
+        bundle: bundle,
+      );
+      return;
+    }
 
     if (!mounted) {
       return;

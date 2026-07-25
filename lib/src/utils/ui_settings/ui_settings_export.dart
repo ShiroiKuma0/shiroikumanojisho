@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter_archive/flutter_archive.dart';
 import 'package:hive/hive.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 
 /// Category-split export/import of the app's settings (the flat Hive
 /// `appModel` box), modelled on the Kōjiki export engine: JSON per
@@ -12,6 +14,20 @@ import 'package:path/path.dart' as path;
 class UiSettingsExport {
   /// Export filename prefix — the latest-export scan filters on this.
   static const String exportPrefix = 'shiroikuma-jisho-ui_';
+
+  /// Generated-artifacts archive prefix (scanned-PDF OCR volumes,
+  /// subtitle-OCR bitmap stores, imported fonts).
+  static const String artifactsPrefix = 'shiroikuma-jisho-artifacts_';
+
+  /// Cross-device bundle prefix (AppExportImport's own naming).
+  static const String bundlePrefix = 'shiroikumanojisho_export_';
+
+  /// App-documents subdirectories that count as generated artifacts.
+  static const List<String> artifactDirectories = [
+    'scannedPdf',
+    'ocrSubtitles',
+    'fonts',
+  ];
 
   /// Keys that never travel: device-local paths and machine state.
   static const List<String> _excludedKeys = [
@@ -101,8 +117,21 @@ class UiSettingsExport {
     }
   }
 
-  /// Newest export file in [directory], or null.
-  static File? latestExport(String directory) {
+  /// Newest settings-export file in [directory], or null.
+  static File? latestExport(String directory) =>
+      latestMatching(directory, prefix: exportPrefix, suffix: '.json');
+
+  /// Newest artifacts archive in [directory], or null.
+  static File? latestArtifacts(String directory) =>
+      latestMatching(directory, prefix: artifactsPrefix, suffix: '.zip');
+
+  /// Newest cross-device bundle in [directory], or null.
+  static File? latestBundle(String directory) =>
+      latestMatching(directory, prefix: bundlePrefix, suffix: '.zip');
+
+  /// Newest file in [directory] matching [prefix]/[suffix], or null.
+  static File? latestMatching(String directory,
+      {required String prefix, required String suffix}) {
     if (directory.isEmpty) {
       return null;
     }
@@ -117,7 +146,7 @@ class UiSettingsExport {
         continue;
       }
       final name = path.basename(entity.path);
-      if (!name.startsWith(exportPrefix) || !name.endsWith('.json')) {
+      if (!name.startsWith(prefix) || !name.endsWith(suffix)) {
         continue;
       }
       final modified = entity.statSync().modified;
@@ -127,6 +156,56 @@ class UiSettingsExport {
       }
     }
     return newest;
+  }
+
+  /// Zip the generated in-app artifacts ([artifactDirectories] under
+  /// app documents — OCR'd PDF volumes with their corrections, subtitle
+  /// OCR bitmap stores, imported fonts) into [directory]. Returns the
+  /// archive, or null when there is nothing to export.
+  static Future<File?> exportArtifacts({
+    required String directory,
+    required String appVersion,
+    void Function(String)? onProgress,
+  }) async {
+    final appDocDir = await getApplicationDocumentsDirectory();
+    final files = <File>[];
+    for (final name in artifactDirectories) {
+      final dir = Directory(path.join(appDocDir.path, name));
+      if (!dir.existsSync()) {
+        continue;
+      }
+      files.addAll(dir.listSync(recursive: true).whereType<File>());
+    }
+    if (files.isEmpty) {
+      return null;
+    }
+    final timestamp =
+        DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now());
+    final zip = File(path.join(
+        directory, '$artifactsPrefix${appVersion}_$timestamp.zip'));
+    await ZipFile.createFromFiles(
+      sourceDir: appDocDir,
+      files: files,
+      zipFile: zip,
+    );
+    return zip;
+  }
+
+  /// Extract an artifacts archive back into app documents, overwriting
+  /// same-named files (merge — nothing else is deleted).
+  static Future<void> importArtifacts({
+    required File archive,
+    void Function(String)? onProgress,
+  }) async {
+    final appDocDir = await getApplicationDocumentsDirectory();
+    await ZipFile.extractToDirectory(
+      zipFile: archive,
+      destinationDir: appDocDir,
+      onExtracting: (entry, progress) {
+        onProgress?.call('${progress.toStringAsFixed(0)}%');
+        return ZipFileOperation.includeItem;
+      },
+    );
   }
 
   /// Write the selected [selectedCategories] of [box] to a timestamped

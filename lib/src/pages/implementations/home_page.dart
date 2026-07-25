@@ -361,29 +361,33 @@ class _HomePageState extends BasePageState<HomePage>
     );
   }
 
-  Widget buildShowMenuButton() {
-    // The long-press detector wraps the popup button: tap opens the
-    // menu as before, long-press jumps straight to the 白い熊 辞書 UI
-    // page — the sister repos' overflow-icon gesture.
-    return GestureDetector(
-      onLongPress: openUiSettingsPage,
-      child: buildShowMenuPopupButton(),
-    );
-  }
+  /// Where the last hamburger tap landed, for positioning the menu.
+  TapDownDetails? _menuTapDown;
 
-  Widget buildShowMenuPopupButton() {
-    return PopupMenuButton<VoidCallback>(
-      splashRadius: 20,
-      padding: EdgeInsets.zero,
-      tooltip: t.show_menu,
-      icon: Icon(
-        Icons.more_vert,
-        color: theme.iconTheme.color,
-        size: 24,
+  Widget buildShowMenuButton() {
+    // Not a PopupMenuButton: that widget always wraps itself in a
+    // Tooltip whose long-press recognizer wins the gesture arena, so
+    // a long-press could never reach us. A plain InkWell drives the
+    // same positioned showMenu via [openMenu]; long-press jumps
+    // straight to the 白い熊 辞書 UI page — the sister repos'
+    // overflow-icon gesture.
+    return InkWell(
+      customBorder: const CircleBorder(),
+      onTapDown: (details) => _menuTapDown = details,
+      onTap: () {
+        if (_menuTapDown != null) {
+          openMenu(_menuTapDown!);
+        }
+      },
+      onLongPress: openUiSettingsPage,
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Icon(
+          Icons.more_vert,
+          color: theme.iconTheme.color,
+          size: 24,
+        ),
       ),
-      color: Theme.of(context).popupMenuTheme.color,
-      onSelected: (value) => value(),
-      itemBuilder: (context) => getMenuItems(),
     );
   }
 
@@ -889,22 +893,6 @@ class _HomePageState extends BasePageState<HomePage>
         label: 'Restore data',
         icon: Icons.restore,
         action: () => AppBackupRestore.restoreBackup(
-          appModel: appModel,
-          context: context,
-        ),
-      ),
-      buildPopupItem(
-        label: 'Export data (cross-device)',
-        icon: Icons.upload_file,
-        action: () => AppExportImport.exportData(
-          appModel: appModel,
-          context: context,
-        ),
-      ),
-      buildPopupItem(
-        label: 'Import data (cross-device)',
-        icon: Icons.download_for_offline,
-        action: () => AppExportImport.importData(
           appModel: appModel,
           context: context,
         ),

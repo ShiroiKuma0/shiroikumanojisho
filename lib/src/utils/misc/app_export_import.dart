@@ -77,9 +77,11 @@ class AppExportImport {
 
   /// Build a portable export bundle. Saves a ZIP under
   /// `/storage/emulated/0/tmp/` and offers a share dialog.
-  static Future<void> exportData({
+  static Future<File?> exportData({
     required AppModel appModel,
     required BuildContext context,
+    String outputDirectory = '/storage/emulated/0/tmp',
+    bool quiet = false,
   }) async {
     final navigator = Navigator.of(context);
     final log = _ExLog.create('export');
@@ -109,7 +111,7 @@ class AppExportImport {
 
       // External storage so we are not fighting the app data
       // partition during a possibly-large export.
-      final tmpRoot = Directory('/storage/emulated/0/tmp');
+      final tmpRoot = Directory(outputDirectory);
       if (!tmpRoot.existsSync()) tmpRoot.createSync(recursive: true);
       final timestamp =
           DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now());
@@ -255,6 +257,9 @@ class AppExportImport {
 
       if (navigator.canPop()) navigator.pop();
 
+      if (quiet) {
+        return zipFile;
+      }
       if (context.mounted) {
         showDialog(
           context: context,
@@ -281,6 +286,7 @@ class AppExportImport {
           ),
         );
       }
+      return zipFile;
     } catch (e, st) {
       log.error('export failed: $e\n$st');
       log.close();
@@ -310,6 +316,7 @@ class AppExportImport {
           ),
         );
       }
+      return null;
     }
   }
 
@@ -323,23 +330,27 @@ class AppExportImport {
   static Future<void> importData({
     required AppModel appModel,
     required BuildContext context,
+    File? bundle,
   }) async {
     final log = _ExLog.create('import');
     Directory? extractDir;
     try {
       log.write('=== import start ===');
 
-      final bundlePath = await Navigator.of(context).push<String>(
-        MaterialPageRoute(
-          builder: (_) => FolderFilePicker(
-            appModel: appModel,
-            allowedExtensions: const ['.zip'],
-            fileIcon: Icons.unarchive,
-            title: 'Pick export bundle',
-            initialDir: '/storage/emulated/0/tmp',
+      String? bundlePath = bundle?.path;
+      if (bundlePath == null) {
+        bundlePath = await Navigator.of(context).push<String>(
+          MaterialPageRoute(
+            builder: (_) => FolderFilePicker(
+              appModel: appModel,
+              allowedExtensions: const ['.zip'],
+              fileIcon: Icons.unarchive,
+              title: 'Pick export bundle',
+              initialDir: '/storage/emulated/0/tmp',
+            ),
           ),
-        ),
-      );
+        );
+      }
       if (bundlePath == null) {
         log.write('user cancelled at picker');
         log.close();
@@ -360,7 +371,7 @@ class AppExportImport {
         builder: (ctx) => AlertDialog(
           title: const Text('Import bundle'),
           content: Text(
-              'Import from:\n${path.basename(bundlePath)}\n\n'
+              'Import from:\n${path.basename(bundlePath!)}\n\n'
               'This will REPLACE all current dictionaries, books, '
               'reading progress, AnkiMappings, audio history, and '
               'preferences. The app will close after import.\n\n'
@@ -673,6 +684,7 @@ class AppExportImport {
           ),
         );
       }
+      return null;
     }
   }
 
@@ -1832,6 +1844,7 @@ class AppExportImport {
           ),
         );
       }
+      return null;
     }
   }
 
