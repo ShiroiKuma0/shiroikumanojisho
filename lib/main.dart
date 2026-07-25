@@ -31,6 +31,11 @@ void main() {
     /// Necessary to initialise Flutter when running native code before
     /// starting the application.
     final binding = WidgetsFlutterBinding.ensureInitialized();
+    // Startup breadcrumbs: plain print() reaches logcat in release
+    // builds, unlike the FlutterLogs-only zone handler below. Added
+    // while chasing the 1.4.0+29 black-screen hang (toolchain
+    // migration); cheap enough to keep.
+    print('[startup] binding initialised');
 
     /// Install the broadcast-intent → Dart bridge so external
     /// tools (Tasker, etc.) can drive playback controls. The
@@ -42,6 +47,7 @@ void main() {
     PlaybackIntentBridge.initialise();
 
     /// Initialise local file-based logging.
+    print('[startup] initLogs...');
     await FlutterLogs.initLogs(
       logLevelsEnabled: [
         LogLevel.INFO,
@@ -54,6 +60,7 @@ void main() {
       logTypesEnabled: ['device', 'network', 'errors'],
       logFileExtension: LogFileExtension.LOG,
     );
+    print('[startup] initLogs done');
 
     /// Ensure no pop-in for the app icon.
     binding.addPostFrameCallback((_) async {
@@ -76,7 +83,9 @@ void main() {
     /// a [WidgetRef].
     final container = ProviderContainer();
     final appModel = container.read(appProvider);
+    print('[startup] appModel.initialise...');
     await appModel.initialise();
+    print('[startup] appModel.initialise done');
     await appModel.applyPlayerOrientation();
 
     /// Some packages propagate their [StackTrace] in an unusual format as
@@ -104,6 +113,11 @@ void main() {
   }, (exception, stack) {
     /// Print error details to the console.
     final details = FlutterErrorDetails(exception: exception, stack: stack);
+
+    /// Also print to logcat — FlutterLogs alone is a black hole when
+    /// the error happens before (or because) FlutterLogs initialises,
+    /// which made the 1.4.0+29 startup failure invisible.
+    print('[zone-error] ${details.exceptionAsString()}\n$stack');
 
     /// Log the error.
     FlutterLogs.logError(
