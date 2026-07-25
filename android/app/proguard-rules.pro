@@ -15,3 +15,9 @@
 # InitializationProvider before Flutter even started (2026-07-25,
 # 1.4.0+27 on the Palma). Keep every RoomDatabase subclass by name.
 -keep class * extends androidx.room.RoomDatabase { <init>(); }
+
+# libvlcjni.so resolves Java classes by name from JNI_OnLoad
+# (FindClass on org.videolan.libvlc.interfaces.IMedia$Track failed as
+# UnsatisfiedLinkError on 1.4.0+31 -- player dead). JNI lookups are
+# invisible to R8; keep the libVLC Java surface intact by name.
+-keep class org.videolan.libvlc.** { *; }
