@@ -1,7 +1,9 @@
 import 'dart:io';
 
+import 'package:async_zip/async_zip.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path;
@@ -10,6 +12,7 @@ import 'package:restart_app/restart_app.dart';
 import 'package:shiroikumanojisho/models.dart';
 import 'package:shiroikumanojisho/pages.dart';
 import 'package:shiroikumanojisho/src/utils/misc/app_export_import.dart';
+import 'package:shiroikumanojisho/src/utils/ui_settings/state_export.dart';
 import 'package:shiroikumanojisho/src/utils/ui_settings/ui_settings_export.dart';
 
 /// The 白い熊 辞書 UI settings page: every attribute of the black/yellow
@@ -45,15 +48,81 @@ class _JishoUiSettingsPageState extends BasePageState<JishoUiSettingsPage> {
   /// Latest-export display, refreshed on open and after exports.
   File? _latestExport;
 
+  /// 保存復元 automation controls, backed by native SharedPreferences
+  /// over the automation channel (never part of any export).
+  static const MethodChannel _automationChannel =
+      MethodChannel('shiroikuma.jisho/automation');
+  bool _automationEnabled = false;
+  String _automationToken = '';
+
   @override
   void initState() {
     super.initState();
     _refreshLatestExport();
+    _loadAutomationState();
+  }
+
+  void _loadAutomationState() async {
+    final enabled =
+        await _automationChannel.invokeMethod<bool>('isEnabled') ?? false;
+    final token =
+        await _automationChannel.invokeMethod<String>('getToken') ?? '';
+    if (mounted) {
+      setState(() {
+        _automationEnabled = enabled;
+        _automationToken = token;
+      });
+    }
+  }
+
+  String _abbreviatedToken() {
+    if (_automationToken.length < 16) {
+      return 'Tap to copy';
+    }
+    return '${_automationToken.substring(0, 8)}…'
+        '${_automationToken.substring(_automationToken.length - 8)}'
+        ' — tap to copy';
+  }
+
+  void _copyToken() async {
+    await Clipboard.setData(ClipboardData(text: _automationToken));
+    Fluttertoast.showToast(msg: 'Token copied to clipboard.');
+  }
+
+  void _regenerateToken() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Regenerate token?'),
+        content: const Text(
+            'Pasted copies (自由作業盤\'s 保存復元の設定) must be '
+            'updated afterwards.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Regenerate'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) {
+      return;
+    }
+    final token = await _automationChannel
+        .invokeMethod<String>('regenerateToken');
+    if (mounted) {
+      setState(() => _automationToken = token ?? '');
+    }
   }
 
   void _refreshLatestExport() {
     setState(() {
-      _latestExport = UiSettingsExport.latestExport(ui.exportDirectory);
+      _latestExport =
+          UiSettingsExport.latestAnyExport(ui.exportDirectory);
     });
   }
 
@@ -76,6 +145,28 @@ class _JishoUiSettingsPageState extends BasePageState<JishoUiSettingsPage> {
                   'Save or load every setting — colours, fonts, player, '
                   'reader, dictionary — as selectable categories.',
               onTap: _showExportImportPanel,
+            ),
+            _row(
+              title: 'Automation export',
+              summary: 'Sister-app tasks (自由作業盤 保存復元) may trigger '
+                  'this app\'s export via the token-gated intent.',
+              trailing: Switch(
+                value: _automationEnabled,
+                onChanged: (enabled) async {
+                  await _automationChannel
+                      .invokeMethod('setEnabled', {'enabled': enabled});
+                  setState(() => _automationEnabled = enabled);
+                },
+              ),
+            ),
+            _row(
+              title: 'Automation token',
+              summary: _abbreviatedToken(),
+              trailing: TextButton(
+                onPressed: _regenerateToken,
+                child: const Text('Regenerate'),
+              ),
+              onTap: _copyToken,
             ),
             _sectionHeader('Colours'),
             _colorRow('Background', () => ui.backgroundColor,
@@ -604,33 +695,26 @@ class _ExportImportPanelState extends State<_ExportImportPanel> {
   Color get _accent => Color(ui.textColor);
   Color get _border => Color(ui.borderColor);
 
-  static const String _categoryAppData = 'App data (cross-device bundle)';
-  static const String _categoryArtifacts =
-      'Generated artifacts (OCR volumes · bitmaps · fonts)';
+  static const String _categoryAppData = 'app_data';
 
-  /// Settings categories all on; artifacts on; the heavyweight
-  /// cross-device bundle deliberately OFF by default.
-  late final Set<String> _selected = {
-    for (final category in UiSettingsExport.categories) category.key,
-    _categoryArtifacts,
-  };
+  /// Selection by state-export id; settings + artifact children all on,
+  /// the heavyweight cross-device bundle deliberately OFF by default.
+  late final Set<String> _selected = {...StateExport.allIds};
 
-  List<String> get _allCategories => [
-        for (final category in UiSettingsExport.categories) category.key,
+  List<String> get _allSelectable => [
+        ...StateExport.allIds,
         _categoryAppData,
-        _categoryArtifacts,
       ];
 
-  bool get _allSelected => _selected.length == _allCategories.length;
+  bool get _allSelected => _selected.length == _allSelectable.length;
 
-  Set<String> get _selectedSettings => {
-        for (final category in UiSettingsExport.categories)
-          if (_selected.contains(category.key)) category.key,
-      };
+  Set<String> get _selectedState =>
+      _selected.intersection(StateExport.allIds);
 
   @override
   Widget build(BuildContext context) {
-    final latest = UiSettingsExport.latestExport(ui.exportDirectory);
+    final latest =
+        UiSettingsExport.latestAnyExport(ui.exportDirectory);
     return AlertDialog(
       contentPadding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
       content: SizedBox(
@@ -727,25 +811,57 @@ class _ExportImportPanelState extends State<_ExportImportPanel> {
                   setState(() {
                     _selected.clear();
                     if (checked ?? false) {
-                      _selected.addAll(_allCategories);
+                      _selected.addAll(_allSelectable);
                     }
                   });
                 },
               ),
-              for (final category in _allCategories)
-                _checkboxRow(
-                  label: category,
-                  value: _selected.contains(category),
-                  onChanged: (checked) {
-                    setState(() {
-                      if (checked ?? false) {
-                        _selected.add(category);
-                      } else {
-                        _selected.remove(category);
-                      }
-                    });
-                  },
-                ),
+              for (final category in StateExport.categories)
+                if (category.id == 'artifacts')
+                  // Parent header row: toggles all three children.
+                  _checkboxRow(
+                    label: category.label,
+                    value: StateExport.artifactDirs.keys
+                        .every(_selected.contains),
+                    onChanged: (checked) {
+                      setState(() {
+                        if (checked ?? false) {
+                          _selected.addAll(StateExport.artifactDirs.keys);
+                        } else {
+                          _selected
+                              .removeAll(StateExport.artifactDirs.keys);
+                        }
+                      });
+                    },
+                  )
+                else
+                  _checkboxRow(
+                    label: category.label,
+                    indent: category.parentId != null,
+                    value: _selected.contains(category.id),
+                    onChanged: (checked) {
+                      setState(() {
+                        if (checked ?? false) {
+                          _selected.add(category.id);
+                        } else {
+                          _selected.remove(category.id);
+                        }
+                      });
+                    },
+                  ),
+              _checkboxRow(
+                label: 'App data (cross-device bundle)',
+                value: _selected.contains(_categoryAppData),
+                onChanged: (checked) {
+                  setState(() {
+                    if (checked ?? false) {
+                      _selected.add(_categoryAppData);
+                    } else {
+                      _selected.remove(_categoryAppData);
+                    }
+                  });
+                },
+              ),
               const SizedBox(height: 8),
               Container(height: 1, color: _accent.withValues(alpha: 0.4)),
               const SizedBox(height: 14),
@@ -779,11 +895,12 @@ class _ExportImportPanelState extends State<_ExportImportPanel> {
     required bool value,
     required ValueChanged<bool?> onChanged,
     bool bold = false,
+    bool indent = false,
   }) {
     return InkWell(
       onTap: () => onChanged(!value),
       child: Padding(
-        padding: const EdgeInsets.only(left: 8, top: 2, bottom: 2),
+        padding: EdgeInsets.only(left: indent ? 32 : 8, top: 2, bottom: 2),
         child: Row(
           children: [
             SizedBox(
@@ -822,39 +939,33 @@ class _ExportImportPanelState extends State<_ExportImportPanel> {
       return;
     }
     try {
-      final saved = <String>[];
-      if (_selectedSettings.isNotEmpty) {
-        final file = UiSettingsExport.exportTo(
-          box: widget.appModel.preferences,
-          directory: ui.exportDirectory,
-          selectedCategories: _selectedSettings,
-          appVersion: widget.appModel.packageInfo.version,
-        );
-        saved.add(path.basename(file.path));
-      }
-      if (_selected.contains(_categoryArtifacts)) {
-        final zip = await UiSettingsExport.exportArtifacts(
-          directory: ui.exportDirectory,
-        );
-        saved.add(zip == null
-            ? 'Artifacts: nothing to export yet.'
-            : path.basename(zip.path));
-      }
+      // One zip always: when the cross-device bundle is ticked it is
+      // built first (its own progress dialog; quiet suppresses its
+      // success dialog) into shared tmp, then embedded uncompressed
+      // as app_data.zip and the staging copy removed.
+      File? bundleTemp;
       if (_selected.contains(_categoryAppData)) {
-        // The heavyweight bundle drives its own progress dialog;
-        // quiet suppresses its success dialog so ours runs the chain.
-        final bundle = await AppExportImport.exportData(
+        bundleTemp = await AppExportImport.exportData(
           appModel: widget.appModel,
           context: context,
-          outputDirectory: ui.exportDirectory,
           quiet: true,
         );
-        if (bundle == null) {
+        if (bundleTemp == null) {
           // Its own failure dialog already showed; keep the panel.
           return;
         }
-        saved.add(path.basename(bundle.path));
       }
+      final file = await StateExport.run(
+        box: widget.appModel.preferences,
+        ids: _selectedState,
+        directory: ui.exportDirectory,
+        appVersion: widget.appModel.packageInfo.version,
+        embedBundle: bundleTemp,
+      );
+      try {
+        bundleTemp?.deleteSync();
+      } catch (_) {}
+      final saved = <String>[path.basename(file.path)];
       widget.onExported();
       if (!mounted) {
         return;
@@ -895,13 +1006,11 @@ class _ExportImportPanelState extends State<_ExportImportPanel> {
       Fluttertoast.showToast(msg: 'Select at least one category.');
       return;
     }
-    // Choose among the directory's exports, newest first; fall back to
-    // a file picker when no directory is set. Only needed when settings
-    // categories are ticked — artifacts/bundle use latest-of-kind.
+    // The directory's newest state export serves the state ids; the
+    // newest bundle serves app_data. A file picker is the fallback
+    // when no directory is set.
     File? file;
-    if (_selectedSettings.isEmpty) {
-      // No settings JSON wanted.
-    } else if (ui.exportDirectory.isNotEmpty) {
+    if (ui.exportDirectory.isNotEmpty) {
       final dir = Directory(ui.exportDirectory);
       final candidates = !dir.existsSync()
           ? <File>[]
@@ -909,20 +1018,25 @@ class _ExportImportPanelState extends State<_ExportImportPanel> {
               .listSync()
               .whereType<File>()
               .where((f) =>
-                  path.basename(f.path).startsWith(
-                      UiSettingsExport.exportPrefix) &&
-                  f.path.endsWith('.json'))
+                  (path.basename(f.path)
+                          .startsWith(StateExport.filePrefix) &&
+                      f.path.endsWith('.zip')) ||
+                  (path.basename(f.path)
+                          .startsWith(UiSettingsExport.exportPrefix) &&
+                      (f.path.endsWith('.zip') ||
+                          f.path.endsWith('.json'))))
               .toList()
             ..sort((a, b) => b
                 .statSync()
                 .modified
                 .compareTo(a.statSync().modified)));
-      if (candidates.isEmpty && _selected.length == _selectedSettings.length) {
+      if (candidates.isEmpty &&
+          !_selected.contains(_categoryAppData)) {
         Fluttertoast.showToast(msg: 'No export in this directory yet.');
         return;
       }
       if (candidates.isEmpty) {
-        // Settings JSON missing but artifacts/bundle still wanted.
+        // State export missing but the bundle is still wanted.
         file = null;
       } else
       file = await showDialog<File>(
@@ -962,28 +1076,31 @@ class _ExportImportPanelState extends State<_ExportImportPanel> {
         file = File(pickedPath);
       }
     }
-    final wantsSettings = _selectedSettings.isNotEmpty;
-    if (wantsSettings && file == null) {
+    final wantsState = _selectedState.isNotEmpty;
+    if (wantsState && file == null && ui.exportDirectory.isNotEmpty) {
       return;
     }
 
     final summary = <String, int>{};
     try {
-      if (wantsSettings && file != null) {
-        summary.addAll(UiSettingsExport.importFrom(
-          box: widget.appModel.preferences,
-          file: file,
-          selectedCategories: _selectedSettings,
-        ));
-      }
-      if (_selected.contains(_categoryArtifacts)) {
-        final archive =
-            UiSettingsExport.latestArtifacts(ui.exportDirectory);
-        if (archive == null) {
-          summary[_categoryArtifacts] = 0;
+      if (wantsState && file != null) {
+        if (file.path.endsWith('.zip')) {
+          summary.addAll(await StateExport.import(
+            box: widget.appModel.preferences,
+            archive: file,
+            ids: _selectedState,
+          ));
         } else {
-          await UiSettingsExport.importArtifacts(archive: archive);
-          summary[_categoryArtifacts] = 1;
+          // Legacy pre-state single-JSON export: its categories are
+          // keyed by display label; import them all.
+          summary.addAll(UiSettingsExport.importFrom(
+            box: widget.appModel.preferences,
+            file: file,
+            selectedCategories: {
+              for (final category in UiSettingsExport.categories)
+                category.key,
+            },
+          ));
         }
       }
     } catch (e) {
@@ -997,20 +1114,48 @@ class _ExportImportPanelState extends State<_ExportImportPanel> {
     // the app's data wholesale, and exits the app itself — no chain
     // to close after it.
     if (_selected.contains(_categoryAppData)) {
-      final bundle = UiSettingsExport.latestBundle(ui.exportDirectory);
+      // Prefer the bundle embedded in the chosen export zip; fall
+      // back to a legacy standalone bundle file in the directory.
+      File? bundle;
+      File? extracted;
+      if (file != null && file.path.endsWith('.zip')) {
+        final reader = ZipFileReader();
+        try {
+          await reader.open(file);
+          final names = {
+            for (final entry in await reader.entries()) entry.name,
+          };
+          if (names.contains(StateExport.bundleEntry)) {
+            extracted = File(
+                '/storage/emulated/0/tmp/shiroikuma-jisho-app_data_'
+                'import.zip');
+            await reader.readToFile(StateExport.bundleEntry, extracted);
+            bundle = extracted;
+          }
+        } finally {
+          await reader.close();
+        }
+      }
+      bundle ??= UiSettingsExport.latestBundle(ui.exportDirectory);
       if (bundle == null) {
         Fluttertoast.showToast(
-            msg: 'No cross-device bundle in this directory yet.');
+            msg: 'No cross-device bundle in this export.');
         return;
       }
       if (!mounted) {
         return;
       }
+      // importData confirms, replaces data wholesale, and exits the
+      // app itself; the extracted staging copy is reclaimed by the
+      // next shared-tmp cleanup if the exit wins the race.
       await AppExportImport.importData(
         appModel: widget.appModel,
         context: context,
         bundle: bundle,
       );
+      try {
+        extracted?.deleteSync();
+      } catch (_) {}
       return;
     }
 

@@ -21,6 +21,75 @@ import 'package:shiroikumanojisho/media.dart';
 import 'package:shiroikumanojisho/models.dart';
 import 'package:shiroikumanojisho/pages.dart';
 import 'package:shiroikumanojisho/utils.dart';
+import 'package:shiroikumanojisho/src/utils/ui_settings/state_export.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+
+/// Headless entrypoint for the 保存復元 state-export automation
+/// contract, started by [StateExportService]'s background Flutter
+/// engine — no UI, no [runApp]. Asks Java for the request, runs the
+/// shared [StateExport] core with real-count progress, and reports the
+/// terminal result; Java owns the reply broadcast and teardown.
+@pragma('vm:entry-point')
+Future<void> stateExportMain() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  const channel = MethodChannel('shiroikuma.jisho/state_export');
+  Future<void> done(String result) =>
+      channel.invokeMethod('done', {'result': result});
+  try {
+    final request =
+        await channel.invokeMapMethod<String, dynamic>('getRequest');
+    final pathExtra = request?['path'] as String?;
+    final items = request?['items'] as String?;
+
+    if (items != null && items.trim().isNotEmpty) {
+      final unknown = StateExport.unknownItems(items);
+      if (unknown.isNotEmpty) {
+        await done('ERROR:unknown category in items: $items');
+        return;
+      }
+    }
+
+    await Hive.initFlutter();
+    final box = await Hive.openBox('appModel');
+    final directory = (pathExtra != null && pathExtra.isNotEmpty)
+        ? pathExtra
+        : box.get('ui_export_directory', defaultValue: '') as String;
+    if (directory.isEmpty) {
+      await done('ERROR:no-directory');
+      return;
+    }
+
+    final ids = StateExport.resolveItems(items);
+    final version = (await PackageInfo.fromPlatform()).version;
+    final file = await StateExport.run(
+      box: box,
+      ids: ids,
+      directory: directory,
+      appVersion: version,
+      onProgress: (text, current, total, unit) {
+        channel.invokeMethod('progress', {
+          'text': text,
+          'current': current,
+          'total': total,
+          'unit': unit,
+        });
+      },
+    );
+    final bytes = file.lengthSync();
+    await channel.invokeMethod('progress', {
+      'text': '完了 — ${StateExport.humanSize(bytes)}',
+      'current': bytes,
+      'total': bytes,
+      'unit': 'bytes',
+      'final': true,
+    });
+    await done('OK:${file.path}|$bytes|${StateExport.humanSize(bytes)}|'
+        '${ids.length} categories');
+  } catch (e) {
+    await done('ERROR:$e');
+  }
+}
 
 /// Application execution starts here.
 void main() {

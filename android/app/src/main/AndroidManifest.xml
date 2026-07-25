@@ -106,6 +106,21 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+        <!-- 保存復元 automation contract: token-gated headless state
+             export, driven by 自由作業盤. No android:permission by
+             design (the caller cannot hold one); the token is the
+             gate. -->
+        <receiver
+            android:name="shiroikuma.jisho.StateExportReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="shiroikuma.jisho.action.EXPORT_STATE" />
+                <action android:name="shiroikuma.jisho.action.LIST_CATEGORIES" />
+            </intent-filter>
+        </receiver>
+        <service
+            android:name="shiroikuma.jisho.StateExportService"
+            android:exported="false" />
         <!-- Keeps the process alive/unfrozen during long imports
              (scanned-PDF OCR) when the app is backgrounded. -->
         <service

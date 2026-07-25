@@ -125,6 +125,29 @@ class UiSettingsExport {
   static File? latestExport(String directory) =>
       latestMatching(directory, prefix: exportPrefix, suffix: '.json');
 
+  /// Newest export of ANY era in [directory]: the current
+  /// `shiroikuma-jisho_<ts>.zip`, or legacy `shiroikuma-jisho-ui_`
+  /// zip/json. Null when none.
+  static File? latestAnyExport(String directory) {
+    File? newest;
+    for (final candidate in [
+      latestMatching(directory,
+          prefix: 'shiroikuma-jisho_', suffix: '.zip'),
+      latestMatching(directory, prefix: exportPrefix, suffix: '.zip'),
+      latestMatching(directory, prefix: exportPrefix, suffix: '.json'),
+    ]) {
+      if (candidate == null) {
+        continue;
+      }
+      if (newest == null ||
+          candidate.statSync().modified
+              .isAfter(newest.statSync().modified)) {
+        newest = candidate;
+      }
+    }
+    return newest;
+  }
+
   /// Newest artifacts archive in [directory], or null.
   static File? latestArtifacts(String directory) =>
       latestMatching(directory, prefix: artifactsPrefix, suffix: '.zip');

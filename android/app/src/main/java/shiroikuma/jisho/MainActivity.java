@@ -188,6 +188,33 @@ public class MainActivity extends AudioServiceActivity {
         // Rasterises scanned PDFs to page JPEGs for the OCR importer.
         new PdfRendererBridge().register(flutterEngine);
 
+        // Automation token infra for the 保存復元 contract: backed by a
+        // device-local SharedPreferences file that never travels in
+        // exports (which read the Hive box and app documents only).
+        new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(),
+                "shiroikuma.jisho/automation")
+            .setMethodCallHandler(
+                (call, result) -> {
+                    switch (call.method) {
+                        case "isEnabled":
+                            result.success(AutomationPrefs.isEnabled(this));
+                            break;
+                        case "setEnabled":
+                            AutomationPrefs.setEnabled(this,
+                                Boolean.TRUE.equals(call.argument("enabled")));
+                            result.success(null);
+                            break;
+                        case "getToken":
+                            result.success(AutomationPrefs.getToken(this));
+                            break;
+                        case "regenerateToken":
+                            result.success(AutomationPrefs.regenerateToken(this));
+                            break;
+                        default:
+                            result.notImplemented();
+                    }
+                });
+
         // Foreground-service leash for long imports (scanned-PDF OCR):
         // "start"/"update" (re)post the progress notification, "stop"
         // ends the service. See ImportForegroundService.
