@@ -1,6 +1,8 @@
 import 'package:change_notifier_builder/change_notifier_builder.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:flutter/material.dart';
+import 'package:shiroikumanojisho/models.dart' show AppModel;
+import 'package:shiroikumanojisho/src/models/app_model.dart' show AppModel;
 import 'package:spaces/spaces.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shiroikumanojisho/language.dart';
@@ -292,7 +294,7 @@ class _HomePageState extends BasePageState<HomePage>
         size: 24,
       ),
       color: Theme.of(context).popupMenuTheme.color,
-      onSelected: (Language chosen) async {
+      onSelected: (chosen) async {
         if (chosen.languageCode == current.languageCode) return;
         await appModel.setTargetLanguage(chosen);
         if (mounted) setState(() {});
@@ -452,10 +454,10 @@ class _HomePageState extends BasePageState<HomePage>
             const Text(
               'Path to a storage volume (e.g. SD card) that '
               "Android's scoped storage hides from /storage/ listings. "
-              "Find the path in a separate file manager (it usually "
-              "looks like /storage/XXXX-XXXX) and enter it here. The "
-              "picker will then offer it alongside internal storage.\n\n"
-              "Leave empty to clear.",
+              'Find the path in a separate file manager (it usually '
+              'looks like /storage/XXXX-XXXX) and enter it here. The '
+              'picker will then offer it alongside internal storage.\n\n'
+              'Leave empty to clear.',
               style: TextStyle(fontSize: 12),
             ),
             const SizedBox(height: 12),
@@ -472,7 +474,7 @@ class _HomePageState extends BasePageState<HomePage>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, null),
+            onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel'),
           ),
           TextButton(
@@ -511,10 +513,10 @@ class _HomePageState extends BasePageState<HomePage>
           children: [
             const Text(
               "Height of the home screen's bottom tab bar in logical "
-              "pixels (the bar with the source-type tabs at the very "
-              "bottom of the home screen — Reader, Player, Dictionary, "
-              "etc.). Icons scale with the height so the tabs stay "
-              "roughly square. Default is 56. Allowed range: 40\u2013120 "
+              'pixels (the bar with the source-type tabs at the very '
+              'bottom of the home screen — Reader, Player, Dictionary, '
+              'etc.). Icons scale with the height so the tabs stay '
+              'roughly square. Default is 56. Allowed range: 40\u2013120 '
               '(values outside that are clamped).',
               style: TextStyle(fontSize: 12),
             ),
@@ -533,7 +535,7 @@ class _HomePageState extends BasePageState<HomePage>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, null),
+            onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel'),
           ),
           TextButton(
@@ -594,7 +596,7 @@ class _HomePageState extends BasePageState<HomePage>
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, null),
+            onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel'),
           ),
           TextButton(
@@ -617,7 +619,7 @@ class _HomePageState extends BasePageState<HomePage>
       MaterialPageRoute<void>(
         builder: (context) => Theme(
           data: theme.copyWith(
-            cardColor: theme.colorScheme.background,
+            cardColor: theme.colorScheme.surface,
           ),
           child: LicensePage(
             applicationName: appModel.packageInfo.appName,
@@ -655,7 +657,7 @@ class _HomePageState extends BasePageState<HomePage>
           TextButton(
             child: Text(t.dialog_save),
             onPressed: () {
-              appModel.setDarkThemeTextColor(newColor.value);
+              appModel.setDarkThemeTextColor(newColor.toARGB32());
               Navigator.of(context).pop();
             },
           ),

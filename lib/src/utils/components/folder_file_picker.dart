@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:shiroikumanojisho/models.dart';
+import 'package:shiroikumanojisho/src/utils/components/folder_audio_picker.dart' show FolderAudioPicker;
 
 /// Full-screen directory-tree browser for picking a single file by
 /// extension. Generalisation of [FolderAudioPicker] used for backup
@@ -30,10 +31,7 @@ import 'package:shiroikumanojisho/models.dart';
 /// them parallel avoids touching audio-source code.
 class FolderFilePicker extends StatefulWidget {
   const FolderFilePicker({
-    super.key,
-    required this.appModel,
-    required this.allowedExtensions,
-    required this.fileIcon,
+    required this.appModel, required this.allowedExtensions, required this.fileIcon, super.key,
     this.title = 'Pick a file',
     this.initialDir,
   });

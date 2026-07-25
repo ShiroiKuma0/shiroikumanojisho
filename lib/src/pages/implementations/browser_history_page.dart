@@ -132,12 +132,12 @@ class _BrowserHistoryPageState extends BaseHistoryPageState {
         alignment: Alignment.bottomLeft,
         children: [
           ColoredBox(
-            color: Colors.grey.shade800.withOpacity(0.3),
+            color: Colors.grey.shade800.withValues(alpha: 0.3),
             child: AspectRatio(
               aspectRatio: mediaSource.aspectRatio,
               child: FadeInImage(
                 key: UniqueKey(),
-                imageErrorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                imageErrorBuilder: (_, _, _) => const SizedBox.shrink(),
                 placeholder: MemoryImage(kTransparentImage),
                 image: mediaSource.getDisplayThumbnailFromMediaItem(
                   appModel: appModel,
@@ -154,7 +154,7 @@ class _BrowserHistoryPageState extends BaseHistoryPageState {
               padding: const EdgeInsets.fromLTRB(2, 2, 2, 4),
               height: constraints.maxHeight * 0.25,
               width: double.maxFinite,
-              color: Colors.black.withOpacity(0.6),
+              color: Colors.black.withValues(alpha: 0.6),
               child: Text(
                 mediaSource.getDisplayTitleFromMediaItem(item),
                 overflow: TextOverflow.ellipsis,
@@ -234,7 +234,7 @@ class _BrowserHistoryPageState extends BaseHistoryPageState {
       child: Tooltip(
         message: t.add_bookmark,
         child: Container(
-          color: theme.unselectedWidgetColor.withOpacity(0.03),
+          color: theme.unselectedWidgetColor.withValues(alpha: 0.03),
           height: 64,
           width: 64,
           child: Icon(
@@ -286,14 +286,14 @@ class BookmarkButton extends ConsumerWidget {
           } else {
             return CachedNetworkImage(
               imageUrl: url,
-              errorWidget: (_, __, ___) => fallback,
+              errorWidget: (_, _, _) => fallback,
             );
           }
         } else {
           return fallback;
         }
       },
-      error: (_, __) {
+      error: (_, _) {
         return fallback;
       },
       loading: () => const SizedBox.expand(),
@@ -304,7 +304,7 @@ class BookmarkButton extends ConsumerWidget {
       onLongPress: onLongPress,
       child: Container(
         padding: Spacing.of(context).insets.all.small,
-        color: Theme.of(context).unselectedWidgetColor.withOpacity(0.06),
+        color: Theme.of(context).unselectedWidgetColor.withValues(alpha: 0.06),
         height: 64,
         width: 64,
         child: Column(

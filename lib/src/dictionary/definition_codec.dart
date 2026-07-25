@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
+import 'package:shiroikumanojisho/dictionary.dart' show DictionaryEntry;
+import 'package:shiroikumanojisho/src/dictionary/dictionary_entry.dart' show DictionaryEntry;
 
 /// Codec for compressing and decompressing dictionary entry definition lists.
 ///

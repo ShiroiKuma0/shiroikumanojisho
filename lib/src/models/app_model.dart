@@ -29,6 +29,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:remove_emoji/remove_emoji.dart';
 import 'package:restart_app/restart_app.dart';
+import 'package:shiroikumanojisho/src/utils/components/folder_audio_picker.dart' show FolderAudioPicker;
 import 'package:subtitle/subtitle.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:shiroikumanojisho/creator.dart';
@@ -39,7 +40,7 @@ import 'package:shiroikumanojisho/models.dart';
 import 'package:shiroikumanojisho/pages.dart';
 import 'package:shiroikumanojisho/utils.dart';
 
-import 'search_worker.dart';
+import 'package:shiroikumanojisho/src/models/search_worker.dart';
 
 /// Schemas used in Isar database.
 final List<CollectionSchema> globalSchemas = [
@@ -431,13 +432,13 @@ class AppModel with ChangeNotifier {
   /// field) is mutated. Internal implementation is a per-id
   /// [ChangeNotifier].
   Stream<void> Function(int) get watchDictionaryItem =>
-      (int id) => _watchDictionaryItemStream(id);
+      _watchDictionaryItemStream;
 
   Stream<void> _watchDictionaryItemStream(int id) {
     final controller = StreamController<void>.broadcast();
     final notifier = _resultChangeNotifiers.putIfAbsent(
       id,
-      () => ChangeNotifier(),
+      ChangeNotifier.new,
     );
     void listener() => controller.add(null);
     notifier.addListener(listener);
@@ -568,14 +569,14 @@ class AppModel with ChangeNotifier {
           foregroundColor: Colors.black,
         ),
         switchTheme: SwitchThemeData(
-          thumbColor: MaterialStateColor.resolveWith((states) {
-            return states.contains(MaterialState.selected)
+          thumbColor: WidgetStateColor.resolveWith((states) {
+            return states.contains(WidgetState.selected)
                 ? Colors.red
                 : Colors.white;
           }),
-          trackColor: MaterialStateColor.resolveWith((states) {
-            return states.contains(MaterialState.selected)
-                ? Colors.red.withOpacity(0.5)
+          trackColor: WidgetStateColor.resolveWith((states) {
+            return states.contains(WidgetState.selected)
+                ? Colors.red.withValues(alpha: 0.5)
                 : Colors.grey;
           }),
         ),
@@ -619,8 +620,8 @@ class AppModel with ChangeNotifier {
           ),
         ),
         scrollbarTheme: ScrollbarThemeData(
-          thickness: MaterialStateProperty.all(3),
-          thumbVisibility: MaterialStateProperty.all(true),
+          thickness: WidgetStateProperty.all(3),
+          thumbVisibility: WidgetStateProperty.all(true),
         ),
         sliderTheme: const SliderThemeData(
           thumbColor: Colors.red,
@@ -636,7 +637,7 @@ class AppModel with ChangeNotifier {
               secondary: Colors.red,
               brightness: Brightness.light,
             )
-            .copyWith(background: Colors.white),
+            .copyWith(surface: Colors.white),
       );
 
   /// Shows when the current mode is a dark theme.
@@ -653,18 +654,18 @@ class AppModel with ChangeNotifier {
         bottomSheetTheme: const BottomSheetThemeData(
           backgroundColor: Colors.black,
         ),
-        unselectedWidgetColor: Color(darkThemeTextColor).withOpacity(0.7),
+        unselectedWidgetColor: Color(darkThemeTextColor).withValues(alpha: 0.7),
         textTheme: darkTextTheme,
         iconTheme: IconThemeData(color: Color(darkThemeTextColor)),
         switchTheme: SwitchThemeData(
-          thumbColor: MaterialStateColor.resolveWith((states) {
-            return states.contains(MaterialState.selected)
+          thumbColor: WidgetStateColor.resolveWith((states) {
+            return states.contains(WidgetState.selected)
                 ? Colors.red
                 : Colors.grey;
           }),
-          trackColor: MaterialStateColor.resolveWith((states) {
-            return states.contains(MaterialState.selected)
-                ? Colors.red.withOpacity(0.5)
+          trackColor: WidgetStateColor.resolveWith((states) {
+            return states.contains(WidgetState.selected)
+                ? Colors.red.withValues(alpha: 0.5)
                 : Colors.grey;
           }),
         ),
@@ -680,7 +681,7 @@ class AppModel with ChangeNotifier {
           type: BottomNavigationBarType.fixed,
           selectedLabelStyle: darkTextTheme.labelSmall,
           unselectedLabelStyle: darkTextTheme.labelSmall,
-          unselectedItemColor: Color(darkThemeTextColor).withOpacity(0.7),
+          unselectedItemColor: Color(darkThemeTextColor).withValues(alpha: 0.7),
           showSelectedLabels: true,
           showUnselectedLabels: true,
           backgroundColor: Colors.black,
@@ -728,7 +729,7 @@ class AppModel with ChangeNotifier {
           ),
         ),
         scrollbarTheme: ScrollbarThemeData(
-          thumbVisibility: MaterialStateProperty.all(true),
+          thumbVisibility: WidgetStateProperty.all(true),
         ),
         sliderTheme: const SliderThemeData(
           thumbColor: Colors.red,
@@ -744,7 +745,7 @@ class AppModel with ChangeNotifier {
               secondary: Colors.red,
               brightness: Brightness.dark,
             )
-            .copyWith(background: Colors.black),
+            .copyWith(surface: Colors.black),
       );
 
   /// Get the sentence to be used by the [SentenceField] upon card creation.
@@ -1373,7 +1374,6 @@ class AppModel with ChangeNotifier {
         });
 
         await showDialog(
-          barrierDismissible: true,
           context: _navigatorKey.currentContext!,
           builder: (context) => AlertDialog(
             title: Text(t.info_standard_update),
@@ -1848,7 +1848,6 @@ class AppModel with ChangeNotifier {
   /// app, so it is appropriately handled by the model.
   Future<void> showDictionaryMenu() async {
     await showDialog(
-      barrierDismissible: true,
       context: navigatorKey.currentContext!,
       builder: (context) => const DictionaryDialogPage(),
     );
@@ -1861,7 +1860,6 @@ class AppModel with ChangeNotifier {
   /// app, so it is appropriately handled by the model.
   Future<void> showLanguageMenu() async {
     await showDialog(
-      barrierDismissible: true,
       context: navigatorKey.currentContext!,
       builder: (context) => LanguageDialogPage(
         isFirstTimeSetup: isFirstTimeSetup,
@@ -1876,7 +1874,6 @@ class AppModel with ChangeNotifier {
     String initialModel = lastSelectedModel ?? models.first;
 
     await showDialog(
-      barrierDismissible: true,
       context: navigatorKey.currentContext!,
       builder: (context) => ProfilesDialogPage(
         models: models,
@@ -2621,14 +2618,14 @@ class AppModel with ChangeNotifier {
     int? overrideMaximumTerms,
     bool useCache = true,
   }) async {
-    final Stopwatch _total = Stopwatch()..start();
-    final Stopwatch _phase = Stopwatch();
+    final Stopwatch total = Stopwatch()..start();
+    final Stopwatch phase = Stopwatch();
 
     if (_dictionarySearchCache['$searchTerm/$overrideMaximumTerms'] != null &&
         useCache) {
       if (_kSearchPerfLogging) {
         _logPerf(
-            '[SEARCH-PERF] cache-hit term="$searchTerm" total=${_total.elapsedMilliseconds}ms');
+            '[SEARCH-PERF] cache-hit term="$searchTerm" total=${total.elapsedMilliseconds}ms');
       }
       return _dictionarySearchCache['$searchTerm/$overrideMaximumTerms']!;
     }
@@ -2699,7 +2696,7 @@ class AppModel with ChangeNotifier {
     // languages that flow through runStandardLatinSearch. Japanese
     // has its own search path that doesn't use the index, so we
     // suppress the build for it.
-    _phase
+    phase
       ..reset()
       ..start();
     _searchOperation = _invokeSearchOnWorker(
@@ -2709,12 +2706,12 @@ class AppModel with ChangeNotifier {
       params: params,
     );
     final SearchResultData? data = await _searchOperation;
-    final int workerMs = _phase.elapsedMilliseconds;
+    final int workerMs = phase.elapsedMilliseconds;
 
     if (data == null || data.groups.isEmpty) {
       if (_kSearchPerfLogging) {
         _logPerf(
-            '[SEARCH-PERF] empty term="$searchTerm" worker=${workerMs}ms total=${_total.elapsedMilliseconds}ms');
+            '[SEARCH-PERF] empty term="$searchTerm" worker=${workerMs}ms total=${total.elapsedMilliseconds}ms');
       }
       return DictionarySearchResult(searchTerm: searchTerm);
     }
@@ -2725,7 +2722,7 @@ class AppModel with ChangeNotifier {
       data: data,
       originalSearchTerm: searchTerm,
       perfWorkerMs: workerMs,
-      perfTotal: _total,
+      perfTotal: total,
     );
 
     if (result.headings.isEmpty) {
@@ -2746,10 +2743,10 @@ class AppModel with ChangeNotifier {
     int perfWorkerMs = 0,
     Stopwatch? perfTotal,
   }) async {
-    final Stopwatch _ph = Stopwatch();
+    final Stopwatch ph = Stopwatch();
 
     // Phase 2: batch-load all entry rows.
-    _ph
+    ph
       ..reset()
       ..start();
     final allEntryIds = data.allEntryIds;
@@ -2760,21 +2757,21 @@ class AppModel with ChangeNotifier {
     final entriesById = <int, DictionaryEntry>{
       for (final e in loadedEntries) e.id!: e,
     };
-    final int entryLoadMs = _ph.elapsedMilliseconds;
+    final int entryLoadMs = ph.elapsedMilliseconds;
 
     // Phase 3: decode all compressed definitions in parallel.
-    _ph
+    ph
       ..reset()
       ..start();
     await Future.wait(loadedEntries.map((e) async {
       e.decodedDefinitionsCache =
           await DefinitionCodec.decode(e.compressedDefinitions);
     }));
-    final int decodeMs = _ph.elapsedMilliseconds;
+    final int decodeMs = ph.elapsedMilliseconds;
 
     // Phase 4: collect every pitch and frequency id referenced by the
     // result, then batch-load those rows.
-    _ph
+    ph
       ..reset()
       ..start();
     final pitchIds = <int>{};
@@ -2795,10 +2792,10 @@ class AppModel with ChangeNotifier {
           .whereType<DictionaryFrequency>())
         f.id!: f,
     };
-    final int pitchFreqMs = _ph.elapsedMilliseconds;
+    final int pitchFreqMs = ph.elapsedMilliseconds;
 
     // Phase 5: dictionary-metadata load + dictionaryRef wiring.
-    _ph
+    ph
       ..reset()
       ..start();
     final dictionaryIds = <int>{};
@@ -2827,11 +2824,11 @@ class AppModel with ChangeNotifier {
     for (final f in frequenciesById.values) {
       f.dictionaryRef = dictsById[f.dictionaryId];
     }
-    final int dictLoadMs = _ph.elapsedMilliseconds;
+    final int dictLoadMs = ph.elapsedMilliseconds;
 
     // Phase 6: per-dictionary tag index build. Currently issues one
     // `findAllSync` per dictionary id.
-    _ph
+    ph
       ..reset()
       ..start();
     final tagsByDict = <int, Map<String, DictionaryTag>>{};
@@ -2842,13 +2839,13 @@ class AppModel with ChangeNotifier {
           .findAllSync();
       tagsByDict[dictId] = {for (final t in tags) t.name: t};
     }
-    final int tagsMs = _ph.elapsedMilliseconds;
+    final int tagsMs = ph.elapsedMilliseconds;
 
-    DictionaryTag? _lookupTag(int dictId, String name) =>
+    DictionaryTag? lookupTag(int dictId, String name) =>
         tagsByDict[dictId]?[name];
 
     // Phase 7: assemble one view-model DictionaryHeading per EntryGroup.
-    _ph
+    ph
       ..reset()
       ..start();
     final headings = <DictionaryHeading>[];
@@ -2862,7 +2859,7 @@ class AppModel with ChangeNotifier {
         final entryTagList = <DictionaryTag>[];
         for (final name in entry.entryTagsRaw.split(' ')) {
           if (name.isEmpty) continue;
-          final tag = _lookupTag(entry.dictionaryId, name);
+          final tag = lookupTag(entry.dictionaryId, name);
           if (tag != null) entryTagList.add(tag);
         }
         entry.tags = entryTagList;
@@ -2871,7 +2868,7 @@ class AppModel with ChangeNotifier {
 
         for (final name in entry.headingTagsRaw.split(' ')) {
           if (name.isEmpty) continue;
-          final tag = _lookupTag(entry.dictionaryId, name);
+          final tag = lookupTag(entry.dictionaryId, name);
           if (tag != null) headingTagSet.add(tag);
         }
       }
@@ -2896,7 +2893,7 @@ class AppModel with ChangeNotifier {
         tags: headingTagSet.toList(),
       ));
     }
-    final int assemblyMs = _ph.elapsedMilliseconds;
+    final int assemblyMs = ph.elapsedMilliseconds;
 
     final id = _nextSearchResultIdCounter++;
     final res = DictionarySearchResult(
@@ -3054,7 +3051,6 @@ class AppModel with ChangeNotifier {
     await requestAnkidroidPermissions();
 
     await showDialog(
-      barrierDismissible: true,
       context: _navigatorKey.currentContext!,
       builder: (context) => AlertDialog(
         title: Text(t.error_ankidroid_api),
@@ -3095,7 +3091,6 @@ class AppModel with ChangeNotifier {
       methodChannel.invokeMethod('addDefaultModel');
 
       await showDialog(
-        barrierDismissible: true,
         context: _navigatorKey.currentContext!,
         builder: (context) => AlertDialog(
           title: Text(t.info_standard_model),
@@ -3523,7 +3518,6 @@ class AppModel with ChangeNotifier {
     if (!newMappingModelExists) {
       if (context.mounted) {
         await showDialog(
-          barrierDismissible: true,
           context: context,
           builder: (_) => AlertDialog(
             title: Text(t.error_model_missing),
@@ -3551,7 +3545,6 @@ class AppModel with ChangeNotifier {
     if (!newMappingModelLengthMatches) {
       if (context.mounted) {
         await showDialog(
-          barrierDismissible: true,
           context: context,
           builder: (_) => AlertDialog(
             title: Text(t.error_model_changed),
@@ -4387,14 +4380,11 @@ class AppModel with ChangeNotifier {
     double left = _preferences.get('blur_left', defaultValue: -1.0);
     double top = _preferences.get('blur_top', defaultValue: -1.0);
 
-    int red = _preferences.get('blur_red',
-        defaultValue: Colors.black.withOpacity(0).red);
-    int green = _preferences.get('blur_green',
-        defaultValue: Colors.black.withOpacity(0).green);
-    int blue = _preferences.get('blur_blue',
-        defaultValue: Colors.black.withOpacity(0).blue);
+    int red = _preferences.get('blur_red', defaultValue: 0);
+    int green = _preferences.get('blur_green', defaultValue: 0);
+    int blue = _preferences.get('blur_blue', defaultValue: 0);
     double opacity = _preferences.get('blur_opacity',
-        defaultValue: Colors.black.withOpacity(0).opacity);
+        defaultValue: Colors.black.withValues(alpha: 0).a);
 
     Color color = Color.fromRGBO(red, green, blue, opacity);
 
@@ -4419,10 +4409,10 @@ class AppModel with ChangeNotifier {
     _preferences.put('blur_left', options.left);
     _preferences.put('blur_top', options.top);
 
-    _preferences.put('blur_red', options.color.red);
-    _preferences.put('blur_green', options.color.green);
-    _preferences.put('blur_blue', options.color.blue);
-    _preferences.put('blur_opacity', options.color.opacity);
+    _preferences.put('blur_red', (options.color.r * 255.0).round());
+    _preferences.put('blur_green', (options.color.g * 255.0).round());
+    _preferences.put('blur_blue', (options.color.b * 255.0).round());
+    _preferences.put('blur_opacity', options.color.a);
 
     _preferences.put('blur_radius', options.blurRadius);
     _preferences.put('blur_visible', options.visible);

@@ -99,8 +99,8 @@ class _OpenStashDialogPage extends BasePageState<OpenStashDialogPage> {
                 right: Spacing.of(context).spaces.normal,
               ),
               color: index == _selectionNotifier.value
-                  ? theme.colorScheme.primary.withOpacity(0.3)
-                  : theme.unselectedWidgetColor.withOpacity(0.1),
+                  ? theme.colorScheme.primary.withValues(alpha: 0.3)
+                  : theme.unselectedWidgetColor.withValues(alpha: 0.1),
               child: SizedBox(
                 child: Text(
                   segment,
@@ -161,7 +161,7 @@ class _OpenStashDialogPage extends BasePageState<OpenStashDialogPage> {
 
   void executeExport() async {
     String exportText = appModel.getStash().reversed.toList().join('\n');
-    await Share.share(exportText);
+    await SharePlus.instance.share(ShareParams(text: exportText));
   }
 
   void executeSelect() {
@@ -181,7 +181,6 @@ class _OpenStashDialogPage extends BasePageState<OpenStashDialogPage> {
 
   void executeClear() async {
     await showDialog(
-      barrierDismissible: true,
       context: context,
       builder: (context) => AlertDialog(
         title: Text(t.stash_clear_title),

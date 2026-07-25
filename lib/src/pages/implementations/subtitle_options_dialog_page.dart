@@ -465,7 +465,7 @@ class _SubtitleOptionsDialogPage
         Expanded(child: Text(t.player_option_subtitle_always_above_bottom_bar)),
         ValueListenableBuilder<bool>(
           valueListenable: _aboveBottomBarNotifier,
-          builder: (_, value, __) {
+          builder: (_, value, _) {
             return Switch(
               value: value,
               onChanged: (value) {
@@ -642,10 +642,10 @@ class _SubtitleOptionsDialogPage
                 onPressed: () {
                   if (target == 'Font') {
                     _fontColorController.text =
-                        '#${newColor.value.toRadixString(16)}';
+                        '#${newColor.toARGB32().toRadixString(16)}';
                   } else {
                     _outlineColorController.text =
-                        '#${newColor.value.toRadixString(16)}';
+                        '#${newColor.toARGB32().toRadixString(16)}';
                   }
                   Navigator.of(context).pop();
                 },

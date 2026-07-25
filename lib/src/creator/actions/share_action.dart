@@ -66,6 +66,6 @@ class ShareAction extends QuickAction {
 
     String shareText = buffer.toString();
 
-    Share.share(shareText);
+    SharePlus.instance.share(ShareParams(text: shareText));
   }
 }

@@ -128,8 +128,8 @@ class _TextSegmentationDialogPage
                 right: Spacing.of(context).spaces.normal,
               ),
               color: _valuesSelected[index]!.value
-                  ? theme.colorScheme.primary.withOpacity(0.3)
-                  : theme.unselectedWidgetColor.withOpacity(0.1),
+                  ? theme.colorScheme.primary.withValues(alpha: 0.3)
+                  : theme.unselectedWidgetColor.withValues(alpha: 0.1),
               child: SizedBox(
                 height: (textTheme.titleLarge?.fontSize)! * 1.3,
                 child: Text(

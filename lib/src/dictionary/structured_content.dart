@@ -200,9 +200,9 @@ class StructuredContentImage extends StructuredContent
     imageNode.attributes.addAll(
       {
         'src': srcAttr,
-        if (altAttr != null) 'alt': altAttr,
-        if (widthAttr != null) 'width': widthAttr,
-        if (heightAttr != null) 'height': heightAttr,
+        'alt': ?altAttr,
+        'width': ?widthAttr,
+        'height': ?heightAttr,
       },
     );
 
@@ -252,7 +252,7 @@ class StructuredContentLink extends StructuredContent
     linkNode.attributes.addAll(
       {
         'href': href,
-        if (lang != null) 'lang': lang!,
+        'lang': ?lang,
       },
     );
 
@@ -307,8 +307,8 @@ class StructuredContentContainer extends StructuredContent
     final containerNode = dom.Element.tag(tag);
 
     containerNode.attributes.addAll({
-      if (data != null) ...data!,
-      if (lang != null) 'lang': lang!,
+      ...?data,
+      'lang': ?lang,
     });
 
     if (content != null) {
@@ -363,8 +363,8 @@ class StructuredContentStyledContainer extends StructuredContent
     final containerNode = dom.Element.tag(tag);
 
     containerNode.attributes.addAll({
-      if (data != null) ...data!,
-      if (lang != null) 'lang': lang!,
+      ...?data,
+      'lang': ?lang,
       if (style != null) 'style': style!.toInlineStyle()
     });
 
@@ -425,8 +425,8 @@ class StructuredContentTableElement extends StructuredContent
     final node = dom.Element.tag(tag);
 
     node.attributes.addAll({
-      if (data != null) ...data!,
-      if (lang != null) 'lang': lang!,
+      ...?data,
+      'lang': ?lang,
       if (style != null) 'style': style!.toInlineStyle(),
       if (colSpan != null) 'colspan': colSpan!.toString(),
       if (rowSpan != null) 'rowSpan': rowSpan!.toString(),

@@ -91,7 +91,7 @@ class _BrowserSettingsDialogPageState extends BasePageState {
         ),
         ValueListenableBuilder<bool>(
           valueListenable: notifier,
-          builder: (_, value, __) {
+          builder: (_, value, _) {
             return Switch(
               value: value,
               onChanged: (value) {
@@ -115,7 +115,7 @@ class _BrowserSettingsDialogPageState extends BasePageState {
         ),
         ValueListenableBuilder<bool>(
           valueListenable: notifier,
-          builder: (_, value, __) {
+          builder: (_, value, _) {
             return Switch(
               value: value,
               onChanged: (value) {

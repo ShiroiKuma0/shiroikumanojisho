@@ -9,7 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:shiroikumanojisho/dictionary.dart';
 import 'package:shiroikumanojisho/models.dart';
 
-import 'dictionary_resource_cleanup.dart';
+import 'package:shiroikumanojisho/src/utils/misc/dictionary_resource_cleanup.dart';
 
 /// Developer-facing diagnostics dialog showing on-disk storage usage and
 /// search performance. Reached by long-pressing the version label on the
@@ -214,8 +214,10 @@ class _StorageBenchmarkDialogState extends State<StorageBenchmarkDialog> {
         ),
         TextButton(
           onPressed: () {
-            Share.share(fullText.toString(),
-                subject: 'jidoujisho2 storage report');
+            SharePlus.instance.share(ShareParams(
+              text: fullText.toString(),
+              subject: 'jidoujisho2 storage report',
+            ));
           },
           child: const Text('Share'),
         ),

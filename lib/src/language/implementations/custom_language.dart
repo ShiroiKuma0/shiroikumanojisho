@@ -103,6 +103,18 @@ class CustomLanguage extends Language {
 
 /// Language presets for quick configuration.
 class LanguagePreset {
+
+  const LanguagePreset({
+    required this.name,
+    required this.code,
+    required this.country,
+    required this.threeLetterCode,
+    required this.hello, this.rtl = false,
+    this.vertical = false,
+    this.spaceDelimited = true,
+    this.ideographic = false,
+    this.font = 'Roboto',
+  });
   final String name;
   final String code;
   final String country;
@@ -113,19 +125,6 @@ class LanguagePreset {
   final bool ideographic;
   final String hello;
   final String font;
-
-  const LanguagePreset({
-    required this.name,
-    required this.code,
-    required this.country,
-    required this.threeLetterCode,
-    this.rtl = false,
-    this.vertical = false,
-    this.spaceDelimited = true,
-    this.ideographic = false,
-    required this.hello,
-    this.font = 'Roboto',
-  });
 
   static const List<LanguagePreset> presets = [
     LanguagePreset(name: 'العربية (Arabic)', code: 'ar', country: 'SA',

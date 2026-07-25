@@ -82,7 +82,7 @@ class _SwitchSettingsPageState<T> extends BasePageState<SwitchSettingsPage<T>> {
                     ),
                     ValueListenableBuilder<bool>(
                       valueListenable: notifier,
-                      builder: (_, value, __) {
+                      builder: (_, value, _) {
                         return Switch(
                           value: value,
                           onChanged: (value) {

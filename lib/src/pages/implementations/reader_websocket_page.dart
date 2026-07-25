@@ -307,7 +307,7 @@ class _ReaderWebsocketPageState
         busy: true,
         shapeBorder: const RoundedRectangleBorder(),
         backgroundColor:
-            Theme.of(context).appBarTheme.foregroundColor?.withOpacity(0.1),
+            Theme.of(context).appBarTheme.foregroundColor?.withValues(alpha: 0.1),
         size: Spacing.of(context).spaces.semiBig,
         tooltip: t.sentence_picker,
         icon: Icons.colorize,
@@ -347,7 +347,7 @@ class _ReaderWebsocketPageState
         busy: true,
         shapeBorder: const RoundedRectangleBorder(),
         backgroundColor:
-            Theme.of(context).appBarTheme.foregroundColor?.withOpacity(0.1),
+            Theme.of(context).appBarTheme.foregroundColor?.withValues(alpha: 0.1),
         size: Spacing.of(context).spaces.semiBig,
         tooltip: t.card_creator,
         icon: Icons.note_add,

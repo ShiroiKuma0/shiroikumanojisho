@@ -243,7 +243,7 @@ class _DictionaryEntryTagsWrap extends ConsumerWidget {
             ],
           ),
         );
-      }).toList(),
+      }),
     ];
   }
 }

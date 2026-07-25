@@ -59,7 +59,7 @@ class _PlayerCommentsPageState extends BaseSourcePageState<PlayerCommentsPage> {
         buildBlur(),
         Scaffold(
           appBar: buildAppBar(),
-          backgroundColor: Theme.of(context).cardColor.withOpacity(0.85),
+          backgroundColor: Theme.of(context).cardColor.withValues(alpha: 0.85),
           resizeToAvoidBottomInset: false,
           body: SafeArea(
             child: Stack(
@@ -357,7 +357,7 @@ class _PlayerCommentsPageState extends BaseSourcePageState<PlayerCommentsPage> {
         right: Spacing.of(context).spaces.normal,
       ),
       child: Card(
-        color: Theme.of(context).cardColor.withOpacity(0.5),
+        color: Theme.of(context).cardColor.withValues(alpha: 0.5),
         shape: const RoundedRectangleBorder(),
         child: Padding(
           padding: Spacing.of(context).insets.all.normal,
@@ -465,7 +465,7 @@ class _PlayerCommentsPageState extends BaseSourcePageState<PlayerCommentsPage> {
                         Navigator.of(context).push(
                           PageRouteBuilder(
                             opaque: false,
-                            pageBuilder: (context, _, __) => PlayerCommentsPage(
+                            pageBuilder: (context, _, _) => PlayerCommentsPage(
                               videoUrl: widget.videoUrl,
                               comment: comment,
                             ),
@@ -507,7 +507,7 @@ class _PlayerCommentsPageState extends BaseSourcePageState<PlayerCommentsPage> {
         busy: true,
         shapeBorder: const RoundedRectangleBorder(),
         backgroundColor:
-            Theme.of(context).appBarTheme.foregroundColor?.withOpacity(0.1),
+            Theme.of(context).appBarTheme.foregroundColor?.withValues(alpha: 0.1),
         size: Spacing.of(context).spaces.semiBig,
         tooltip: t.sentence_picker,
         icon: Icons.colorize,
@@ -547,7 +547,7 @@ class _PlayerCommentsPageState extends BaseSourcePageState<PlayerCommentsPage> {
         busy: true,
         shapeBorder: const RoundedRectangleBorder(),
         backgroundColor:
-            Theme.of(context).appBarTheme.foregroundColor?.withOpacity(0.1),
+            Theme.of(context).appBarTheme.foregroundColor?.withValues(alpha: 0.1),
         size: Spacing.of(context).spaces.semiBig,
         tooltip: t.card_creator,
         icon: Icons.note_add,
@@ -595,7 +595,7 @@ class CommentAvatarCircle extends ConsumerWidget {
       width: size,
       child: channel.when(
         loading: SizedBox.shrink,
-        error: (_, __) => const SizedBox.shrink(),
+        error: (_, _) => const SizedBox.shrink(),
         data: (channel) {
           return CircleAvatar(
             child: CachedNetworkImage(
@@ -609,7 +609,7 @@ class CommentAvatarCircle extends ConsumerWidget {
                   ),
                 ),
               ),
-              placeholder: (_, __) => const SizedBox.shrink(),
+              placeholder: (_, _) => const SizedBox.shrink(),
               imageUrl: channel.logoUrl,
               fit: BoxFit.fill,
             ),

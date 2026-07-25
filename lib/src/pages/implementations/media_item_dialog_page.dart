@@ -83,11 +83,11 @@ class _MediaItemDialogPageState extends BasePageState<MediaItemDialogPage> {
             aspectRatio: mediaSource.aspectRatio,
             child: FadeInImage(
               placeholder: MemoryImage(kTransparentImage),
-              imageErrorBuilder: (_, __, ___) {
+              imageErrorBuilder: (_, _, _) {
                 if (widget.item.extraUrl != null) {
                   return FadeInImage(
                     placeholder: MemoryImage(kTransparentImage),
-                    imageErrorBuilder: (_, __, ___) => const SizedBox.expand(),
+                    imageErrorBuilder: (_, _, _) => const SizedBox.expand(),
                     image: mediaSource.getDisplayThumbnailFromMediaItem(
                       appModel: appModel,
                       item: widget.item,
@@ -160,7 +160,6 @@ class _MediaItemDialogPageState extends BasePageState<MediaItemDialogPage> {
 
   void executeEdit() async {
     await showDialog(
-      barrierDismissible: true,
       context: context,
       builder: (context) => MediaItemEditDialogPage(item: widget.item),
     );

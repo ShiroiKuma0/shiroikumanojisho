@@ -66,7 +66,7 @@ class ImageSubtitleTrack {
     final parts = <String>[
       if (title != null && title!.isNotEmpty) title!,
       if (language != null && language!.isNotEmpty) language!,
-      isPgs ? 'PGS' : 'VobSub (not yet supported)',
+      if (isPgs) 'PGS' else 'VobSub (not yet supported)',
     ];
     return parts.join(' · ');
   }

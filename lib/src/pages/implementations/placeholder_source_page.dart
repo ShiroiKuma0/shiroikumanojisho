@@ -17,8 +17,22 @@ class PlaceholderSourcePage extends BaseSourcePage {
 class _PlaceholderSourcePage extends BaseSourcePageState {
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: onWillPop,
+    return PopScope(
+      canPop: false,
+      // Semantic port of the old WillPopScope contract: the
+      // per-page onWillPop() decides whether the route pops,
+      // and may consume the back press (dictionary dismiss,
+      // exit-media confirm, killOnPop shutdown) by returning
+      // false.
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) {
+          return;
+        }
+        final navigator = Navigator.of(context);
+        if (await onWillPop() && mounted) {
+          navigator.pop(result);
+        }
+      },
       child: Scaffold(
         body: Center(
           child: buildPlaceholder(),

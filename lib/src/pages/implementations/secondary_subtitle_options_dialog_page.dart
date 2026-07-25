@@ -445,10 +445,10 @@ class _SecondarySubtitleOptionsDialogPage
                 onPressed: () {
                   if (target == 'Font') {
                     _fontColorController.text =
-                        '#${newColor.value.toRadixString(16)}';
+                        '#${newColor.toARGB32().toRadixString(16)}';
                   } else {
                     _outlineColorController.text =
-                        '#${newColor.value.toRadixString(16)}';
+                        '#${newColor.toARGB32().toRadixString(16)}';
                   }
                   Navigator.of(context).pop();
                 },

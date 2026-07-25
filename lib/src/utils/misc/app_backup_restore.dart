@@ -9,7 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:shiroikumanojisho/models.dart';
 import 'package:shiroikumanojisho/src/utils/components/folder_file_picker.dart';
 import 'package:shiroikumanojisho/src/utils/misc/app_export_import.dart'
-    show LongOpProgressDialog, LongOpProgressTracker;
+    show LongOpProgressDialog, LongOpProgressTracker, AppExportImport;
 
 /// Full-fidelity, same-device backup and restore. The bundle is a
 /// byte-for-byte snapshot of the app's data root (skipping caches);
@@ -758,7 +758,7 @@ class _RestoreLog {
       final ts = DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now());
       final p = '${dir.path}/shiroikumanojisho_${kind}_$ts.log';
       final f = File(p);
-      final sink = f.openWrite(mode: FileMode.write);
+      final sink = f.openWrite();
       sink.writeln('=== shiroikumanojisho $kind log ===');
       sink.writeln('opened: ${DateTime.now().toIso8601String()}');
       return _RestoreLog._(p, sink);

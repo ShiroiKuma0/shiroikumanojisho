@@ -61,7 +61,7 @@ class BasePageState<T extends BasePage> extends ConsumerState<T> {
 
   /// Action to perform upon using the Share context option.
   void onShare(String searchTerm, {String? sentence = ''}) async {
-    Share.share(searchTerm);
+    SharePlus.instance.share(ShareParams(text: searchTerm));
   }
 
   /// Action to perform upon using the Stash context option.

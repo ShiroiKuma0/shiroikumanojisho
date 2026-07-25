@@ -25,7 +25,7 @@ class _RecursiveDictionaryHistoryPageState
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      backgroundColor: Theme.of(context).colorScheme.background,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       appBar: buildAppBar(),
       body: SafeArea(
         child: DictionaryResultPage(

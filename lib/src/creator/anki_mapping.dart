@@ -13,29 +13,6 @@ part 'anki_mapping.g.dart';
 @JsonSerializable()
 @Collection()
 class AnkiMapping {
-  /// Initialise a model mapping with the given parameters.
-  AnkiMapping({
-    required this.label,
-    required this.model,
-    required this.exportFieldKeys,
-    required this.creatorFieldKeys,
-    required this.creatorCollapsedFieldKeys,
-    required this.order,
-    required this.tags,
-    required this.exportMediaTags,
-    required this.useBrTags,
-    required this.prependDictionaryNames,
-    this.enhancements,
-    this.actions,
-    this.id,
-  });
-
-  /// Create an instance of this class from a serialized format.
-  factory AnkiMapping.fromJson(Map<String, dynamic> json) =>
-      _$AnkiMappingFromJson(json);
-
-  /// Convert this into a serialized format.
-  Map<String, dynamic> toJson() => _$AnkiMappingToJson(this);
 
   /// Get the default mapping that is included with the application at first
   /// startup. Requires a language so that the appropriate default enhancements
@@ -77,6 +54,29 @@ class AnkiMapping {
       prependDictionaryNames: true,
     );
   }
+  /// Initialise a model mapping with the given parameters.
+  AnkiMapping({
+    required this.label,
+    required this.model,
+    required this.exportFieldKeys,
+    required this.creatorFieldKeys,
+    required this.creatorCollapsedFieldKeys,
+    required this.order,
+    required this.tags,
+    required this.exportMediaTags,
+    required this.useBrTags,
+    required this.prependDictionaryNames,
+    this.enhancements,
+    this.actions,
+    this.id,
+  });
+
+  /// Create an instance of this class from a serialized format.
+  factory AnkiMapping.fromJson(Map<String, dynamic> json) =>
+      _$AnkiMappingFromJson(json);
+
+  /// Convert this into a serialized format.
+  Map<String, dynamic> toJson() => _$AnkiMappingToJson(this);
 
   /// A default map of enhancements to use for new mappings.
   static const Map<String, Map<String, Map<int, String>>>

@@ -443,14 +443,14 @@ class PlayerYoutubeSource extends PlayerMediaSource {
     }
 
     subtitlesList = [
-      if (targetLanguageItem != null) targetLanguageItem,
-      if (appLanguageItem != null) appLanguageItem,
+      ?targetLanguageItem,
+      ?appLanguageItem,
       ...subtitlesList,
     ];
 
     metadataList = [
-      if (targetLanguageMeta != null) targetLanguageMeta,
-      if (appLanguageMeta != null) appLanguageMeta,
+      ?targetLanguageMeta,
+      ?appLanguageMeta,
       ...metadataList,
     ];
 

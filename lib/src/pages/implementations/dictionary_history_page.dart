@@ -41,6 +41,8 @@ class _DictionaryHistoryPageState extends BasePageState<DictionaryHistoryPage> {
         appModel.dictionaryHistory.reversed.toList();
 
     return CustomScrollView(
+      // The ScrollCacheExtent replacement does not exist in 3.44 yet.
+      // ignore: deprecated_member_use
       cacheExtent: 999999999999999,
       controller: DictionaryMediaType.instance.scrollController,
       physics: const AlwaysScrollableScrollPhysics(
@@ -58,7 +60,7 @@ class _DictionaryHistoryPageState extends BasePageState<DictionaryHistoryPage> {
                 lastSelectedMapping: lastSelectedMapping,
               ),
             )
-            .toList(),
+            ,
       ],
     );
   }
@@ -174,8 +176,8 @@ class _DictionaryHistoryScrollableItemState
           },
           child: Container(
             color: Theme.of(context).brightness == Brightness.dark
-                ? Colors.white.withOpacity(0.05)
-                : Colors.black.withOpacity(0.05),
+                ? Colors.white.withValues(alpha: 0.05)
+                : Colors.black.withValues(alpha: 0.05),
             width: double.maxFinite,
             child: Padding(
               padding: Spacing.of(context).insets.all.small,

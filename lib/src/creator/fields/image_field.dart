@@ -127,7 +127,7 @@ class ImageField extends ImageExportField {
   }) {
     return ChangeNotifierBuilder(
       notifier: carouselNotifier,
-      builder: (_, __, ___) {
+      builder: (_, _, _) {
         return CarouselSlider.builder(
           key: carouselKey,
           itemCount: itemCount + 1,
@@ -178,7 +178,7 @@ class ImageField extends ImageExportField {
                 }
                 popup = OverlayEntry(
                   builder: (context) => ColoredBox(
-                    color: Colors.black.withOpacity(0.5),
+                    color: Colors.black.withValues(alpha: 0.5),
                     child: buildImage(image: image, fit: BoxFit.contain),
                   ),
                 );

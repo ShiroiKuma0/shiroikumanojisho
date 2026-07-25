@@ -169,7 +169,6 @@ class _DictionaryDialogPageState extends BasePageState with ChangeNotifier {
           allowedExtensions: type == FileType.any
               ? null
               : appModel.lastSelectedDictionaryFormat.allowedExtensions,
-          allowMultiple: true,
           onFileLoading: (status) {
             if (status == FilePickerStatus.done) {
               showDialog(
@@ -563,7 +562,7 @@ class _DictionaryDialogPageState extends BasePageState with ChangeNotifier {
           children: [
             ChangeNotifierBuilder(
               notifier: _formatNotifier,
-              builder: (_, __, ___) => JidoujishoDropdown<DictionaryFormat>(
+              builder: (_, _, _) => JidoujishoDropdown<DictionaryFormat>(
                 options: appModel.dictionaryFormats.values.toList(),
                 initialOption: appModel.lastSelectedDictionaryFormat,
                 generateLabel: (format) => format.name,

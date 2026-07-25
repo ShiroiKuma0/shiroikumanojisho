@@ -764,7 +764,7 @@ class _JidoujishoSelectableTextState extends State<JidoujishoSelectableText>
             selectionStyle.cursorColor ??
             cupertinoTheme.primaryColor;
         selectionColor = selectionStyle.selectionColor ??
-            cupertinoTheme.primaryColor.withOpacity(0.40);
+            cupertinoTheme.primaryColor.withValues(alpha: 0.40);
         cursorRadius ??= const Radius.circular(2);
         cursorOffset = Offset(
             iOSHorizontalOffset / MediaQuery.of(context).devicePixelRatio, 0);
@@ -781,7 +781,7 @@ class _JidoujishoSelectableTextState extends State<JidoujishoSelectableText>
             selectionStyle.cursorColor ??
             cupertinoTheme.primaryColor;
         selectionColor = selectionStyle.selectionColor ??
-            cupertinoTheme.primaryColor.withOpacity(0.40);
+            cupertinoTheme.primaryColor.withValues(alpha: 0.40);
         cursorRadius ??= const Radius.circular(2);
         cursorOffset = Offset(
             iOSHorizontalOffset / MediaQuery.of(context).devicePixelRatio, 0);
@@ -798,7 +798,7 @@ class _JidoujishoSelectableTextState extends State<JidoujishoSelectableText>
             selectionStyle.cursorColor ??
             theme.colorScheme.primary;
         selectionColor = selectionStyle.selectionColor ??
-            theme.colorScheme.primary.withOpacity(0.40);
+            theme.colorScheme.primary.withValues(alpha: 0.40);
         break;
 
       case TargetPlatform.linux:
@@ -813,7 +813,7 @@ class _JidoujishoSelectableTextState extends State<JidoujishoSelectableText>
             selectionStyle.cursorColor ??
             theme.colorScheme.primary;
         selectionColor = selectionStyle.selectionColor ??
-            theme.colorScheme.primary.withOpacity(0.40);
+            theme.colorScheme.primary.withValues(alpha: 0.40);
         break;
     }
 
@@ -846,8 +846,9 @@ class _JidoujishoSelectableTextState extends State<JidoujishoSelectableText>
         textAlign:
             widget.textAlign ?? defaultTextStyle.textAlign ?? TextAlign.start,
         textDirection: widget.textDirection,
-        // ignore: deprecated_member_use
-        textScaleFactor: widget.textScaleFactor,
+        textScaler: widget.textScaleFactor == null
+            ? null
+            : TextScaler.linear(widget.textScaleFactor!),
         autofocus: widget.autofocus,
         forceLine: false,
         minLines: widget.minLines,

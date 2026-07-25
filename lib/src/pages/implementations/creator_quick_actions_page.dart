@@ -131,7 +131,6 @@ class _CreatorQuickActionsPageState extends BasePageState {
         icon: Icons.add_circle,
         onTap: () async {
           await showDialog(
-            barrierDismissible: true,
             context: context,
             builder: (context) => QuickActionsPickerDialogPage(
               mapping: mapping,

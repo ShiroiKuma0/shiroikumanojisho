@@ -9,7 +9,7 @@ import 'package:isar_community/isar.dart';
 import 'package:shiroikumanojisho/dictionary.dart';
 import 'package:shiroikumanojisho/models.dart';
 
-import 'in_memory_term_index.dart';
+import 'package:shiroikumanojisho/src/models/in_memory_term_index.dart';
 
 /// Zone key under which the worker stashes the current language's
 /// [InMemoryTermIndex] (if one is built) for the duration of a
@@ -421,7 +421,6 @@ Future<InMemoryTermIndex?> _buildIndexInBackground({
     final encodedTerms = List<Uint8List>.filled(
       n,
       Uint8List(0),
-      growable: false,
     );
     for (int i = 0; i < n; i++) {
       if (i > 0 && i % kYieldStride == 0) {

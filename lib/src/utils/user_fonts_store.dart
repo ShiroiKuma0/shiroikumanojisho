@@ -384,7 +384,9 @@ class UserFontsStore {
       final stringOffset = data.getUint16(nameOffset + 4);
       final stringsStart = nameOffset + stringOffset;
 
-      String? id16, id1, id4;
+      String? id16;
+      String? id1;
+      String? id4;
       for (int j = 0; j < count; j++) {
         final off = nameOffset + 6 + j * 12;
         if (off + 12 > data.lengthInBytes) break;

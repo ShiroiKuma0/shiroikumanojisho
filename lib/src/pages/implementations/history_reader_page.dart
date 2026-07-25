@@ -77,7 +77,7 @@ class HistoryReaderPageState<T extends BaseHistoryPage>
     if (id == null || id.isEmpty) return null;
     final String languageCode = appModel.targetLanguage.languageCode;
     final String raw = 'book_${languageCode}_$id';
-    return raw.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+    return raw.replaceAll(RegExp('[^a-zA-Z0-9]'), '_');
   }
 
   bool _hasTranslationBook(MediaItem item) {
@@ -154,12 +154,12 @@ class HistoryReaderPageState<T extends BaseHistoryPage>
         alignment: Alignment.bottomLeft,
         children: [
           ColoredBox(
-            color: Colors.grey.shade800.withOpacity(0.3),
+            color: Colors.grey.shade800.withValues(alpha: 0.3),
             child: AspectRatio(
               aspectRatio: mediaSource.aspectRatio,
               child: FadeInImage(
                 key: UniqueKey(),
-                imageErrorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                imageErrorBuilder: (_, _, _) => const SizedBox.shrink(),
                 placeholder: MemoryImage(kTransparentImage),
                 image: mediaSource.getDisplayThumbnailFromMediaItem(
                   appModel: appModel,
@@ -202,7 +202,7 @@ class HistoryReaderPageState<T extends BaseHistoryPage>
               padding: const EdgeInsets.fromLTRB(2, 2, 2, 4),
               height: constraints.maxHeight * 0.25,
               width: double.maxFinite,
-              color: Colors.black.withOpacity(0.6),
+              color: Colors.black.withValues(alpha: 0.6),
               child: Text(
                 mediaSource.getDisplayTitleFromMediaItem(item),
                 overflow: TextOverflow.ellipsis,
@@ -223,7 +223,7 @@ class HistoryReaderPageState<T extends BaseHistoryPage>
                 : ((item.position / item.duration) > 0.97)
                     ? 1
                     : (item.position / item.duration),
-            backgroundColor: Colors.white.withOpacity(0.6),
+            backgroundColor: Colors.white.withValues(alpha: 0.6),
             valueColor: const AlwaysStoppedAnimation<Color>(Colors.red),
             minHeight: 2,
           ),
@@ -240,7 +240,7 @@ class HistoryReaderPageState<T extends BaseHistoryPage>
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.6),
+        color: Colors.black.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Icon(

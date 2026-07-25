@@ -37,7 +37,7 @@ class _PlayerVolumeBrightnessControlPage
     _options = widget.notifier.value;
     _volume.value = _options.volume;
     _brightness.value = _options.brightness;
-    ScreenBrightness().setScreenBrightness(_options.brightness);
+    ScreenBrightness().setApplicationScreenBrightness(_options.brightness);
     playerController = widget.playerController;
   }
 
@@ -136,7 +136,7 @@ class _PlayerVolumeBrightnessControlPage
                             value: value,
                             onChanged: (value) {
                               _brightness.value = value;
-                              ScreenBrightness().setScreenBrightness(value);
+                              ScreenBrightness().setApplicationScreenBrightness(value);
                             },
                           );
                         },

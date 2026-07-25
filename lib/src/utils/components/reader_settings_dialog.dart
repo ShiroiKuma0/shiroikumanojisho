@@ -1,16 +1,30 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:hive/hive.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:shiroikumanojisho/utils.dart';
 
 /// Per-book reader appearance settings.
 class ReaderAppearanceSettings {
+
+  ReaderAppearanceSettings({
+    this.fontColor = 0xFFFFFF00,
+    this.backgroundColor = 0xFF000000,
+    this.fontWeight = 'Normal',
+    this.marginLeft = 0,
+    this.marginTop = 0,
+    this.marginRight = 0,
+    this.marginBottom = 0,
+    this.paragraphSpacing = 0.6,
+    this.lineSpacing = 1.0,
+    this.fontFamily = '',
+    this.fontFamilySecondary = '',
+    this.fontSize = 20,
+    this.writingMode = 'horizontal',
+  });
   int fontColor;
   int backgroundColor;
   String fontWeight; // 'Thin', 'Normal', 'Bold'
@@ -41,22 +55,6 @@ class ReaderAppearanceSettings {
   /// right-to-left column flow — standard for Japanese novels).
   /// Per-book and independent for primary vs. translation books.
   String writingMode;
-
-  ReaderAppearanceSettings({
-    this.fontColor = 0xFFFFFF00,
-    this.backgroundColor = 0xFF000000,
-    this.fontWeight = 'Normal',
-    this.marginLeft = 0,
-    this.marginTop = 0,
-    this.marginRight = 0,
-    this.marginBottom = 0,
-    this.paragraphSpacing = 0.6,
-    this.lineSpacing = 1.0,
-    this.fontFamily = '',
-    this.fontFamilySecondary = '',
-    this.fontSize = 20,
-    this.writingMode = 'horizontal',
-  });
 
   /// Load settings from Hive box for a given book key.
   ///
@@ -532,13 +530,13 @@ class _ReaderSettingsDialogState extends State<ReaderSettingsDialog> {
             children: [
               // Font color
               _colorRow('Font color', Color(_s.fontColor), (c) {
-                setState(() => _s.fontColor = c.value);
+                setState(() => _s.fontColor = c.toARGB32());
               }),
               const SizedBox(height: 12),
 
               // Background color
               _colorRow('Background color', Color(_s.backgroundColor), (c) {
-                setState(() => _s.backgroundColor = c.value);
+                setState(() => _s.backgroundColor = c.toARGB32());
               }),
               const SizedBox(height: 16),
 
@@ -612,8 +610,7 @@ class _ReaderSettingsDialogState extends State<ReaderSettingsDialog> {
               // _applyReaderSettings re-injects the appearance CSS
               // including this size, so the change shows up
               // immediately in the open book.
-              _numberField('Font size (px)', _fontSizeController,
-                  decimal: false, resetValue: '20'),
+              _numberField('Font size (px)', _fontSizeController, resetValue: '20'),
               const SizedBox(height: 12),
 
               // Line spacing
@@ -674,7 +671,7 @@ class _ReaderSettingsDialogState extends State<ReaderSettingsDialog> {
             height: 36,
             decoration: BoxDecoration(
               color: color,
-              border: Border.all(color: _y, width: 1),
+              border: Border.all(color: _y),
               borderRadius: BorderRadius.circular(4),
             ),
           ),

@@ -107,9 +107,9 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
   /// (one bar-step per second is plenty during reading) at near-zero
   /// background cost.
   final ValueNotifier<double> _primaryProgressNotifier =
-      ValueNotifier<double>(0.0);
+      ValueNotifier<double>(0);
   final ValueNotifier<double> _secondaryProgressNotifier =
-      ValueNotifier<double>(0.0);
+      ValueNotifier<double>(0);
   Timer? _progressPollTimer;
   static const Duration _progressPollInterval = Duration(seconds: 1);
 
@@ -475,7 +475,7 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
       final fallback = widget.item?.uniqueKey ?? 'default';
       k = '${languageCode}_$fallback';
     }
-    return k.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+    return k.replaceAll(RegExp('[^a-zA-Z0-9]'), '_');
   }
 
   /// Returns the legacy id-derived key for the current book, or
@@ -485,7 +485,7 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
     if (_currentBookId == null) return null;
     final languageCode = appModel.targetLanguage.languageCode;
     final k = 'book_${languageCode}_${_currentBookId!}';
-    return k.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+    return k.replaceAll(RegExp('[^a-zA-Z0-9]'), '_');
   }
 
   /// One-shot migration of pre-1.1.x id-keyed Hive entries to the
@@ -585,7 +585,7 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
   /// only read real settings when `_hasSecondary` is true.
   String _safeSecondaryBookKey() {
     String k = _secondaryUrl ?? 'secondary_default';
-    return 'sec_${k.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_')}';
+    return 'sec_${k.replaceAll(RegExp('[^a-zA-Z0-9]'), '_')}';
   }
 
   Future<void> _initGestureVolume() async {
@@ -760,7 +760,7 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
+                    color: Colors.black.withValues(alpha: 0.7),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Column(
@@ -788,7 +788,7 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
+                    color: Colors.black.withValues(alpha: 0.7),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Column(
@@ -916,7 +916,7 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
         }
       },
       canRequestFocus: true,
-      onKey: (data, event) {
+      onKeyEvent: (node, event) {
         if (ModalRoute.of(context)?.isCurrent ?? false) {
           if (mediaSource.volumePageTurningEnabled) {
             if (isDictionaryShown) {
@@ -927,13 +927,13 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
               return KeyEventResult.handled;
             }
 
-            if (event.isKeyPressed(LogicalKeyboardKey.audioVolumeUp)) {
+            if ((event is! KeyUpEvent && event.logicalKey == LogicalKeyboardKey.audioVolumeUp)) {
               unselectWebViewTextSelection(_controller);
               _controller.evaluateJavascript(source: leftArrowSimulateJs);
 
               return KeyEventResult.handled;
             }
-            if (event.isKeyPressed(LogicalKeyboardKey.audioVolumeDown)) {
+            if ((event is! KeyUpEvent && event.logicalKey == LogicalKeyboardKey.audioVolumeDown)) {
               unselectWebViewTextSelection(_controller);
               _controller.evaluateJavascript(source: rightArrowSimulateJs);
 
@@ -946,8 +946,22 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
           return KeyEventResult.ignored;
         }
       },
-      child: WillPopScope(
-        onWillPop: onWillPop,
+      child: PopScope(
+        canPop: false,
+        // Semantic port of the old WillPopScope contract: the
+        // per-page onWillPop() decides whether the route pops,
+        // and may consume the back press (dictionary dismiss,
+        // exit-media confirm, killOnPop shutdown) by returning
+        // false.
+        onPopInvokedWithResult: (didPop, result) async {
+          if (didPop) {
+            return;
+          }
+          final navigator = Navigator.of(context);
+          if (await onWillPop() && mounted) {
+            navigator.pop(result);
+          }
+        },
         child: Scaffold(
           backgroundColor: Colors.black,
           resizeToAvoidBottomInset: false,
@@ -1156,7 +1170,7 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
         // a no-op if the position was already restored.
         Future.delayed(const Duration(milliseconds: 1500), () async {
           try {
-            await controller.evaluateJavascript(source: r'''
+            await controller.evaluateJavascript(source: '''
               (function(){
                 var ev = new KeyboardEvent('keydown', {
                   code: 'KeyR', key: 'r', bubbles: true,
@@ -1511,7 +1525,7 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
       builder: (context, value, _) {
         return Container(
           height: 2,
-          color: const Color(0xFFFFFF00).withOpacity(0.12),
+          color: const Color(0xFFFFFF00).withValues(alpha: 0.12),
           child: Align(
             alignment: Alignment.centerLeft,
             child: FractionallySizedBox(
@@ -1731,7 +1745,6 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
       picked = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['epub'],
-        withData: true,
       );
     } catch (e) {
       // Picker itself failed — surface to user and bail.
@@ -1744,7 +1757,12 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
     }
     if (picked == null || picked.files.isEmpty) return;
     final f = picked.files.single;
-    final Uint8List? bytes = f.bytes;
+    Uint8List? bytes;
+    try {
+      bytes = await f.readAsBytes();
+    } catch (_) {
+      bytes = null;
+    }
     if (bytes == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1898,7 +1916,6 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
     ReaderAppearanceSettings primarySettings = ReaderAppearanceSettings.load(
       _readerBox,
       primaryKey,
-      isSecondary: false,
       languageCode: languageCode,
     );
     String primaryCss = primarySettings.toCss().replaceAll('\n', ' ');
@@ -2075,7 +2092,6 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
       final settings = ReaderAppearanceSettings.load(
         _readerBox,
         _safeBookKey(),
-        isSecondary: false,
         languageCode: languageCode,
       );
       return _wmToCss(settings.writingMode);
@@ -2441,7 +2457,7 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
   /// not worth the weight for what's realistically rare (most font
   /// files users download are TTF or OTF). For WOFF/WOFF2 the user
   /// still has to type the name by hand.
-  static const String _ttfAutofillJs = r'''
+  static const String _ttfAutofillJs = '''
     (function() {
       if (window.__ttuFontAutofillApplied) return;
       window.__ttuFontAutofillApplied = true;
@@ -2726,7 +2742,7 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
     }
   }
 
-  createFileFromBase64(String base64Content) async {
+  Future<void> createFileFromBase64(String base64Content) async {
     var bytes = base64Decode(base64Content.replaceAll('\n', ''));
     DocumentFileSavePlus().saveFile(
       bytes.buffer.asUint8List(),
@@ -3252,7 +3268,7 @@ if (!window.getSelection().isCollapsed) {
 
   void shareMenuAction() async {
     String searchTerm = await getSelectedText();
-    Share.share(searchTerm);
+    SharePlus.instance.share(ShareParams(text: searchTerm));
     await unselectWebViewTextSelection(_controller);
   }
 

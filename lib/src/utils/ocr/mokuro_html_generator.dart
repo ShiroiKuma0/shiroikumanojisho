@@ -1,4 +1,6 @@
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:shiroikumanojisho/pages.dart' show MokuroCatalogBrowsePage;
+import 'package:shiroikumanojisho/src/pages/implementations/mokuro_catalog_browse_page.dart' show MokuroCatalogBrowsePage;
 
 import 'package:shiroikumanojisho/src/utils/misc/mokuro_payload.dart';
 

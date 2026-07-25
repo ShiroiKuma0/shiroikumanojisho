@@ -61,7 +61,7 @@ class _ReaderTtuSourceHistoryPageState<T extends HistoryReaderPage>
             return Center(
               child: ValueListenableBuilder<int>(
                 valueListenable: _tryAgainCountdownNotifier,
-                builder: (_, __, ___) => JidoujishoPlaceholderMessage(
+                builder: (_, _, _) => JidoujishoPlaceholderMessage(
                   icon: Icons.lan,
                   message: '${t.server_port_in_use}\n${t.retrying_in.seconds(
                     n: _tryAgainCountdownNotifier.value,

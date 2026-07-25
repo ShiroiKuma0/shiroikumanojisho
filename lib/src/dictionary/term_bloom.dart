@@ -48,6 +48,8 @@ import 'dart:typed_data';
 ///   reuse it across queries. Call [TermBloom.mayContain] before
 ///   hitting Isar; skip the query if it returns false.
 class TermBloom {
+
+  TermBloom._(this.m, this._bits);
   /// Construct a filter from previously-serialised bytes. Returns null
   /// if the bytes are empty, malformed, or came from an unsupported
   /// version (in which case callers should fall back to "always
@@ -85,8 +87,6 @@ class TermBloom {
     }
     return bloom;
   }
-
-  TermBloom._(this.m, this._bits);
 
   /// Number of bits in the filter (power of two).
   final int m;

@@ -85,7 +85,7 @@ class _MokuroSettingsDialogPageState extends BasePageState {
         ),
         ValueListenableBuilder<bool>(
           valueListenable: notifier,
-          builder: (_, value, __) {
+          builder: (_, value, _) {
             return Switch(
               value: value,
               onChanged: (value) {
@@ -110,7 +110,7 @@ class _MokuroSettingsDialogPageState extends BasePageState {
         ),
         ValueListenableBuilder<bool>(
           valueListenable: notifier,
-          builder: (_, value, __) {
+          builder: (_, value, _) {
             return Switch(
               value: value,
               onChanged: (value) {
@@ -134,7 +134,7 @@ class _MokuroSettingsDialogPageState extends BasePageState {
         ),
         ValueListenableBuilder<bool>(
           valueListenable: notifier,
-          builder: (_, value, __) {
+          builder: (_, value, _) {
             return Switch(
               value: value,
               onChanged: (value) {
@@ -159,7 +159,7 @@ class _MokuroSettingsDialogPageState extends BasePageState {
         ),
         ValueListenableBuilder<bool>(
           valueListenable: notifier,
-          builder: (_, value, __) {
+          builder: (_, value, _) {
             return Switch(
               value: value,
               onChanged: (value) {
@@ -183,7 +183,7 @@ class _MokuroSettingsDialogPageState extends BasePageState {
         ),
         ValueListenableBuilder<double>(
           valueListenable: notifier,
-          builder: (_, value, __) {
+          builder: (_, value, _) {
             return DropdownButton<double>(
               value: value,
               items: const [1.0, 1.25, 1.5, 1.75, 2.0]
@@ -216,7 +216,7 @@ class _MokuroSettingsDialogPageState extends BasePageState {
         ),
         ValueListenableBuilder<bool>(
           valueListenable: notifier,
-          builder: (_, value, __) {
+          builder: (_, value, _) {
             return Switch(
               value: value,
               onChanged: (value) {

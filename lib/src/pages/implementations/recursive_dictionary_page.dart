@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:shiroikumanojisho/models.dart' show AppModel;
+import 'package:shiroikumanojisho/src/models/app_model.dart' show AppModel;
 import 'package:spaces/spaces.dart';
-import 'package:shiroikumanojisho/creator.dart';
 import 'package:shiroikumanojisho/dictionary.dart';
 import 'package:shiroikumanojisho/media.dart';
 import 'package:shiroikumanojisho/pages.dart';
@@ -78,7 +79,7 @@ class _RecursiveDictionaryPageState
       return const SizedBox.shrink();
     }
 
-    Color? backgroundColor = theme.colorScheme.background;
+    Color? backgroundColor = theme.colorScheme.surface;
     if (appModel.overrideDictionaryColor != null && !_isCreatorOpen) {
       if ((appModel.overrideDictionaryTheme ?? theme).brightness ==
           Brightness.dark) {
@@ -289,7 +290,6 @@ class _RecursiveDictionaryPageState
     try {
       final String? submitted = await showDialog<String>(
         context: context,
-        barrierDismissible: true,
         builder: (dialogContext) {
           return AlertDialog(
             title: Text(t.search),
@@ -446,7 +446,7 @@ class _RecursiveDictionaryPageState
   Widget buildSearchResult() {
     Color? cardColor;
     if (!_isCreatorOpen) {
-      cardColor = appModel.overrideDictionaryColor?.withOpacity(1);
+      cardColor = appModel.overrideDictionaryColor?.withValues(alpha: 1);
     }
 
     return DictionaryResultPage(
@@ -481,8 +481,8 @@ class _RecursiveDictionaryPageState
                   },
             child: Container(
               color: Theme.of(context).brightness == Brightness.dark
-                  ? Colors.white.withOpacity(0.05)
-                  : Colors.black.withOpacity(0.05),
+                  ? Colors.white.withValues(alpha: 0.05)
+                  : Colors.black.withValues(alpha: 0.05),
               width: double.maxFinite,
               child: Padding(
                 padding: Spacing.of(context).insets.all.normal,

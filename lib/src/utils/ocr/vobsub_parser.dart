@@ -185,14 +185,18 @@ class VobsubParser {
     // Walk control sequences.
     var paletteNibbles = 0;
     var alphaNibbles = 0;
-    var x1 = 0, x2 = 0, y1 = 0, y2 = 0;
-    var rleTop = -1, rleBottom = -1;
+    var x1 = 0;
+    var x2 = 0;
+    var y1 = 0;
+    var y2 = 0;
+    var rleTop = -1;
+    var rleBottom = -1;
     Duration? stopDelay;
 
     var sequenceOffset = controlOffset;
     var guard = 0;
     while (sequenceOffset + 4 <= spu.length && guard++ < 64) {
-      final delay90k = ((spu[sequenceOffset] << 8) | spu[sequenceOffset + 1]);
+      final delay90k = (spu[sequenceOffset] << 8) | spu[sequenceOffset + 1];
       final nextOffset =
           (spu[sequenceOffset + 2] << 8) | spu[sequenceOffset + 3];
       var p = sequenceOffset + 4;

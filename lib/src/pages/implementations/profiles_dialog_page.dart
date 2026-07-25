@@ -412,7 +412,7 @@ class _ProfilesDialogPageState extends BasePageState<ProfilesDialogPage>
         ),
         ChangeNotifierBuilder(
           notifier: _modelNotifier,
-          builder: (_, __, ___) => JidoujishoDropdown<String>(
+          builder: (_, _, _) => JidoujishoDropdown<String>(
             options: widget.models,
             initialOption: widget.initialModel,
             generateLabel: (modelName) => modelName,
@@ -478,7 +478,7 @@ class _ProfilesDialogPageState extends BasePageState<ProfilesDialogPage>
         Expanded(child: Text(t.wrap_image_audio)),
         ValueListenableBuilder<bool>(
           valueListenable: notifier,
-          builder: (_, value, __) {
+          builder: (_, value, _) {
             return Switch(
               value: value,
               onChanged: (value) {
@@ -501,7 +501,7 @@ class _ProfilesDialogPageState extends BasePageState<ProfilesDialogPage>
         Expanded(child: Text(t.use_br_tags)),
         ValueListenableBuilder<bool>(
           valueListenable: notifier,
-          builder: (_, value, __) {
+          builder: (_, value, _) {
             return Switch(
               value: value,
               onChanged: (value) {
@@ -524,7 +524,7 @@ class _ProfilesDialogPageState extends BasePageState<ProfilesDialogPage>
         Expanded(child: Text(t.prepend_dictionary_names)),
         ValueListenableBuilder<bool>(
           valueListenable: notifier,
-          builder: (_, value, __) {
+          builder: (_, value, _) {
             return Switch(
               value: value,
               onChanged: (value) {
@@ -689,7 +689,6 @@ class _ProfilesDialogPageState extends BasePageState<ProfilesDialogPage>
     if (mapping.label == AnkiMapping.standardProfileName &&
         name != AnkiMapping.standardProfileName) {
       await showDialog(
-        barrierDismissible: true,
         context: context,
         builder: (context) => AlertDialog(
           title: Text(t.error_standard_profile_name),
@@ -720,7 +719,6 @@ class _ProfilesDialogPageState extends BasePageState<ProfilesDialogPage>
           name.contains('%mappingName%') ||
           appModel.mappingNameHasDuplicate(newMapping)) {
         await showDialog(
-          barrierDismissible: true,
           context: context,
           builder: (context) => AlertDialog(
             title: Text(t.error_profile_name),

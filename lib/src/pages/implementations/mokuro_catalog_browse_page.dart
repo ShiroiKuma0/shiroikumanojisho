@@ -313,7 +313,7 @@ class _MokuroCatalogBrowsePageState
 
   void shareMenuAction() async {
     String searchTerm = await getSelectedText();
-    Share.share(searchTerm);
+    SharePlus.instance.share(ShareParams(text: searchTerm));
     await unselectWebViewTextSelection(_controller);
   }
 
@@ -532,7 +532,7 @@ document.getElementById('pageIdxDisplay').style.color = 'white';
         }
       },
       canRequestFocus: true,
-      onKey: (data, event) {
+      onKeyEvent: (node, event) {
         if (ModalRoute.of(context)?.isCurrent ?? false) {
           if (mediaSource.volumePageTurningEnabled) {
             if (isDictionaryShown) {
@@ -543,13 +543,13 @@ document.getElementById('pageIdxDisplay').style.color = 'white';
               return KeyEventResult.handled;
             }
 
-            if (event.isKeyPressed(LogicalKeyboardKey.audioVolumeUp)) {
+            if ((event is! KeyUpEvent && event.logicalKey == LogicalKeyboardKey.audioVolumeUp)) {
               unselectWebViewTextSelection(_controller);
               _controller.evaluateJavascript(source: leftArrowSimulateJs);
 
               return KeyEventResult.handled;
             }
-            if (event.isKeyPressed(LogicalKeyboardKey.audioVolumeDown)) {
+            if ((event is! KeyUpEvent && event.logicalKey == LogicalKeyboardKey.audioVolumeDown)) {
               unselectWebViewTextSelection(_controller);
               _controller.evaluateJavascript(source: rightArrowSimulateJs);
 
@@ -562,8 +562,22 @@ document.getElementById('pageIdxDisplay').style.color = 'white';
           return KeyEventResult.ignored;
         }
       },
-      child: WillPopScope(
-        onWillPop: onWillPop,
+      child: PopScope(
+        canPop: false,
+        // Semantic port of the old WillPopScope contract: the
+        // per-page onWillPop() decides whether the route pops,
+        // and may consume the back press (dictionary dismiss,
+        // exit-media confirm, killOnPop shutdown) by returning
+        // false.
+        onPopInvokedWithResult: (didPop, result) async {
+          if (didPop) {
+            return;
+          }
+          final navigator = Navigator.of(context);
+          if (await onWillPop() && mounted) {
+            navigator.pop(result);
+          }
+        },
         child: Scaffold(
           appBar: _isMokuroPageFoundNotifier.value ? null : buildAppBar(),
           backgroundColor: Colors.black,

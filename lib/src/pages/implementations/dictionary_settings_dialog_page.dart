@@ -102,7 +102,7 @@ class _DictionaryDialogPageState extends BasePageState {
         ),
         ValueListenableBuilder<bool>(
           valueListenable: notifier,
-          builder: (_, value, __) {
+          builder: (_, value, _) {
             return Switch(
               value: value,
               onChanged: (value) {
@@ -127,7 +127,7 @@ class _DictionaryDialogPageState extends BasePageState {
         ),
         ValueListenableBuilder<bool>(
           valueListenable: notifier,
-          builder: (_, value, __) {
+          builder: (_, value, _) {
             return Switch(
               value: value,
               onChanged: (v) {
@@ -152,7 +152,7 @@ class _DictionaryDialogPageState extends BasePageState {
         ),
         ValueListenableBuilder<bool>(
           valueListenable: notifier,
-          builder: (_, value, __) {
+          builder: (_, value, _) {
             return Switch(
               value: value,
               onChanged: (v) {
@@ -300,9 +300,9 @@ class _DictionaryDialogPageState extends BasePageState {
   }
 
   Color get activeButtonColor =>
-      Theme.of(context).unselectedWidgetColor.withOpacity(0.1);
+      Theme.of(context).unselectedWidgetColor.withValues(alpha: 0.1);
   Color get inactiveButtonColor =>
-      Theme.of(context).unselectedWidgetColor.withOpacity(0.05);
+      Theme.of(context).unselectedWidgetColor.withValues(alpha: 0.05);
   Color get activeTextColor => Theme.of(context).appBarTheme.foregroundColor!;
   Color get inactiveTextColor => Theme.of(context).unselectedWidgetColor;
 
@@ -317,30 +317,17 @@ class _DictionaryDialogPageState extends BasePageState {
         ValueNotifier<IndexPrewarmMode>(appModel.indexPrewarmMode);
 
     Widget row(IndexPrewarmMode mode, String label) {
-      return ValueListenableBuilder<IndexPrewarmMode>(
-        valueListenable: notifier,
-        builder: (_, value, __) {
-          return InkWell(
-            onTap: () async {
-              await appModel.setIndexPrewarmMode(mode);
-              notifier.value = mode;
-            },
-            child: Row(
-              children: [
-                Radio<IndexPrewarmMode>(
-                  value: mode,
-                  groupValue: value,
-                  onChanged: (m) async {
-                    if (m == null) return;
-                    await appModel.setIndexPrewarmMode(m);
-                    notifier.value = m;
-                  },
-                ),
-                Expanded(child: Text(label)),
-              ],
-            ),
-          );
+      return InkWell(
+        onTap: () async {
+          await appModel.setIndexPrewarmMode(mode);
+          notifier.value = mode;
         },
+        child: Row(
+          children: [
+            Radio<IndexPrewarmMode>(value: mode),
+            Expanded(child: Text(label)),
+          ],
+        ),
       );
     }
 
@@ -356,9 +343,31 @@ class _DictionaryDialogPageState extends BasePageState {
             ),
           ),
         ),
-        row(IndexPrewarmMode.onAppLaunch, t.index_prewarm_on_app_launch),
-        row(IndexPrewarmMode.onBookOpen, t.index_prewarm_on_book_open),
-        row(IndexPrewarmMode.off, t.index_prewarm_off),
+        // RadioGroup (the 3.32+ replacement for per-Radio groupValue/
+        // onChanged) owns the selection state for the three rows.
+        ValueListenableBuilder<IndexPrewarmMode>(
+          valueListenable: notifier,
+          builder: (_, value, _) {
+            return RadioGroup<IndexPrewarmMode>(
+              groupValue: value,
+              onChanged: (m) async {
+                if (m == null) return;
+                await appModel.setIndexPrewarmMode(m);
+                notifier.value = m;
+              },
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  row(IndexPrewarmMode.onAppLaunch,
+                      t.index_prewarm_on_app_launch),
+                  row(IndexPrewarmMode.onBookOpen,
+                      t.index_prewarm_on_book_open),
+                  row(IndexPrewarmMode.off, t.index_prewarm_off),
+                ],
+              ),
+            );
+          },
+        ),
       ],
     );
   }

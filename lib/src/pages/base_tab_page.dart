@@ -59,7 +59,7 @@ abstract class BaseTabPageState<T extends BaseTabPage> extends BasePageState {
           isScrollControlled: true,
           hint: mediaSource.getLocalisedSourceName(appModel),
           controller: mediaType.floatingSearchBarController,
-          builder: (_, __) => const SizedBox.shrink(),
+          builder: (_, _) => const SizedBox.shrink(),
           borderRadius: BorderRadius.zero,
           elevation: 0,
           backgroundColor: appModel.isDarkMode
@@ -125,7 +125,6 @@ abstract class BaseTabPageState<T extends BaseTabPage> extends BasePageState {
         icon: mediaSource.icon,
         onTap: () async {
           await showDialog(
-            barrierDismissible: true,
             context: context,
             builder: (context) => MediaSourcePickerDialogPage(
               mediaType: mediaType,

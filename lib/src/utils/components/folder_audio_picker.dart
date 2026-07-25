@@ -42,8 +42,7 @@ import 'package:shiroikumanojisho/models.dart';
 /// real storage, and the caller's downstream logic just works.
 class FolderAudioPicker extends StatefulWidget {
   const FolderAudioPicker({
-    super.key,
-    required this.appModel,
+    required this.appModel, super.key,
     this.initialDir,
     this.allowedExtensions = const [
       '.mp3',

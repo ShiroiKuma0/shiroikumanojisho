@@ -16,10 +16,11 @@ import 'package:shiroikumanojisho/dictionary.dart';
 import 'package:shiroikumanojisho/language.dart';
 import 'package:shiroikumanojisho/media.dart';
 import 'package:shiroikumanojisho/models.dart';
-import 'package:shiroikumanojisho/src/media/sources/reader_ttu_source.dart';
 import 'package:shiroikumanojisho/src/utils/components/folder_file_picker.dart';
+import 'package:shiroikumanojisho/src/utils/misc/app_backup_restore.dart' show AppBackupRestore;
 import 'package:shiroikumanojisho/src/utils/misc/browser_bookmark.dart';
 import 'package:shiroikumanojisho/src/utils/misc/mokuro_catalog.dart';
+import 'package:shiroikumanojisho/utils.dart' show AppBackupRestore;
 
 /// Cross-device data migration via semantic export/import.
 ///
@@ -1911,7 +1912,7 @@ class AppExportImport {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx, null),
+            onPressed: () => Navigator.pop(ctx),
             child: const Text('Cancel'),
           ),
           TextButton(
@@ -2164,7 +2165,7 @@ class _ExLog {
       if (!dir.existsSync()) dir.createSync(recursive: true);
       final ts = DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now());
       final p = '${dir.path}/shiroikumanojisho_${kind}_$ts.log';
-      final sink = File(p).openWrite(mode: FileMode.write);
+      final sink = File(p).openWrite();
       sink.writeln('=== shiroikumanojisho $kind log ===');
       sink.writeln('opened: ${DateTime.now().toIso8601String()}');
       return _ExLog._(p, sink);
@@ -2210,9 +2211,7 @@ class _ExLog {
 /// having to duplicate the widget.
 class LongOpProgressDialog extends StatelessWidget {
   const LongOpProgressDialog({
-    super.key,
-    required this.titleNotifier,
-    required this.bodyNotifier,
+    required this.titleNotifier, required this.bodyNotifier, super.key,
   });
 
   final ValueNotifier<String> titleNotifier;
@@ -2223,7 +2222,7 @@ class LongOpProgressDialog extends StatelessWidget {
     return AlertDialog(
       title: ValueListenableBuilder<String>(
         valueListenable: titleNotifier,
-        builder: (_, value, __) => Text(value),
+        builder: (_, value, _) => Text(value),
       ),
       content: Row(
         mainAxisSize: MainAxisSize.min,
@@ -2233,7 +2232,7 @@ class LongOpProgressDialog extends StatelessWidget {
           Expanded(
             child: ValueListenableBuilder<String>(
               valueListenable: bodyNotifier,
-              builder: (_, value, __) => Text(value),
+              builder: (_, value, _) => Text(value),
             ),
           ),
         ],

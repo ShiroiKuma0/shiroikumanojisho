@@ -28,7 +28,6 @@ import 'package:shiroikumanojisho/creator.dart';
 import 'package:shiroikumanojisho/media.dart';
 import 'package:shiroikumanojisho/pages.dart';
 import 'package:shiroikumanojisho/src/pages/implementations/player_comments_page.dart';
-import 'package:shiroikumanojisho/src/utils/misc/app_export_import.dart';
 import 'package:shiroikumanojisho/src/utils/ocr/ocr_engine.dart';
 import 'package:shiroikumanojisho/src/utils/ocr/subtitle_ocr.dart';
 import 'package:shiroikumanojisho/utils.dart';
@@ -946,7 +945,7 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
   Widget buildPausedBitmapOverlay() {
     return ValueListenableBuilder<Uint8List?>(
       valueListenable: _pausedBitmapNotifier,
-      builder: (_, bytes, __) {
+      builder: (_, bytes, _) {
         if (bytes == null) {
           return const SizedBox.shrink();
         }
@@ -979,7 +978,7 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.9),
+          color: Colors.black.withValues(alpha: 0.9),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.yellow, width: 2),
         ),
@@ -1011,7 +1010,7 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
 
   /// Stop routing ffmpeg statistics and hide the banner.
   void _clearFfmpegProgress() {
-    FFmpegKitConfig.enableStatisticsCallback(null);
+    FFmpegKitConfig.enableStatisticsCallback();
     _subtitlePrepNotifier.value = '';
   }
 
@@ -1155,24 +1154,38 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
 
   @override
   Widget build(BuildContext context) {
-    return RawKeyboardListener(
+    return KeyboardListener(
       focusNode: FocusNode(),
       autofocus: true,
-      onKey: (event) async {
-        if (event.runtimeType == RawKeyDownEvent) {
-          if (event.isKeyPressed(LogicalKeyboardKey.keyP)) {
+      onKeyEvent: (event) async {
+        if (event is KeyDownEvent) {
+          if (event.logicalKey == LogicalKeyboardKey.keyP) {
             await playPause();
           }
-          if (event.isKeyPressed(LogicalKeyboardKey.keyB)) {
+          if (event.logicalKey == LogicalKeyboardKey.keyB) {
             seekPrevSubtitle();
           }
-          if (event.isKeyPressed(LogicalKeyboardKey.keyF)) {
+          if (event.logicalKey == LogicalKeyboardKey.keyF) {
             seekNextSubtitle();
           }
         }
       },
-      child: WillPopScope(
-        onWillPop: onWillPop,
+      child: PopScope(
+        canPop: false,
+        // Semantic port of the old WillPopScope contract: the
+        // per-page onWillPop() decides whether the route pops,
+        // and may consume the back press (dictionary dismiss,
+        // exit-media confirm, killOnPop shutdown) by returning
+        // false.
+        onPopInvokedWithResult: (didPop, result) async {
+          if (didPop) {
+            return;
+          }
+          final navigator = Navigator.of(context);
+          if (await onWillPop() && mounted) {
+            navigator.pop(result);
+          }
+        },
         child: Scaffold(
           resizeToAvoidBottomInset: false,
           backgroundColor: Colors.black,
@@ -1388,7 +1401,7 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
           context,
           PageRouteBuilder(
             opaque: false,
-            pageBuilder: (context, _, __) => PlayerTranscriptPage(
+            pageBuilder: (context, _, _) => PlayerTranscriptPage(
               title: widget.item!.title,
               subtitleController: _subtitleItem.controller,
               subtitles: _subtitleItem.controller.subtitles,
@@ -1587,7 +1600,7 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
       alignment: Alignment.bottomCenter,
       child: Container(
         height: _menuHeight,
-        color: theme.cardColor.withOpacity(0.8),
+        color: theme.cardColor.withValues(alpha: 0.8),
         child: GestureDetector(
           onTap: toggleMenuVisibility,
           child: AbsorbPointer(
@@ -1736,7 +1749,7 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
             child: GestureDetector(
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor.withOpacity(0.9),
+                  color: Theme.of(context).cardColor.withValues(alpha: 0.9),
                   borderRadius: BorderRadius.circular(48),
                 ),
                 child: Padding(
@@ -2003,7 +2016,7 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
               await Navigator.of(context).push(
                 PageRouteBuilder(
                   opaque: false,
-                  pageBuilder: (context, _, __) =>
+                  pageBuilder: (context, _, _) =>
                       PlayerCommentsPage(videoUrl: widget.item!.uniqueKey),
                   settings: RouteSettings(
                     name: (PlayerCommentsPage).toString(),
@@ -2120,7 +2133,7 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
               useRootNavigator: true,
               builder: (_) => ValueListenableBuilder(
                 valueListenable: _subtitleItemNotifier,
-                builder: (_, __, child) {
+                builder: (_, _, child) {
                   return JidoujishoBottomSheet(
                     scrollToExtent: false,
                     options: getSubtitleDialogOptions(subtitleEmbeddedTracks),
@@ -2147,7 +2160,7 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
               useRootNavigator: true,
               builder: (_) => ValueListenableBuilder(
                 valueListenable: _subtitleItemNotifier,
-                builder: (_, __, child) {
+                builder: (_, _, child) {
                   return JidoujishoBottomSheet(
                     scrollToExtent: false,
                     options: getSecondarySubtitleDialogOptions(subtitleEmbeddedTracks),
@@ -2178,7 +2191,7 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
           await navigator.push(
             PageRouteBuilder(
               opaque: false,
-              pageBuilder: (context, _, __) => PlayerTranscriptPage(
+              pageBuilder: (context, _, _) => PlayerTranscriptPage(
                 title: widget.item!.title,
                 subtitles: _subtitleItem.controller.subtitles,
                 subtitleController: _subtitleItem.controller,
@@ -2326,7 +2339,7 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
                   TextButton(
                     child: Text(t.dialog_save),
                     onPressed: () {
-                      appModel.setDictionaryFontColor(newColor.value);
+                      appModel.setDictionaryFontColor(newColor.toARGB32());
                       applyDictionaryFontColor();
                       Navigator.of(context).pop();
                     },
@@ -3007,7 +3020,7 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
                 await Navigator.of(context).push(
                   PageRouteBuilder(
                     opaque: false,
-                    pageBuilder: (context, _, __) =>
+                    pageBuilder: (context, _, _) =>
                         PlayerCommentsPage(videoUrl: widget.item!.uniqueKey),
                     settings: RouteSettings(
                       name: (PlayerCommentsPage).toString(),
@@ -3134,7 +3147,7 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
         label: t.player_option_share_subtitle,
         icon: Icons.share,
         action: () async {
-          await Share.share(getNearestSubtitle()?.data ?? '');
+          await SharePlus.instance.share(ShareParams(text: getNearestSubtitle()?.data ?? ''));
         },
       ),
       JidoujishoBottomSheetOption(
@@ -3258,8 +3271,8 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: blurRadius, sigmaY: blurRadius),
             child: Container(
-              color: Colors.black.withOpacity(
-                _secondarySubtitleOptionsNotifier.value.subtitleBackgroundOpacity,
+              color: Colors.black.withValues(
+                alpha: _secondarySubtitleOptionsNotifier.value.subtitleBackgroundOpacity,
               ),
               padding: EdgeInsets.only(
                 top: Spacing.of(context).spaces.small * 0.6,
@@ -3332,8 +3345,8 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: blurRadius, sigmaY: blurRadius),
         child: Container(
-          color: Colors.black.withOpacity(
-            _subtitleOptionsNotifier.value.subtitleBackgroundOpacity,
+          color: Colors.black.withValues(
+            alpha: _subtitleOptionsNotifier.value.subtitleBackgroundOpacity,
           ),
           padding: EdgeInsets.only(
             top: Spacing.of(context).spaces.small * 0.6,
@@ -3347,7 +3360,7 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
               JidoujishoSelectableText.rich(
                 TextSpan(children: getSubtitleOutlineSpans(subtitleText)),
                 textAlign: TextAlign.center,
-                contextMenuBuilder: (_, __) {
+                contextMenuBuilder: (_, _) {
                   return const SizedBox.shrink();
                 },
                 enableInteractiveSelection: false,
@@ -3358,7 +3371,7 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
                 controller: _selectableTextController,
                 focusNode: _dragToSelectFocusNode,
                 selectionControls: EmptyTextSelectionControls(),
-                contextMenuBuilder: (_, __) {
+                contextMenuBuilder: (_, _) {
                   return const SizedBox.shrink();
                 },
               ),
@@ -3449,7 +3462,7 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
     ..style = PaintingStyle.stroke
     ..strokeWidth = _subtitleOptionsNotifier.value.subtitleOutlineWidth
     ..color = Color(_subtitleOptionsNotifier.value.subtitleOutlineColor)
-        .withOpacity(_subtitleOptionsNotifier.value.subtitleOutlineWidth == 0
+        .withValues(alpha: _subtitleOptionsNotifier.value.subtitleOutlineWidth == 0
             ? 0
             : 0.75);
 
@@ -3482,7 +3495,7 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
     ..style = PaintingStyle.stroke
     ..strokeWidth = _secondarySubtitleOptionsNotifier.value.subtitleOutlineWidth
     ..color = Color(_secondarySubtitleOptionsNotifier.value.subtitleOutlineColor)
-        .withOpacity(_secondarySubtitleOptionsNotifier.value.subtitleOutlineWidth == 0
+        .withValues(alpha: _secondarySubtitleOptionsNotifier.value.subtitleOutlineWidth == 0
             ? 0
             : 0.75);
 
@@ -3880,7 +3893,7 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
       child: IgnorePointer(
         child: ValueListenableBuilder<String>(
           valueListenable: _subtitlePrepNotifier,
-          builder: (_, value, __) {
+          builder: (_, value, _) {
             if (value.isEmpty) {
               return const SizedBox.shrink();
             }
@@ -3889,7 +3902,7 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.85),
+                  color: Colors.black.withValues(alpha: 0.85),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.yellow, width: 2),
                 ),
@@ -3973,7 +3986,6 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
     showDialog(
       context: context,
       barrierDismissible: false,
-      useRootNavigator: true,
       builder: (_) => LongOpProgressDialog(
         titleNotifier: tracker.titleNotifier,
         bodyNotifier: tracker.bodyNotifier,
@@ -4025,7 +4037,7 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
     } catch (e) {
       Fluttertoast.showToast(msg: 'Subtitle OCR failed: $e');
     } finally {
-      FFmpegKitConfig.enableStatisticsCallback(null);
+      FFmpegKitConfig.enableStatisticsCallback();
       await engine.dispose();
       appModel.isProcessingEmbeddedSubtitles = false;
       navigator.pop();

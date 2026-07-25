@@ -216,7 +216,9 @@ class _DictionaryResultPageState extends BasePageState<DictionaryResultPage> {
         child: Padding(
           padding: Spacing.of(context).insets.onlyRight.extraSmall,
           child: CustomScrollView(
-            cacheExtent: 999999999999999,
+            // The ScrollCacheExtent replacement does not exist in 3.44 yet.
+      // ignore: deprecated_member_use
+      cacheExtent: 999999999999999,
             controller: _scrollController,
             physics: const AlwaysScrollableScrollPhysics(
               parent: BouncingScrollPhysics(),
@@ -240,7 +242,7 @@ class _DictionaryResultPageState extends BasePageState<DictionaryResultPage> {
                         dictionaryNamesByHidden: dictionaryNamesByHidden,
                         dictionaryNamesByOrder: dictionaryNamesByOrder,
                       ))
-                  .toList(),
+                  ,
               if (widget.footerWidget != null) widget.footerWidget!,
             ],
           ),
@@ -293,7 +295,7 @@ class _DictionaryResultPageState extends BasePageState<DictionaryResultPage> {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.7),
+                    color: Colors.black.withValues(alpha: 0.7),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Column(

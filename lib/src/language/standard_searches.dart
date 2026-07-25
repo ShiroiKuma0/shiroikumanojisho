@@ -1,13 +1,12 @@
 import 'dart:async';
 
-import 'package:collection/collection.dart';
 import 'package:isar_community/isar.dart';
 import 'package:shiroikumanojisho/dictionary.dart';
 import 'package:shiroikumanojisho/models.dart';
 import 'package:shiroikumanojisho/src/language/language_utils.dart';
 
-import '../models/in_memory_term_index.dart';
-import '../models/search_worker.dart';
+import 'package:shiroikumanojisho/src/models/in_memory_term_index.dart';
+import 'package:shiroikumanojisho/src/models/search_worker.dart';
 
 /// Shared search helpers used by multiple language implementations to
 /// avoid duplicating the same query orchestration. Each helper opens
@@ -283,7 +282,6 @@ Future<SearchResultData?> runStandardLatinSearch(
           }
           final ids = memIndex.findStartsWith(
             variant,
-            limit: kFastPathPerCallIdLimit,
           );
           if (ids.isNotEmpty) {
             final bucket = startsWithIdsByLength[prefix.length] ??= <int>[];

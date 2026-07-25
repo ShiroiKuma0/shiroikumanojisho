@@ -145,7 +145,7 @@ class _PlayerTranscriptPageState
       children: [
         Scaffold(
           appBar: buildAppBar(),
-          backgroundColor: Theme.of(context).cardColor.withOpacity(0.85),
+          backgroundColor: Theme.of(context).cardColor.withValues(alpha: 0.85),
           resizeToAvoidBottomInset: false,
           body: SafeArea(
             child: Stack(
@@ -188,7 +188,7 @@ class _PlayerTranscriptPageState
   Widget buildSearchBar() {
     return ValueListenableBuilder<bool>(
       valueListenable: _searchNotifier,
-      builder: (_, value, __) {
+      builder: (_, value, _) {
         if (!value) {
           return const SizedBox.shrink();
         }
@@ -198,7 +198,7 @@ class _PlayerTranscriptPageState
           child: FloatingSearchBar(
             hint: t.search_ellipsis,
             controller: _searchController,
-            builder: (_, __) => const SizedBox.shrink(),
+            builder: (_, _) => const SizedBox.shrink(),
             borderRadius: BorderRadius.zero,
             elevation: 0,
             backgroundColor: appModel.isDarkMode
@@ -368,7 +368,7 @@ class _PlayerTranscriptPageState
   Widget buildToggleSearchButton() {
     return ValueListenableBuilder<bool>(
       valueListenable: _searchNotifier,
-      builder: (context, value, __) {
+      builder: (context, value, _) {
         return JidoujishoIconButton(
           tooltip: t.search,
           enabledColor: value ? Colors.red : null,
@@ -394,7 +394,7 @@ class _PlayerTranscriptPageState
   Widget buildToggleButton() {
     return ChangeNotifierBuilder(
       notifier: _playerModeNotifier,
-      builder: (context, _, __) {
+      builder: (context, _, _) {
         return JidoujishoIconButton(
           enabledColor: appModel.isTranscriptPlayerMode ? Colors.red : null,
           tooltip: t.transcript_playback_mode,
@@ -415,7 +415,7 @@ class _PlayerTranscriptPageState
   Widget buildPlayPauseButton() {
     return ChangeNotifierBuilder(
       notifier: _playerModeNotifier,
-      builder: (context, _, __) {
+      builder: (context, _, _) {
         if (!appModel.isTranscriptPlayerMode) {
           return const SizedBox.shrink();
         }
@@ -752,7 +752,7 @@ class _PlayerTranscriptPageState
             builder: (context, currentSubtitle, child) {
               return ListTile(
                 selected: _selectedIndexNotifier.value == index,
-                selectedTileColor: Colors.red.withOpacity(0.15),
+                selectedTileColor: Colors.red.withValues(alpha: 0.15),
                 dense: true,
                 title: child,
                 onTap: () async {
@@ -902,7 +902,7 @@ class _PlayerTranscriptPageState
         busy: true,
         shapeBorder: const RoundedRectangleBorder(),
         backgroundColor:
-            Theme.of(context).appBarTheme.foregroundColor?.withOpacity(0.1),
+            Theme.of(context).appBarTheme.foregroundColor?.withValues(alpha: 0.1),
         size: Spacing.of(context).spaces.semiBig,
         tooltip: t.seek,
         icon: Icons.play_circle_fill,
@@ -931,7 +931,7 @@ class _PlayerTranscriptPageState
         busy: true,
         shapeBorder: const RoundedRectangleBorder(),
         backgroundColor:
-            Theme.of(context).appBarTheme.foregroundColor?.withOpacity(0.1),
+            Theme.of(context).appBarTheme.foregroundColor?.withValues(alpha: 0.1),
         size: Spacing.of(context).spaces.semiBig,
         tooltip: t.card_creator,
         icon: Icons.note_add,
@@ -971,7 +971,7 @@ class _PlayerTranscriptPageState
         busy: true,
         shapeBorder: const RoundedRectangleBorder(),
         backgroundColor:
-            Theme.of(context).appBarTheme.foregroundColor?.withOpacity(0.1),
+            Theme.of(context).appBarTheme.foregroundColor?.withValues(alpha: 0.1),
         size: Spacing.of(context).spaces.semiBig,
         tooltip: t.player_align_subtitle_transcript,
         icon: Icons.timer,

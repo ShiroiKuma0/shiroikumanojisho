@@ -112,17 +112,17 @@ class HistoryPlayerPageState<T extends HistoryPlayerPage>
       alignment: Alignment.bottomCenter,
       children: [
         ColoredBox(
-          color: theme.unselectedWidgetColor.withOpacity(0.1),
+          color: theme.unselectedWidgetColor.withValues(alpha: 0.1),
           child: AspectRatio(
             aspectRatio: mediaSource.aspectRatio,
             child: FadeInImage(
               key: UniqueKey(),
               placeholder: MemoryImage(kTransparentImage),
-              imageErrorBuilder: (_, __, ___) {
+              imageErrorBuilder: (_, _, _) {
                 if (item.extraUrl != null) {
                   return FadeInImage(
                     placeholder: MemoryImage(kTransparentImage),
-                    imageErrorBuilder: (_, __, ___) => const SizedBox.expand(),
+                    imageErrorBuilder: (_, _, _) => const SizedBox.expand(),
                     image: mediaSource.getDisplayThumbnailFromMediaItem(
                       appModel: appModel,
                       item: item,
@@ -147,7 +147,7 @@ class HistoryPlayerPageState<T extends HistoryPlayerPage>
           bottom: 6,
           child: Container(
             height: 20,
-            color: Colors.black.withOpacity(0.8),
+            color: Colors.black.withValues(alpha: 0.8),
             alignment: Alignment.center,
             child: Text(
               JidoujishoTimeFormat.getVideoDurationText(
@@ -171,7 +171,7 @@ class HistoryPlayerPageState<T extends HistoryPlayerPage>
                   : ((item.position / item.duration) > 0.97)
                       ? 1
                       : (item.position / item.duration),
-              backgroundColor: Colors.white.withOpacity(0.6),
+              backgroundColor: Colors.white.withValues(alpha: 0.6),
               valueColor: const AlwaysStoppedAnimation<Color>(Colors.red),
               minHeight: 2,
             ),

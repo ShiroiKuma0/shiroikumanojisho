@@ -65,9 +65,9 @@ class _CreatorPageState extends BasePageState<CreatorPage> {
   }
 
   Color get activeButtonColor =>
-      Theme.of(context).unselectedWidgetColor.withOpacity(0.1);
+      Theme.of(context).unselectedWidgetColor.withValues(alpha: 0.1);
   Color get inactiveButtonColor =>
-      Theme.of(context).unselectedWidgetColor.withOpacity(0.05);
+      Theme.of(context).unselectedWidgetColor.withValues(alpha: 0.05);
   Color get activeTextColor => Theme.of(context).appBarTheme.foregroundColor!;
   Color get inactiveTextColor => Theme.of(context).unselectedWidgetColor;
 
@@ -203,8 +203,22 @@ class _CreatorPageState extends BasePageState<CreatorPage> {
       initialiseCreator();
     }
 
-    return WillPopScope(
-      onWillPop: onWillPop,
+    return PopScope(
+      canPop: false,
+      // Semantic port of the old WillPopScope contract: the
+      // per-page onWillPop() decides whether the route pops,
+      // and may consume the back press (dictionary dismiss,
+      // exit-media confirm, killOnPop shutdown) by returning
+      // false.
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) {
+          return;
+        }
+        final navigator = Navigator.of(context);
+        if (await onWillPop() && mounted) {
+          navigator.pop(result);
+        }
+      },
       child: GestureDetector(
         onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
         child: buildScaffold(),
@@ -449,7 +463,7 @@ class _CreatorPageState extends BasePageState<CreatorPage> {
 
     return Scaffold(
       backgroundColor:
-          theme.colorScheme.background.withOpacity(isCardEditing ? 0.96 : 1),
+          theme.colorScheme.surface.withValues(alpha: isCardEditing ? 0.96 : 1),
       key: _scaffoldKey,
       resizeToAvoidBottomInset: true,
       appBar: showPortrait ? buildAppBar() : null,
@@ -784,7 +798,6 @@ class _CreatorPageState extends BasePageState<CreatorPage> {
       icon: Icons.add_circle,
       onTap: () async {
         await showDialog(
-          barrierDismissible: true,
           context: context,
           builder: (context) => FieldPickerDialogPage(
             mapping: mapping,
@@ -811,7 +824,6 @@ class _CreatorPageState extends BasePageState<CreatorPage> {
         icon: Icons.add_circle,
         onTap: () async {
           await showDialog(
-            barrierDismissible: true,
             context: context,
             builder: (context) => EnhancementsPickerDialogPage(
               mapping: mapping,
@@ -927,7 +939,6 @@ class _CreatorPageState extends BasePageState<CreatorPage> {
         icon: Icons.add_circle,
         onTap: () async {
           await showDialog(
-            barrierDismissible: true,
             context: context,
             builder: (context) => EnhancementsPickerDialogPage(
               mapping: mapping,

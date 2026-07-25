@@ -160,8 +160,8 @@ class _ImmersionKitSentencesDialogPageState
               right: Spacing.of(context).spaces.normal,
             ),
             color: _valuesSelected[index]!.value
-                ? theme.colorScheme.primary.withOpacity(0.3)
-                : theme.unselectedWidgetColor.withOpacity(0.1),
+                ? theme.colorScheme.primary.withValues(alpha: 0.3)
+                : theme.unselectedWidgetColor.withValues(alpha: 0.1),
             child: buildTextWidget(result),
           ),
         );
@@ -201,12 +201,12 @@ class _ImmersionKitSentencesDialogPageState
       children: [
         if (result.imageUrl.isNotEmpty)
           ColoredBox(
-            color: Colors.grey.shade900.withOpacity(0.3),
+            color: Colors.grey.shade900.withValues(alpha: 0.3),
             child: AspectRatio(
               aspectRatio: 16 / 9,
               child: FadeInImage(
                 placeholder: MemoryImage(kTransparentImage),
-                imageErrorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                imageErrorBuilder: (_, _, _) => const SizedBox.shrink(),
                 image: CachedNetworkImageProvider(result.imageUrl),
                 alignment: Alignment.topCenter,
                 fit: BoxFit.fitWidth,

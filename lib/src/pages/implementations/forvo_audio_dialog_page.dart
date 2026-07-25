@@ -146,8 +146,8 @@ class _ForvoAudioDialogPageState extends BasePageState<ForvoAudioDialogPage> {
                 right: Spacing.of(context).spaces.normal,
               ),
               color: _notifier.value == index
-                  ? theme.colorScheme.primary.withOpacity(0.3)
-                  : theme.unselectedWidgetColor.withOpacity(0.1),
+                  ? theme.colorScheme.primary.withValues(alpha: 0.3)
+                  : theme.unselectedWidgetColor.withValues(alpha: 0.1),
               child: Row(
                 children: [
                   const Icon(Icons.record_voice_over),

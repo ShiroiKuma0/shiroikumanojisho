@@ -148,19 +148,9 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
       onNextSubtitle: _seekNext,
       onPreviousSubtitle: _seekPrev,
       onReplaySubtitle: _replay,
-      onTogglePlayPause: () {
-        // Wrap in a void-returning closure — the bridge wants
-        // VoidCallback but _playPause is Future<void>.
-        _playPause();
-      },
-      onPreviousChapter: () {
-        // Same wrap rationale as togglePlayPause: _prevChapter
-        // returns Future<void>.
-        _prevChapter();
-      },
-      onNextChapter: () {
-        _nextChapter();
-      },
+      onTogglePlayPause: _playPause,
+      onPreviousChapter: _prevChapter,
+      onNextChapter: _nextChapter,
       onCycleMode: _cyclePlaybackMode,
     );
   }
@@ -264,7 +254,7 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
   }
 
   String _safeKey(String k) =>
-      k.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
+      k.replaceAll(RegExp('[^a-zA-Z0-9]'), '_');
 
   /// Return the basename of a path without its extension, e.g.
   /// `/storage/.../04 Nice trip.mp3` → `04 Nice trip`.
@@ -281,12 +271,14 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
   /// lexicographic `"10 Foo"` < `"2 Foo"`. Runs of digits compare
   /// numerically; everything else compares case-insensitively.
   int _naturalCompare(String a, String b) {
-    int i = 0, j = 0;
+    int i = 0;
+    int j = 0;
     while (i < a.length && j < b.length) {
       final aDigit = _isDigit(a.codeUnitAt(i));
       final bDigit = _isDigit(b.codeUnitAt(j));
       if (aDigit && bDigit) {
-        final aStart = i, bStart = j;
+        final aStart = i;
+        final bStart = j;
         while (i < a.length && _isDigit(a.codeUnitAt(i))) {
           i++;
         }
@@ -443,8 +435,8 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
 
   Future<void> _persist() async {
     String key = _safeKey(widget.bookKey);
-    if (_mp3Path != null) await _box.put('mp3_$key', _mp3Path!);
-    if (_srtPath != null) await _box.put('srt_$key', _srtPath!);
+    if (_mp3Path != null) await _box.put('mp3_$key', _mp3Path);
+    if (_srtPath != null) await _box.put('srt_$key', _srtPath);
   }
 
   Future<void> _loadAudio({bool restorePosition = true}) async {
@@ -795,7 +787,7 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
   Future<void> _showMp3SeekWarningDialog(String path) async {
     final filename = path.split('/').last;
     final stem = filename.replaceAll(
-        RegExp(r"\.mp3$", caseSensitive: false), '');
+        RegExp(r'\.mp3$', caseSensitive: false), '');
     await showDialog<void>(
       context: context,
       builder: (ctx) {
@@ -896,7 +888,7 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
       allowedExtensions: ['srt'],
     );
     if (result != null && result.files.single.path != null) {
-      _srtPath = result.files.single.path!;
+      _srtPath = result.files.single.path;
       await _loadSubtitles();
       await _persist();
       if (mounted) setState(() {});
@@ -1390,7 +1382,7 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
         (textSize * 1.4).clamp(12.0, 64.0);
     return Container(
       height: barHeight,
-      color: Colors.black.withOpacity(0.9),
+      color: Colors.black.withValues(alpha: 0.9),
       child: SafeArea(
         top: false,
         child: Padding(
@@ -1435,7 +1427,7 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
   Widget _buildExpanded() {
     return Container(
       height: widget.appModel.readerAudioToolbarHeight.toDouble(),
-      color: Colors.black.withOpacity(0.9),
+      color: Colors.black.withValues(alpha: 0.9),
       child: SafeArea(
         top: false,
         child: Padding(
@@ -1493,7 +1485,7 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
   Widget _buildPlayPause() {
     return ValueListenableBuilder<bool>(
       valueListenable: _playingNotifier,
-      builder: (_, playing, __) => _btn(
+      builder: (_, playing, _) => _btn(
         playing ? Icons.pause : Icons.play_arrow,
         playing ? t.pause : t.play,
         _playPause,
@@ -1527,7 +1519,7 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
   Widget _buildTime() {
     return MultiValueListenableBuilder(
       valueListenables: [_positionNotifier, _durationNotifier],
-      builder: (_, values, __) {
+      builder: (_, values, _) {
         Duration pos = values.elementAt(0);
         Duration dur = values.elementAt(1);
         if (dur == Duration.zero) return const SizedBox.shrink();
@@ -1553,7 +1545,7 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
   Widget _buildSlider() {
     return MultiValueListenableBuilder(
       valueListenables: [_positionNotifier, _durationNotifier],
-      builder: (_, values, __) {
+      builder: (_, values, _) {
         Duration pos = values.elementAt(0);
         Duration dur = values.elementAt(1);
         if (dur == Duration.zero) return const SizedBox.shrink();
@@ -1587,7 +1579,7 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
                         label,
                         style: TextStyle(
                           color:
-                              const Color(0xFFFFFF00).withOpacity(0.35),
+                              const Color(0xFFFFFF00).withValues(alpha: 0.35),
                           // Scale label with toolbar height. Default
                           // 48 px → 16 px font, matching the prior
                           // hardcoded value.
@@ -1595,7 +1587,7 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
                               (widget.appModel.readerAudioToolbarHeight *
                                       0.33)
                                   .clamp(10.0, 48.0),
-                          height: 1.0,
+                          height: 1,
                         ),
                         overflow: TextOverflow.ellipsis,
                         maxLines: 1,
@@ -1625,9 +1617,9 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
                 ),
                 activeTrackColor: const Color(0xFFFFFF00),
                 inactiveTrackColor:
-                    const Color(0xFFFFFF00).withOpacity(0.3),
+                    const Color(0xFFFFFF00).withValues(alpha: 0.3),
                 thumbColor: const Color(0xFFFFFF00),
-                overlayColor: const Color(0xFFFFFF00).withOpacity(0.2),
+                overlayColor: const Color(0xFFFFFF00).withValues(alpha: 0.2),
               ),
               child: Slider(
                 value: val,
@@ -1739,7 +1731,6 @@ class _AudioTimeJumpPageState extends State<_AudioTimeJumpPage> {
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 SizedBox(
                   width: 80,
@@ -1860,7 +1851,7 @@ class _BookPageJumpPageState extends State<_BookPageJumpPage> {
             const Text(
               'Drag the slider to choose where in the book to jump to. '
               'Position is a percentage of the total scrollable size — '
-              "the actual page number depends on font size and viewport, "
+              'the actual page number depends on font size and viewport, '
               "which can't be queried without scraping TTU internals. "
               'The slider opens at your current position.',
               style: TextStyle(fontSize: 14),
@@ -1868,7 +1859,6 @@ class _BookPageJumpPageState extends State<_BookPageJumpPage> {
             const SizedBox(height: 24),
             Slider(
               value: _percent,
-              min: 0,
               max: 100,
               divisions: 100,
               label: '${_percent.toStringAsFixed(0)}%',
