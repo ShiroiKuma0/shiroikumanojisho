@@ -7,3 +7,11 @@
 -dontwarn com.google.mlkit.vision.text.chinese.**
 -dontwarn com.google.mlkit.vision.text.devanagari.**
 -dontwarn com.google.mlkit.vision.text.korean.**
+
+# R8 full mode (the only mode in AGP 9; the old AGP 7 build ran compat
+# mode) strips Room's generated *_Impl database classes, which Room
+# loads reflectively via Class.forName(name + "_Impl"). androidx.work's
+# WorkDatabase was the first casualty: the process died in
+# InitializationProvider before Flutter even started (2026-07-25,
+# 1.4.0+27 on the Palma). Keep every RoomDatabase subclass by name.
+-keep class * extends androidx.room.RoomDatabase { <init>(); }
