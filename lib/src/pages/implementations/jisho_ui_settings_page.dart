@@ -835,7 +835,6 @@ class _ExportImportPanelState extends State<_ExportImportPanel> {
       if (_selected.contains(_categoryArtifacts)) {
         final zip = await UiSettingsExport.exportArtifacts(
           directory: ui.exportDirectory,
-          appVersion: widget.appModel.packageInfo.version,
         );
         saved.add(zip == null
             ? 'Artifacts: nothing to export yet.'

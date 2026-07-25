@@ -212,7 +212,7 @@ class AppExportImport {
       // overhead on ARM is fast enough that the smaller-file
       // win on flash read more than compensates.
       tracker.step('Compressing...');
-      final zipName = 'shiroikumanojisho_export_$timestamp.zip';
+      final zipName = 'shiroikuma-jisho-export_$timestamp.zip';
       final zipFile = File(path.join(tmpRoot.path, zipName));
       if (zipFile.existsSync()) zipFile.deleteSync();
       log.write('zipping to ${zipFile.path}');

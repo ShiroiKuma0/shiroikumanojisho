@@ -19,8 +19,12 @@ class UiSettingsExport {
   /// subtitle-OCR bitmap stores, imported fonts).
   static const String artifactsPrefix = 'shiroikuma-jisho-artifacts_';
 
-  /// Cross-device bundle prefix (AppExportImport's own naming).
-  static const String bundlePrefix = 'shiroikumanojisho_export_';
+  /// Cross-device bundle prefix (AppExportImport's naming).
+  static const String bundlePrefix = 'shiroikuma-jisho-export_';
+
+  /// Pre-2026-07-25 bundle prefix — still recognised on import so old
+  /// bundles keep working.
+  static const String legacyBundlePrefix = 'shiroikumanojisho_export_';
 
   /// App-documents subdirectories that count as generated artifacts.
   static const List<String> artifactDirectories = [
@@ -125,9 +129,23 @@ class UiSettingsExport {
   static File? latestArtifacts(String directory) =>
       latestMatching(directory, prefix: artifactsPrefix, suffix: '.zip');
 
-  /// Newest cross-device bundle in [directory], or null.
-  static File? latestBundle(String directory) =>
-      latestMatching(directory, prefix: bundlePrefix, suffix: '.zip');
+  /// Newest cross-device bundle in [directory] (either naming era),
+  /// or null.
+  static File? latestBundle(String directory) {
+    final current =
+        latestMatching(directory, prefix: bundlePrefix, suffix: '.zip');
+    final legacy = latestMatching(directory,
+        prefix: legacyBundlePrefix, suffix: '.zip');
+    if (current == null) {
+      return legacy;
+    }
+    if (legacy == null) {
+      return current;
+    }
+    return current.statSync().modified.isAfter(legacy.statSync().modified)
+        ? current
+        : legacy;
+  }
 
   /// Newest file in [directory] matching [prefix]/[suffix], or null.
   static File? latestMatching(String directory,
@@ -164,7 +182,6 @@ class UiSettingsExport {
   /// archive, or null when there is nothing to export.
   static Future<File?> exportArtifacts({
     required String directory,
-    required String appVersion,
     void Function(String)? onProgress,
   }) async {
     final appDocDir = await getApplicationDocumentsDirectory();
@@ -181,8 +198,8 @@ class UiSettingsExport {
     }
     final timestamp =
         DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now());
-    final zip = File(path.join(
-        directory, '$artifactsPrefix${appVersion}_$timestamp.zip'));
+    final zip =
+        File(path.join(directory, '$artifactsPrefix$timestamp.zip'));
     await ZipFile.createFromFiles(
       sourceDir: appDocDir,
       files: files,
@@ -229,8 +246,8 @@ class UiSettingsExport {
     };
     final timestamp =
         DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now());
-    final file = File(path.join(
-        directory, '$exportPrefix${appVersion}_$timestamp.json'));
+    final file =
+        File(path.join(directory, '$exportPrefix$timestamp.json'));
     file.writeAsStringSync(
         const JsonEncoder.withIndent('  ').convert(payload));
     return file;

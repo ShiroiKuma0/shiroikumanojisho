@@ -691,11 +691,11 @@ class AppModel with ChangeNotifier {
                 : Colors.grey;
           }),
         ),
+        // Checkboxes: bordered square with a checkmark in the border
+        // color, never a filled block (白い熊, 2026-07-25).
         checkboxTheme: CheckboxThemeData(
-          fillColor: WidgetStateProperty.resolveWith((states) =>
-              states.contains(WidgetState.selected)
-                  ? accent
-                  : Colors.transparent),
+          fillColor: WidgetStateProperty.all(Colors.transparent),
+          checkColor: WidgetStateProperty.all(border),
           side: BorderSide(color: border, width: 1.5),
         ),
         appBarTheme: AppBarTheme(
