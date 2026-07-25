@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -401,6 +402,75 @@ class _MokuroCatalogBrowsePageState
     );
   }
 
+  /// Persist an in-page OCR correction (long-press edit) into the
+  /// scanned-PDF volume's HTML on disk, so the fix survives reopening.
+  /// Only our own generator's output is touched -- its structure is
+  /// regular (`<div id="pageN" class="page">` sections containing
+  /// `<div class="textBox" ...><p>line</p>...</div>`), which makes the
+  /// textual splice below safe. Real mokuro volumes never get here
+  /// (the injection is scannedPdf-only).
+  Future<void> applyOcrEdit({
+    required int page,
+    required int box,
+    required List<String> lines,
+  }) async {
+    if (page < 0 || box < 0) {
+      return;
+    }
+    final url = (await _controller.getUrl()).toString();
+    if (!url.startsWith('file://') || !url.contains('/scannedPdf/')) {
+      return;
+    }
+    try {
+      final file = File(Uri.parse(url).toFilePath());
+      if (!file.existsSync()) {
+        return;
+      }
+      var html = file.readAsStringSync();
+
+      final pageMarker = '<div id="page$page" class="page">';
+      final start = html.indexOf(pageMarker);
+      if (start == -1) {
+        return;
+      }
+      var end = html.indexOf('<div id="page${page + 1}" class="page">', start);
+      if (end == -1) {
+        end = html.indexOf('<a id="leftAPage"', start);
+      }
+      if (end == -1) {
+        end = html.length;
+      }
+      var section = html.substring(start, end);
+
+      const boxMarker = '<div class="textBox"';
+      var idx = -1;
+      for (var i = 0; i <= box; i++) {
+        idx = section.indexOf(boxMarker, idx + 1);
+        if (idx == -1) {
+          return;
+        }
+      }
+      final pStart = section.indexOf('>', idx) + 1;
+      final pEnd = section.indexOf('</div>', idx);
+      if (pStart == 0 || pEnd == -1 || pEnd < pStart) {
+        return;
+      }
+      String escape(String text) => text
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;');
+      final replacement =
+          lines.map((line) => '<p>${escape(line)}</p>').join();
+      section = section.replaceRange(pStart, pEnd, replacement);
+      html = html.replaceRange(start, end, section);
+      file.writeAsStringSync(html);
+    } catch (e) {
+      // A failed persist leaves the DOM correction intact for this
+      // session; log and move on rather than interrupting reading.
+      debugPrint('applyOcrEdit failed: $e');
+    }
+  }
+
   /// Black/yellow chrome for scanned-PDF volumes: top menu on black
   /// with yellow controls (the template icons stroke with
   /// currentColor, so --color3 recolours them), scaled by the
@@ -415,11 +485,34 @@ class _MokuroCatalogBrowsePageState
     await _controller.evaluateJavascript(source: """
 (function() {
   var root = document.querySelector(':root');
+  document.documentElement.classList.add('jishoPdf');
   root.style.setProperty('--colorBackground', '#000000');
   root.style.setProperty('--color1', '#000000');
   root.style.setProperty('--color2', '#333300');
   root.style.setProperty('--color3', '#FFFF00');
   root.style.setProperty('--color3a', 'rgba(255,255,0,0.3)');
+  // Exact-yellow inversion: a plain CSS filter chain (invert+sepia)
+  // lands on gold, not #FFFF00. This color matrix maps ink to pure
+  // yellow exactly: R'=1-R, G'=1-G, B'=0 (sRGB), so black -> #FFFF00
+  // and white paper -> #000000.
+  if (!document.getElementById('jishoYellowSvg')) {
+    var svgNS = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(svgNS, 'svg');
+    svg.id = 'jishoYellowSvg';
+    svg.setAttribute('width', '0');
+    svg.setAttribute('height', '0');
+    svg.style.position = 'absolute';
+    var flt = document.createElementNS(svgNS, 'filter');
+    flt.id = 'jishoYellowInk';
+    flt.setAttribute('color-interpolation-filters', 'sRGB');
+    var mtx = document.createElementNS(svgNS, 'feColorMatrix');
+    mtx.setAttribute('type', 'matrix');
+    mtx.setAttribute('values',
+        '-1 0 0 0 1  0 -1 0 0 1  0 0 0 0 0  0 0 0 1 0');
+    flt.appendChild(mtx);
+    svg.appendChild(flt);
+    document.body.appendChild(svg);
+  }
   var st = document.getElementById('jishoPdfStyle');
   if (!st) {
     st = document.createElement('style');
@@ -434,9 +527,59 @@ class _MokuroCatalogBrowsePageState
     ' border: 1px solid #FFFF00; }' +
     '#pageIdxDisplay { color: #FFFF00 !important; }' +
     '.pageContainer { outline: 2px solid #FFFF00; }' +
-    'html.jishoInvert .pageContainer {' +
-    ' filter: invert(1) sepia(1) saturate(8) hue-rotate(355deg); }' +
-    '#jishoInvertBtn { font-size: 1.2em; font-weight: bold; }';
+    'html.jishoInvert .pageContainer { filter: url(#jishoYellowInk); }' +
+    '#jishoInvertBtn { font-size: 1.2em; font-weight: bold; }' +
+    // Side-by-side OCR reveal: the recognised text pops out NEXT TO
+    // the scan instead of covering it -- left of the column for
+    // vertical text, below the line for horizontal -- so the OCR
+    // characters can be compared against the original ink.
+    'html.jishoPdf .textBox[style*="vertical-rl"] p' +
+    ' { position: relative; right: calc(100% + 8px); }' +
+    'html.jishoPdf .textBox:not([style*="vertical-rl"]) p' +
+    ' { position: relative; top: calc(100% + 8px); }' +
+    'html.jishoPdf .textBox.jishoEditing' +
+    ' { outline: 2px dashed #FFFF00; z-index: 999 !important; }' +
+    'html.jishoPdf .textBox.jishoEditing p { display: table; }';
+  // Long-press (contextmenu) on a revealed OCR line: edit the box
+  // in place to fix recognition errors; the corrected text is what
+  // tap-lookups search. On focus loss the edit is reported to the
+  // app, which persists it into the volume's HTML on disk.
+  if (!window.jishoEditHooked) {
+    window.jishoEditHooked = true;
+    document.addEventListener('contextmenu', function(e) {
+      var box = e.target && e.target.closest && e.target.closest('.textBox');
+      if (!box) { return; }
+      e.preventDefault();
+      e.stopPropagation();
+      box.setAttribute('contenteditable', 'plaintext-only');
+      box.classList.add('jishoEditing');
+      box.focus();
+    }, true);
+    document.addEventListener('focusout', function(e) {
+      var box = e.target && e.target.closest &&
+          e.target.closest('.textBox.jishoEditing');
+      if (!box) { return; }
+      box.removeAttribute('contenteditable');
+      box.classList.remove('jishoEditing');
+      var pageDiv = box.closest('.page');
+      var pageIdx = pageDiv
+          ? parseInt((pageDiv.id || '').replace('page', ''), 10) : -1;
+      var container = box.closest('.pageContainer');
+      var boxes = container
+          ? Array.prototype.slice.call(
+              container.querySelectorAll('.textBox')) : [];
+      var boxIdx = boxes.indexOf(box);
+      var lines = Array.prototype.map.call(
+          box.querySelectorAll('p'),
+          function(p) { return p.textContent; });
+      console.log(JSON.stringify({
+        'jidoujisho-message-type': 'jishoOcrEdit',
+        'page': pageIdx,
+        'box': boxIdx,
+        'lines': lines
+      }));
+    }, true);
+  }
   if (!document.getElementById('jishoInvertBtn')) {
     var btn = document.createElement('button');
     btn.id = 'jishoInvertBtn';
@@ -651,7 +794,12 @@ document.getElementById('pageIdxDisplay').style.color = 'white';
     ConsoleMessage message,
   ) async {
     DateTime now = DateTime.now();
-    if (lastMessageTime != null &&
+    // OCR-edit reports must never be dropped: losing one silently
+    // loses a user correction from disk (the DOM keeps it only until
+    // the volume is reopened). Everything else stays debounced.
+    bool isOcrEdit = message.message.contains('jishoOcrEdit');
+    if (!isOcrEdit &&
+        lastMessageTime != null &&
         now.difference(lastMessageTime!) < consoleMessageDebounce) {
       return;
     }
@@ -668,6 +816,13 @@ document.getElementById('pageIdxDisplay').style.color = 'white';
     }
 
     switch (messageJson['jidoujisho-message-type']) {
+      case 'jishoOcrEdit':
+        await applyOcrEdit(
+          page: messageJson['page'] as int,
+          box: messageJson['box'] as int,
+          lines: List<String>.from(messageJson['lines'] as List),
+        );
+        break;
       case 'save':
         saveMediaItem();
         break;
