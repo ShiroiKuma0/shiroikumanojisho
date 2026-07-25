@@ -53,6 +53,7 @@ class MokuroBlock {
     required this.fontSize,
     required this.zIndex,
     required this.lines,
+    this.lineRects,
   });
 
   /// Coordinates for this block.
@@ -71,6 +72,13 @@ class MokuroBlock {
 
   /// The individual lines to be rendered.
   final List<String> lines;
+
+  /// Per-line bounding rectangles in page coordinates, parallel to
+  /// [lines]. Carried from the OCR engine (which the mokuro format
+  /// itself discards) so the scanned-PDF viewer can hit-test taps
+  /// against the true ink geometry instead of guessing a uniform
+  /// column pitch inside [rectangle]. Null for real mokuro volumes.
+  final List<Rect>? lineRects;
 
   @override
   String toString() {

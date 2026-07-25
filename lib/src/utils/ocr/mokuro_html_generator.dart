@@ -192,8 +192,20 @@ class MokuroHtmlGenerator {
           'width:$blockWidth; height:$blockHeight; '
           'font-size:${fontSize}px; z-index:${zIndexes[block]};'
           '$writingMode">');
-      for (final line in block.lines) {
-        buffer.write('<p>${_escape(line)}</p>');
+      for (var lineIndex = 0; lineIndex < block.lines.length; lineIndex++) {
+        // data-l carries the line's true ink rectangle (page
+        // coordinates) for the viewer's tap hit-testing; the mokuro
+        // format itself has no per-line geometry. Extra attributes
+        // are inert for real mokuro consumers.
+        final lineRect =
+            block.lineRects != null && lineIndex < block.lineRects!.length
+                ? block.lineRects![lineIndex]
+                : null;
+        final dataL = lineRect == null
+            ? ''
+            : ' data-l="${lineRect.left.round()},${lineRect.top.round()},'
+                '${lineRect.width.round()},${lineRect.height.round()}"';
+        buffer.write('<p$dataL>${_escape(block.lines[lineIndex])}</p>');
       }
       buffer.write('</div>');
     }

@@ -168,6 +168,7 @@ class PdfOcrImporter {
         // areas, matching mokuro's overlay_generator.
         zIndex: 0,
         lines: block.lines.map((line) => line.text).toList(),
+        lineRects: block.lines.map((line) => line.rect).toList(),
       );
     }).toList();
   }

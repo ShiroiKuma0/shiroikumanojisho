@@ -561,68 +561,116 @@ class _MokuroCatalogBrowsePageState
     // already-revealed <p> fall through to the normal handler.
     document.addEventListener('click', function(e) {
       if (e.target && e.target.tagName === 'P') { return; }
-      var box = e.target && e.target.closest
-          ? e.target.closest('.textBox') : null;
       var prev = document.querySelectorAll('.textBox p.jishoShow');
       for (var i = 0; i < prev.length; i++) {
         prev[i].classList.remove('jishoShow');
         prev[i].style.transform = '';
       }
-      if (!box || box.classList.contains('jishoEditing')) { return; }
-      var ps = box.querySelectorAll('p');
-      if (!ps.length) { return; }
-      var rect = box.getBoundingClientRect();
-      var isVertical =
-          (box.getAttribute('style') || '').indexOf('vertical-rl') >= 0;
-      var idx;
-      if (isVertical) {
-        idx = Math.floor((rect.right - e.clientX) / (rect.width / ps.length));
-      } else {
-        idx = Math.floor((e.clientY - rect.top) / (rect.height / ps.length));
+      var container = e.target && e.target.closest
+          ? e.target.closest('.pageContainer') : null;
+      if (!container) { return; }
+      var p = null;
+      var frac = 0;
+      // Exact path: hit-test the tap against the per-line ink
+      // rectangles (data-l, page coordinates) that the importer
+      // records from the OCR engine. Containment (with a small pad)
+      // wins by smallest line; otherwise the nearest line within 40
+      // page-px. This is zoom-proof and immune to block-shape
+      // guesswork.
+      var cr = container.getBoundingClientRect();
+      var pageScale =
+          container.offsetWidth ? cr.width / container.offsetWidth : 1;
+      var px = (e.clientX - cr.left) / pageScale;
+      var py = (e.clientY - cr.top) / pageScale;
+      var cands = container.querySelectorAll('.textBox p[data-l]');
+      var bestRect = null;
+      var bestContained = false;
+      var bestKey = 1e18;
+      for (var c = 0; c < cands.length; c++) {
+        var parts = (cands[c].getAttribute('data-l') || '').split(',');
+        if (parts.length !== 4) { continue; }
+        var rl = +parts[0], rt = +parts[1], rw = +parts[2], rh = +parts[3];
+        var pad = 8;
+        var dx = Math.max(rl - pad - px, 0, px - (rl + rw + pad));
+        var dy = Math.max(rt - pad - py, 0, py - (rt + rh + pad));
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        var contained = dist === 0;
+        var key = contained ? rw * rh : dist;
+        if (contained && (!bestContained || key < bestKey)) {
+          p = cands[c]; bestRect = [rl, rt, rw, rh];
+          bestContained = true; bestKey = key;
+        } else if (!contained && !bestContained && dist < 40 &&
+            key < bestKey) {
+          p = cands[c]; bestRect = [rl, rt, rw, rh];
+          bestKey = key;
+        }
       }
-      if (idx < 0) { idx = 0; }
-      if (idx >= ps.length) { idx = ps.length - 1; }
-      var p = ps[idx];
+      var box = null;
+      var isVertical = false;
+      if (p) {
+        box = p.closest('.textBox');
+        if (box && box.classList.contains('jishoEditing')) { return; }
+        isVertical =
+            (box.getAttribute('style') || '').indexOf('vertical-rl') >= 0;
+        frac = isVertical
+            ? (py - bestRect[1]) / bestRect[3]
+            : (px - bestRect[0]) / bestRect[2];
+      } else {
+        // Fallback for volumes imported before per-line geometry was
+        // recorded: uniform column division of the tapped box.
+        box = e.target.closest ? e.target.closest('.textBox') : null;
+        if (!box || box.classList.contains('jishoEditing')) { return; }
+        var ps = box.querySelectorAll('p');
+        if (!ps.length) { return; }
+        var rect = box.getBoundingClientRect();
+        isVertical =
+            (box.getAttribute('style') || '').indexOf('vertical-rl') >= 0;
+        var idx;
+        if (isVertical) {
+          idx = Math.floor(
+              (rect.right - e.clientX) / (rect.width / ps.length));
+        } else {
+          idx = Math.floor(
+              (e.clientY - rect.top) / (rect.height / ps.length));
+        }
+        if (idx < 0) { idx = 0; }
+        if (idx >= ps.length) { idx = ps.length - 1; }
+        p = ps[idx];
+        frac = isVertical
+            ? (e.clientY - rect.top) / rect.height
+            : (e.clientX - rect.left) / rect.width;
+      }
       p.classList.add('jishoShow');
-      // The copy's rendered length never exactly matches the scan
-      // column (OCR font sizing is approximate), and panzoom scale
-      // magnifies the drift. So: derive the CHARACTER INDEX from the
-      // tap's fractional position along the scan column, then nudge
-      // the copy so that character sits level with the finger, and
-      // run the lookup at that character's actual on-screen rect.
       var textNode = p.firstChild;
       var textLen = textNode && textNode.textContent
           ? textNode.textContent.length : 0;
       if (!textLen) { e.preventDefault(); e.stopPropagation(); return; }
-      var frac = isVertical
-          ? (e.clientY - rect.top) / rect.height
-          : (e.clientX - rect.left) / rect.width;
       var charIdx = Math.floor(frac * textLen);
       if (charIdx < 0) { charIdx = 0; }
       if (charIdx >= textLen) { charIdx = textLen - 1; }
       var range = document.createRange();
       range.setStart(textNode, charIdx);
       range.setEnd(textNode, charIdx + 1);
-      var cr = range.getBoundingClientRect();
-      // Viewport px -> local (pre-zoom) px for the inline transform.
-      var scale = box.offsetWidth ? rect.width / box.offsetWidth : 1;
+      var chr = range.getBoundingClientRect();
+      // Nudge the copy so the tapped character sits level with the
+      // finger (viewport px -> local pre-zoom px for the transform).
       if (isVertical) {
-        var deltaY = (e.clientY - (cr.top + cr.height / 2)) / scale;
+        var deltaY = (e.clientY - (chr.top + chr.height / 2)) / pageScale;
         p.style.transform =
             'translateX(calc(-100% - 6px)) translateY(' + deltaY + 'px)';
       } else {
-        var deltaX = (e.clientX - (cr.left + cr.width / 2)) / scale;
+        var deltaX = (e.clientX - (chr.left + chr.width / 2)) / pageScale;
         p.style.transform =
             'translateY(calc(100% + 6px)) translateX(' + deltaX + 'px)';
       }
-      var cr2 = range.getBoundingClientRect();
+      var chr2 = range.getBoundingClientRect();
       e.preventDefault();
       e.stopPropagation();
       if (typeof tapToSelect === 'function') {
         tapToSelect({
           target: p,
-          clientX: cr2.left + cr2.width / 2,
-          clientY: cr2.top + cr2.height / 2
+          clientX: chr2.left + chr2.width / 2,
+          clientY: chr2.top + chr2.height / 2
         });
       }
     }, true);
