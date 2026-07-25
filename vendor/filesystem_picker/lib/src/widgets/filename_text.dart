@@ -21,7 +21,7 @@ class FilenameText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final txTheme = textStyle ?? Theme.of(context).textTheme.bodyText1;
+    final txTheme = textStyle ?? Theme.of(context).textTheme.bodyLarge;
     final fseName = path.basename(filename);
     final extension = path.extension(fseName);
     final hasExtension = extension.isNotEmpty;

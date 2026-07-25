@@ -313,10 +313,10 @@ class _FilesystemPickerState extends State<FilesystemPicker> {
         data: ThemeData(
           textTheme: TextTheme(
             button: TextStyle(
-              color: Theme.of(context).textTheme.headline6?.color ??
+              color: Theme.of(context).textTheme.titleLarge?.color ??
                   (widget.themeData ?? Theme.of(context))
                       .primaryTextTheme
-                      .headline6
+                      .titleLarge
                       ?.color,
             ),
           ),
@@ -383,7 +383,7 @@ class _FilesystemPickerState extends State<FilesystemPicker> {
               color: (widget.themeData ?? Theme.of(context)).primaryColor,
               child: ListTile(
                 leading: Icon(Icons.library_add_check,
-                    color: Theme.of(context).primaryTextTheme.headline6!.color),
+                    color: Theme.of(context).primaryTextTheme.titleLarge!.color),
                 title: Text(
                   'Selected ' +
                       (widget.fsType == FilesystemType.all
@@ -396,7 +396,7 @@ class _FilesystemPickerState extends State<FilesystemPicker> {
                       ')',
                   style: (widget.themeData ?? Theme.of(context))
                       .primaryTextTheme
-                      .headline6,
+                      .titleLarge,
                 ),
               ),
             ),
@@ -522,8 +522,8 @@ class _FilesystemPickerState extends State<FilesystemPicker> {
             Expanded(
                 child: TextButton.icon(
               style: TextButton.styleFrom(
-                primary: Theme.of(context).textTheme.headline6?.color ??
-                    Theme.of(context).primaryTextTheme.headline6?.color,
+                foregroundColor: Theme.of(context).textTheme.titleLarge?.color ??
+                    Theme.of(context).primaryTextTheme.titleLarge?.color,
               ),
               icon: Icon(Icons.cancel),
               label: (widget.cancelText != null)
@@ -539,8 +539,8 @@ class _FilesystemPickerState extends State<FilesystemPicker> {
             Expanded(
                 child: TextButton.icon(
               style: TextButton.styleFrom(
-                primary: Theme.of(context).textTheme.headline6?.color ??
-                    Theme.of(context).primaryTextTheme.headline6?.color,
+                foregroundColor: Theme.of(context).textTheme.titleLarge?.color ??
+                    Theme.of(context).primaryTextTheme.titleLarge?.color,
               ),
               icon: Icon(Icons.check_circle),
               label: (widget.pickText != null)

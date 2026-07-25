@@ -113,8 +113,8 @@ class FilesystemListTile extends StatelessWidget {
       isActive: isActive,
       isDirectory: item is Directory,
       textStyle: isSelected
-          ? (themeData ?? Theme.of(context)).primaryTextTheme.bodyText1
-          : (themeData ?? Theme.of(context)).textTheme.bodyText1,
+          ? (themeData ?? Theme.of(context)).primaryTextTheme.bodyLarge
+          : (themeData ?? Theme.of(context)).textTheme.bodyLarge,
     );
 
     return tx;

@@ -70,7 +70,7 @@ class Breadcrumbs<T> extends StatelessWidget {
                   const EdgeInsets.symmetric(horizontal: 8),
               child: TextButton(
                 style: TextButton.styleFrom(
-                    primary: (index == (items.length - 1))
+                    foregroundColor: (index == (items.length - 1))
                         ? (themeData ?? Theme.of(context))
                             .textTheme
                             .bodyMedium!
