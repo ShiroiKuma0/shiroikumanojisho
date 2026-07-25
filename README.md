@@ -10,7 +10,7 @@ A fork of [arianneorpilla/jidoujisho](https://github.com/arianneorpilla/jidoujis
 
 Installs **side-by-side** with jidoujisho (app id `shiroikuma.jisho`).
 
-**📥 Latest release: [`1.4.0+25`](https://github.com/ShiroiKuma0/shiroikumanojisho/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikumanojisho/releases)
+**📥 Latest release: [`1.5.0+6`](https://github.com/ShiroiKuma0/shiroikumanojisho/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikumanojisho/releases)
 
 </div>
 
@@ -18,6 +18,11 @@ Installs **side-by-side** with jidoujisho (app id `shiroikuma.jisho`).
 
 ## 🔍 On-device OCR — study what has no text
 Google ML Kit's Japanese recognizer, bundled and fully offline, turns image-only media into tappable study material. **Blu-ray PGS subtitles**: one tap in the player's track menu OCRs the bitmap track into a real subtitle file (saved beside the video, auto-loaded forever after) with dictionary tap-lookup and Anki export — and in pause-per-subtitle mode the original bitmap is shown alongside the recognised text, so OCR errors are caught at a glance. **Scanned PDFs**: the "Scanned PDF" reader source rasterises and OCRs every page on-device into a mokuro-style volume — the original page image with an invisible, tappable text overlay.
+
+---
+
+## 🎨 白い熊 辞書 UI — the whole look, settable live
+A dedicated UI settings page (long-press the menu icon) in the family style of the sister apps: every colour (RGBA sliders with prior-colour presets), external fonts rendered in their own glyphs, text scale and weight, dialog and button borders down to zero — all previewed live by the running app itself, on a black/yellow default made for e-ink. One-zip export/import of every setting plus the app's generated artifacts, and a token-gated 保存復元 automation interface so 白い熊 自由作業盤 backs the app up headlessly alongside its sisters.
 
 ---
 

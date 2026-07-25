@@ -8,6 +8,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 _Nothing yet._
 
+## [1.5.0+6] - 2026-07-25
+
+### Added
+
+- 白い熊 辞書 UI settings page (sister-repo pattern): first item in the
+  home menu, and long-press on the menu (⋮) icon opens it directly.
+  kxkb-style layout — bold word-width-underlined headings, thin section
+  spacers, deep indents, tight rows. Settable live (the running app is
+  the preview): background/text/icon/border/accent colours (RGBA-slider
+  picker with 8 prior-colour boxes and live hex preview), font — with
+  external .ttf/.otf import and each font rendered in its own glyphs —
+  weight, global text scale, and dialog/button border width and corner
+  radius (sliders, down to 0). Black/yellow is the initialized default.
+- Export/Import on the UI page (Kōjiki flow): settable export
+  directory (red until set) with latest-export status queried on open;
+  category checkboxes incl. generated artifacts (scanned-PDF OCR
+  volumes · subtitle-OCR bitmaps · imported fonts, on by default) and
+  the cross-device data bundle (off by default); Arcanechat pill row
+  (Cancel left, Import · Export right); export success dialog closes
+  the whole chain, import offers Later / Restart now.
+- 保存復元 automation contract (自由作業盤): token-gated
+  `shiroikuma.jisho.action.EXPORT_STATE` / `LIST_CATEGORIES` broadcast
+  receivers run the export headlessly (foreground service + background
+  Flutter engine) with real-count progress broadcasts and a
+  path|bytes|size|categories reply. Automation switch (default off)
+  and tap-to-copy token live in the Export/Import section.
+
+### Changed
+
+- Exports always produce ONE zip: `shiroikuma-jisho_<datetime>.zip`
+  (no version in the name); a ticked cross-device bundle embeds inside
+  it as `app_data.zip` instead of writing a second file. Old export
+  names remain importable. The standalone cross-device menu items
+  moved from the home menu into the Export/Import panel.
+- Checkboxes app-wide: yellow outlined square with yellow checkmark,
+  never a filled block.
+
 ## [1.5.0] - 2026-07-25
 
 ### Added
