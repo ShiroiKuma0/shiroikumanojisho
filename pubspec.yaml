@@ -1,7 +1,7 @@
 name: shiroikumanojisho
 description: A full-featured immersion language learning suite for mobile.
 publish_to: 'none'
-version: 1.4.0+32
+version: 1.4.0+33
 environment:
   sdk: ">=3.12.0 <4.0.0"
   flutter: "^3.44.0"

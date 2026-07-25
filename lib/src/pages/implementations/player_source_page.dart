@@ -602,6 +602,15 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
       if (!_playingNotifier.value && _lastPlayingState) {
         _menuHideTimer?.cancel();
         _isMenuHidden.value = false;
+        // Mid-cue pause: put the PGS bitmap back over the frozen
+        // frame (see showPausedBitmapAtMs). The auto-pause boundary
+        // path sets the overlay itself before this tick observes the
+        // pause; don't overwrite it.
+        if (_activeBitmapTrack != null &&
+            _pausedBitmapNotifier.value == null) {
+          showPausedBitmapAtMs(
+              (_positionNotifier.value + subtitleDelay).inMilliseconds);
+        }
       }
 
       // Replay boundary: pause and bail out before subtitle logic runs
@@ -905,10 +914,21 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
   /// inside the bitmap's own display window, which outlives the SRT
   /// cue by 50 ms.
   Future<void> showPausedBitmapForCue(Subtitle subtitle) async {
+    // Sample just inside the cue's end: at an auto-pause boundary the
+    // playhead is already past the cue.
+    await showPausedBitmapAtMs(subtitle.end.inMilliseconds - 100);
+  }
+
+  /// Redraw the saved event bitmap covering [lookupMs], if any. Used
+  /// by the auto-pause boundary path (via [showPausedBitmapForCue])
+  /// and by ANY pause while a bitmap track is active: libVLC 3.6.x
+  /// clears its SPU surface on pause even mid-cue (the fork-era
+  /// libVLC kept it), so the overlay puts the bitmap back wherever
+  /// the playhead stopped.
+  Future<void> showPausedBitmapAtMs(int lookupMs) async {
     if (_bitmapIndex.isEmpty || _bitmapDirPath == null) {
       return;
     }
-    final lookupMs = subtitle.end.inMilliseconds - 100;
     final entry = _bitmapIndex.firstWhereOrNull(
         (e) => e['s'] <= lookupMs && lookupMs <= e['e']);
     if (entry == null) {
