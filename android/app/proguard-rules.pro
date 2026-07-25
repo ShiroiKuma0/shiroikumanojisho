@@ -21,3 +21,15 @@
 # UnsatisfiedLinkError on 1.4.0+31 -- player dead). JNI lookups are
 # invisible to R8; keep the libVLC Java surface intact by name.
 -keep class org.videolan.libvlc.** { *; }
+
+# ML Kit resolves its internal components through reflective
+# ComponentRegistrar/service-loader machinery (Firebase components),
+# which R8 full mode partially strips: text recognition died with an
+# NPE deep in vision-common's LazyInstanceMap telemetry on 1.4.0+38
+# (first post-migration OCR run). Keep the Google ML/GMS/Firebase
+# stack wholesale -- dex size is irrelevant for this sideloaded app,
+# and piecemeal keeps have burned us four times now (Room, libVLC
+# JNI, ML Kit script models, this).
+-keep class com.google.mlkit.** { *; }
+-keep class com.google.android.gms.** { *; }
+-keep class com.google.firebase.** { *; }
