@@ -403,6 +403,18 @@ always).
 
 ### Phase 5 — Data-integrity verification (~1 session; hard gate)
 
+> **Status 2026-07-25: closed.** 白い熊 waived the export safety net and
+> device testing proceeded directly. In practice the phase became a live
+> crash-fix series, all committed: R8 keeps (Room, libVLC JNI, ML Kit
+> component stack), the stale InAppWebViewFileProvider manifest entry, and
+> the vendored VLC platform interface (upstream pigeon mismatch). Isar,
+> Hive, and TTU IndexedDB data all survived the in-place upgrade (verified
+> by daily use through the matrix). No record-count baseline exists (no
+> pre-migration bundle was archived); the export/import contract was
+> instead verified statically -- bundle_schema still 1, exporter JSONL
+> files match the regenerated schemas, and the only schema delta
+> (Dictionary.bloomBits) is additive with a coded empty-bloom fallback.
+
 The irreplaceable-user-data phase. Nothing merges until every box below is ticked.
 
 1. **Isar on-disk compatibility:** open a **copy** of the real device DB under
@@ -426,6 +438,16 @@ shipping.
 by device testing.
 
 ### Phase 6 — Full manual verification matrix (~1–2 sessions, device-heavy)
+
+> **Status 2026-07-25: verified by 白い熊 on the Huawei (declared done).**
+> Player incl. audio-cut listen test (stock upstream VLC passed -- the
+> fork's OpenSLES hook stays retired), PGS pause overlay (regression found
+> and fixed: redraw on any pause), TTU reader, dictionary, scanned-PDF
+> flow (rebuilt during this phase: black/yellow chrome, exact-#FFFF00
+> inversion, per-line tap reveal with data-l geometry, long-press OCR
+> correction, import foreground service). The Boox e-ink pass was
+> forgone (device retired from the loop, 白い熊 2026-07-25); the Huawei
+> is the verification device.
 
 The complete matrix, run on the Boox Palma 2 Pro (primary):
 
