@@ -338,6 +338,25 @@ mechanical.
 
 ### Phase 4 — Compile-fix sweep (~2–4 sessions; ends the non-buildable trench)
 
+> **Status 2026-07-25: build gate CLOSED** — `flutter build apk
+> --split-per-abi` green end to end; `shiroikuma-jisho_1.4.0+26_arm64-v8a.apk`
+> archived to `~/tmp` (207 M, versionCode 104002026). The error surface was
+> far smaller than planned: only 86 analyzer errors in `lib/` (most 3.13-era
+> APIs are deprecations, not removals) — ffmpeg session-API rewrite,
+> infinite_scroll_pagination v5, file_picker static API, share_plus 13,
+> DialogThemeData, M3 opt-out done. Additional vendors from the build loop:
+> ruby_text, material_floating_search_bar_2 (3.44 type rename). mecab C++14
+> pin (R11 played out as predicted), v1-embedding shim rewrite, BuildConfig
+> enable, multidex stub deletion, ML Kit R8 dontwarn (R9), compileSdk-36
+> shim. versionCode scheme migrated to X*1e8+Y*1e6+Z*1e4+N with the 1000s
+> digit reserved for Flutter's non-overridable per-ABI offset (R5's final
+> form). **Deferred to the polish pass:** the webview sub-branch turned out
+> unnecessary for compiling (inappwebview 6.1.5 compiled against existing
+> call sites) but the furigana-filter JS port (Section 3, decision 5) and
+> the deprecation cleanup (WillPopScope, textScaleFactor, ColorScheme
+> roles) are still open, plus slang regen check. NOT device-delivered:
+> installs stay gated on the Phase 0 export bundle.
+
 Ordered from mechanical to surgical:
 
 1. `dart fix --apply` first (covers `MaterialState*` → `WidgetState*` — 11 hits /
