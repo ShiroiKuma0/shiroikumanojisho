@@ -188,6 +188,37 @@ public class MainActivity extends AudioServiceActivity {
         // Rasterises scanned PDFs to page JPEGs for the OCR importer.
         new PdfRendererBridge().register(flutterEngine);
 
+        // Foreground-service leash for long imports (scanned-PDF OCR):
+        // "start"/"update" (re)post the progress notification, "stop"
+        // ends the service. See ImportForegroundService.
+        new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(),
+                "shiroikuma.jisho/import_fg")
+            .setMethodCallHandler(
+                (call, result) -> {
+                    android.content.Intent intent = new android.content.Intent(
+                        this, ImportForegroundService.class);
+                    switch (call.method) {
+                        case "start":
+                        case "update":
+                            intent.putExtra(ImportForegroundService.EXTRA_TITLE,
+                                (String) call.argument("title"));
+                            intent.putExtra(ImportForegroundService.EXTRA_TEXT,
+                                (String) call.argument("text"));
+                            // Plain startService: the app is in the
+                            // foreground when an import begins, and
+                            // updates go to the already-running service.
+                            startService(intent);
+                            result.success(null);
+                            break;
+                        case "stop":
+                            stopService(intent);
+                            result.success(null);
+                            break;
+                        default:
+                            result.notImplemented();
+                    }
+                });
+
         new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), ANKIDROID_CHANNEL)
             .setMethodCallHandler(
                 (call, result) -> {

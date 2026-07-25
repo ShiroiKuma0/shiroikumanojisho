@@ -22,6 +22,12 @@ import 'package:shiroikumanojisho/src/utils/ocr/ocr_engine.dart';
 class PdfOcrImporter {
   static const MethodChannel _channel = MethodChannel('shiroikuma.jisho/pdf');
 
+  /// Foreground-service leash: keeps the process alive and the CPU on
+  /// while the import runs backgrounded/screen-off (EMUI freezes
+  /// background apps; a 700-page OCR takes many minutes).
+  static const MethodChannel _fgChannel =
+      MethodChannel('shiroikuma.jisho/import_fg');
+
   /// Rasterisation width cap in pixels: high enough for OCR on dense
   /// print, low enough to keep a 300-page book within tens of MB.
   static const int _maxPageWidth = 2000;
@@ -83,11 +89,25 @@ class PdfOcrImporter {
 
     final OcrEngine engine = MlkitOcrEngine();
     try {
+      await _fgChannel.invokeMethod('start', {
+        'title': 'Importing PDF - $title',
+        'text': 'Starting...',
+      });
       imgDir.createSync(recursive: true);
 
       final images = <MokuroImage>[];
       for (var i = 0; i < pageCount; i++) {
         bodyNotifier.value = 'OCR running: page ${i + 1} of $pageCount...';
+        if (i % 10 == 0) {
+          // Refresh the service notification (throttled; each update
+          // is a platform-channel round trip).
+          try {
+            await _fgChannel.invokeMethod('update', {
+              'title': 'Importing PDF - $title',
+              'text': 'Page ${i + 1} of $pageCount',
+            });
+          } catch (_) {}
+        }
 
         final rendered = await _channel.invokeMethod<Map>(
           'renderPage',
@@ -137,6 +157,9 @@ class PdfOcrImporter {
       Fluttertoast.showToast(msg: 'PDF import failed: $e');
       return null;
     } finally {
+      try {
+        await _fgChannel.invokeMethod('stop');
+      } catch (_) {}
       await engine.dispose();
       try {
         await _channel.invokeMethod('close');
