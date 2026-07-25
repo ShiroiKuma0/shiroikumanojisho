@@ -54,3 +54,5 @@ app.*.map.json
 .claude/sessions/
 .claude/.cache/
 *.*~android/build/
+vendor/async_zip/android/.cxx/
+vendor/mecab_dart/android/.cxx/
