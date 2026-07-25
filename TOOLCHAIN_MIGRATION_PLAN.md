@@ -123,8 +123,11 @@ the `spaces` fork is patched or replaced. `record_mp3_plus`: retest, then drop.
    `full_gpl` is a one-line change if anything surfaces.
 5. **Forks — resolved per-package by the Phase 0 diffs**
    (`migration/fork-diff-*.md`):
-   - flutter_inappwebview → **hosted 6.1.5, no fork**; the fork's one live patch
-     (furigana-excluding `getSelectedText()` JS) ports into the app's own helpers.
+   - flutter_inappwebview → **hosted 6.1.5**; the fork's one live patch
+     (furigana-excluding `getSelectedText()` JS) is re-applied verbatim in
+     `vendor/flutter_inappwebview_android` (already vendored for the AGP 9
+     proguard fix) — one patched implementation package instead of three
+     app-side helper rewrites.
    - flutter_vlc_player → **upstream 7.4.4 stock**; retest the audio-cut issue on
      the Boox (fork's OpenSLES hook is the only live patch; re-apply vendored only
      if the issue recurs with libVLC 3.6.3).

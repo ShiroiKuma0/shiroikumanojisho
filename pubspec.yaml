@@ -1,7 +1,7 @@
 name: shiroikumanojisho
 description: A full-featured immersion language learning suite for mobile.
 publish_to: 'none'
-version: 1.4.0+26
+version: 1.4.0+27
 environment:
   sdk: ">=3.12.0 <4.0.0"
   flutter: "^3.44.0"
@@ -39,7 +39,10 @@ dependencies:
   external_app_launcher: ^4.0.3
   external_path: ^2.2.0
   favicon: ^1.1.1
-  file_picker: ^11.0.0
+  # 12 beta line: the only release stream compatible with win32 6
+  # (which wakelock_plus/package_info_plus 10 force). Static
+  # pickFiles/clearTemporaryFiles API identical to 11.
+  file_picker: ^12.0.0-beta.7
   filesystem_picker:
     # Vendored jidoujisho fork (multi-root, usedFiles highlighting,
     # marquee) — upstream 4.1.0 lacks these; see migration/fork-diff-small-three.md.
@@ -99,9 +102,11 @@ dependencies:
   list_counter: ^1.0.2
   local_assets_server: ^2.0.2+12
   marquee: ^2.2.3
-  # Community continuation of the deleted bnxm upstream; contains all
-  # three fork patches verbatim.
-  material_floating_search_bar_2: ^0.5.0
+  material_floating_search_bar_2:
+    # Community continuation of the deleted bnxm upstream (contains all
+    # three fork patches); vendored for the AppBarTheme ->
+    # AppBarThemeData type rename in Flutter 3.4x.
+    path: vendor/material_floating_search_bar_2
   mecab_dart:
     # Vendored: jcenter() + embedded AGP-3.5 buildscript break Gradle 9;
     # namespace added. See vendor/mecab_dart.
@@ -128,9 +133,9 @@ dependencies:
   reorderables: ^0.6.0
   restart_app: ^1.1.2
   ruby_text:
-    git:
-      url: https://github.com/arianneorpilla/RubyText
-      ref: cb723f87c9ac575aa735b40016c0ffb3242d921e
+    # Vendored fork: MediaQuery.boldTextOverride was removed in current
+    # Flutter; one-line fix to MediaQuery.boldTextOf.
+    path: vendor/ruby_text
   screen_brightness: ^2.1.11
   scrollable_positioned_list: ^0.3.5
   share_plus: ^13.3.0
@@ -161,12 +166,11 @@ dependencies:
 dependency_overrides:
   mecab_dart: # ve_dart requires hosted mecab_dart; force the vendored copy
     path: vendor/mecab_dart
-  flutter_inappwebview_android: # hosted 1.1.3 + one-line AGP 9 proguard fix
+  flutter_inappwebview_android: # hosted 1.1.3 + AGP 9 proguard fix + furigana-filter getSelectedText (the jidoujisho fork's patch)
     path: vendor/flutter_inappwebview_android
   ffi: ^2.2.0 # Caused by mecab_dart 0.1.3 (via ve_dart) pinning ffi ^1
   mime: ^2.0.0 # Caused by local_assets_server 2.0.2+12 (latest) pinning mime ^1; share_plus 13 needs ^2
   path: ^1.9.1 # Caused by the subtitle fork pinning path <1.9
-  win32: ^6.0.1 # Windows-only transitive; file_picker 11 pins ^5.9 vs wakelock_plus 1.7 needs ^6 — irrelevant on Android
   freezed_annotation: ^2.2.0 # Caused by spaces
   gap: ^3.0.1 # Caused by spaces
   record_mp3_plus: ^1.2.0 # Retest then drop (toolchain migration)
