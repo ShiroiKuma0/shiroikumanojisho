@@ -193,6 +193,10 @@ class AppModel with ChangeNotifier {
   /// Used for accessing persistent key-value data. See [initialise].
   late final Box _preferences;
 
+  /// Preference-backed knobs for the black/yellow UI, surfaced on the
+  /// 白い熊 辞書 UI settings page.
+  late final UiThemeSettings uiTheme;
+
   /// Public access to preferences box for custom language config.
   Box get preferences => _preferences;
 
@@ -504,9 +508,14 @@ class AppModel with ChangeNotifier {
         textBaseline: targetLanguage.textBaseline,
       );
 
-  /// Text style with dark theme color applied.
+  /// Text style with dark theme color applied. Family, weight, and
+  /// color come from the UI theme settings; '' family = the target
+  /// language's default.
   TextStyle get darkTextStyle => TextStyle(
-        fontFamily: targetLanguage.defaultFontFamily,
+        fontFamily: uiTheme.fontFamily.isEmpty
+            ? targetLanguage.defaultFontFamily
+            : uiTheme.fontFamily,
+        fontWeight: uiTheme.fontWeightValue,
         fontFeatures: const [FontFeature('liga', 0)],
         locale: targetLanguage.locale,
         textBaseline: targetLanguage.textBaseline,
@@ -641,112 +650,135 @@ class AppModel with ChangeNotifier {
       );
 
   /// Shows when the current mode is a dark theme.
-  ThemeData get darkTheme => ThemeData(
+  ThemeData get darkTheme {
+    // Every knob below is preference-backed via [uiTheme] (the 白い熊
+    // 辞書 UI settings page); black/yellow defaults, red accents.
+    final background = Color(uiTheme.backgroundColor);
+    final text = Color(darkThemeTextColor);
+    final icon = Color(uiTheme.iconColor);
+    final border = Color(uiTheme.borderColor);
+    final accent = Color(uiTheme.accentColor);
+    final dialogSide = uiTheme.dialogBorderWidth <= 0
+        ? BorderSide.none
+        : BorderSide(color: border, width: uiTheme.dialogBorderWidth);
+    final buttonSide = uiTheme.buttonBorderWidth <= 0
+        ? BorderSide.none
+        : BorderSide(color: border, width: uiTheme.buttonBorderWidth);
+    return ThemeData(
         // Material 3 opt-out — see [theme].
         useMaterial3: false,
-        scaffoldBackgroundColor: Colors.black,
-        // Pure black across every panel surface — canvas (modal bottom
+        scaffoldBackgroundColor: background,
+        // One panel color across every surface — canvas (modal bottom
         // sheets like the player's track menu), cards, dialogs and popup
-        // menus. The previous dark-grey (30,30,30) panels read badly on
-        // e-ink and clash with the black/yellow theme (白い熊,
-        // 2026-07-22).
-        canvasColor: Colors.black,
-        bottomSheetTheme: const BottomSheetThemeData(
-          backgroundColor: Colors.black,
+        // menus. Grey panels read badly on e-ink and clash with the
+        // black/yellow theme (白い熊, 2026-07-22).
+        canvasColor: background,
+        bottomSheetTheme: BottomSheetThemeData(
+          backgroundColor: background,
         ),
-        unselectedWidgetColor: Color(darkThemeTextColor).withValues(alpha: 0.7),
+        unselectedWidgetColor: text.withValues(alpha: 0.7),
         textTheme: darkTextTheme,
-        iconTheme: IconThemeData(color: Color(darkThemeTextColor)),
+        iconTheme: IconThemeData(color: icon),
         switchTheme: SwitchThemeData(
           thumbColor: WidgetStateColor.resolveWith((states) {
             return states.contains(WidgetState.selected)
-                ? Colors.red
+                ? accent
                 : Colors.grey;
           }),
           trackColor: WidgetStateColor.resolveWith((states) {
             return states.contains(WidgetState.selected)
-                ? Colors.red.withValues(alpha: 0.5)
+                ? accent.withValues(alpha: 0.5)
                 : Colors.grey;
           }),
+        ),
+        checkboxTheme: CheckboxThemeData(
+          fillColor: WidgetStateProperty.resolveWith((states) =>
+              states.contains(WidgetState.selected)
+                  ? accent
+                  : Colors.transparent),
+          side: BorderSide(color: border, width: 1.5),
         ),
         appBarTheme: AppBarTheme(
           elevation: 0,
           centerTitle: false,
-          backgroundColor: Colors.black,
-          foregroundColor: Color(darkThemeTextColor),
-          iconTheme: IconThemeData(color: Color(darkThemeTextColor)),
+          backgroundColor: background,
+          foregroundColor: text,
+          iconTheme: IconThemeData(color: icon),
         ),
         bottomNavigationBarTheme: BottomNavigationBarThemeData(
           elevation: 0,
           type: BottomNavigationBarType.fixed,
           selectedLabelStyle: darkTextTheme.labelSmall,
           unselectedLabelStyle: darkTextTheme.labelSmall,
-          unselectedItemColor: Color(darkThemeTextColor).withValues(alpha: 0.7),
+          unselectedItemColor: text.withValues(alpha: 0.7),
           showSelectedLabels: true,
           showUnselectedLabels: true,
-          backgroundColor: Colors.black,
+          backgroundColor: background,
         ),
-        popupMenuTheme: const PopupMenuThemeData(
-          color: Colors.black,
-          shape: RoundedRectangleBorder(),
+        popupMenuTheme: PopupMenuThemeData(
+          color: background,
+          shape: const RoundedRectangleBorder(),
         ),
         // Dialogs ("Exit Media" and every other AlertDialog) carry the
-        // black/yellow identity: yellow rounded border on the panel,
-        // and their TextButtons render as yellow-bordered pills (白い熊,
-        // 2026-07-24).
+        // black/yellow identity: bordered rounded panel, TextButtons as
+        // bordered pills (白い熊, 2026-07-24) — all four knobs settable.
         dialogTheme: DialogThemeData(
-          backgroundColor: Colors.black,
+          backgroundColor: background,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: Colors.yellow, width: 2),
+            borderRadius:
+                BorderRadius.circular(uiTheme.dialogCornerRadius),
+            side: dialogSide,
           ),
         ),
-        cardColor: Colors.black,
+        cardColor: background,
         textButtonTheme: TextButtonThemeData(
           style: TextButton.styleFrom(
-            foregroundColor: Color(darkThemeTextColor),
+            foregroundColor: text,
             padding:
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            shape: const StadiumBorder(
-              side: BorderSide(color: Colors.yellow, width: 1.5),
+            shape: RoundedRectangleBorder(
+              borderRadius:
+                  BorderRadius.circular(uiTheme.buttonCornerRadius),
+              side: buttonSide,
             ),
           ),
         ),
         listTileTheme: ListTileThemeData(
           dense: true,
           selectedTileColor: Colors.grey.shade600,
-          selectedColor: Color(darkThemeTextColor),
+          selectedColor: text,
           horizontalTitleGap: 0,
         ),
-        inputDecorationTheme: const InputDecorationTheme(
+        inputDecorationTheme: InputDecorationTheme(
           enabledBorder: UnderlineInputBorder(
             borderSide: BorderSide(
-              color: Colors.white70,
+              color: text.withValues(alpha: 0.7),
             ),
           ),
           focusedBorder: UnderlineInputBorder(
-            borderSide: BorderSide(color: Colors.red),
+            borderSide: BorderSide(color: accent),
           ),
         ),
         scrollbarTheme: ScrollbarThemeData(
           thumbVisibility: WidgetStateProperty.all(true),
         ),
-        sliderTheme: const SliderThemeData(
-          thumbColor: Colors.red,
-          activeTrackColor: Colors.red,
+        sliderTheme: SliderThemeData(
+          thumbColor: accent,
+          activeTrackColor: accent,
           inactiveTrackColor: Colors.grey,
-          trackShape: RectangularSliderTrackShape(),
+          trackShape: const RectangularSliderTrackShape(),
           trackHeight: 2,
-          thumbShape: RoundSliderThumbShape(enabledThumbRadius: 6),
+          thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
         ),
         colorScheme: ColorScheme.fromSwatch()
             .copyWith(
-              primary: Colors.red,
-              secondary: Colors.red,
+              primary: accent,
+              secondary: accent,
               brightness: Brightness.dark,
             )
-            .copyWith(surface: Colors.black),
+            .copyWith(surface: background),
       );
+  }
 
   /// Get the sentence to be used by the [SentenceField] upon card creation.
   JidoujishoTextSelection getCurrentSentence() {
@@ -1505,6 +1537,8 @@ class AppModel with ChangeNotifier {
     /// Initialise persistent key-value store.
     await Hive.initFlutter();
     _preferences = await Hive.openBox('appModel');
+    uiTheme = UiThemeSettings(box: _preferences, notify: notifyListeners);
+    await uiTheme.loadExternalFonts();
 
     /// Perform startup activities unnecessary to further initialisation here.
     await requestExternalStoragePermissions();
@@ -1691,10 +1725,9 @@ class AppModel with ChangeNotifier {
 
   /// Get whether or not the current theme is dark mode.
   bool get isDarkMode {
-    bool isDarkMode = _preferences.get('is_dark_mode',
-        defaultValue:
-            WidgetsBinding.instance.platformDispatcher.platformBrightness ==
-                Brightness.dark);
+    // The black/yellow (dark) UI is the app's default identity
+    // (白い熊 辞書 UI page); light mode remains a toggle away.
+    bool isDarkMode = _preferences.get('is_dark_mode', defaultValue: true);
     return isDarkMode;
   }
 

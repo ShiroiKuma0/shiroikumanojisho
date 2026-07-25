@@ -351,7 +351,27 @@ class _HomePageState extends BasePageState<HomePage>
     }).toList();
   }
 
+  /// Push the 白い熊 辞書 UI page (menu item and hamburger long-press).
+  void openUiSettingsPage() {
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (context) => const JishoUiSettingsPage(),
+      ),
+    );
+  }
+
   Widget buildShowMenuButton() {
+    // The long-press detector wraps the popup button: tap opens the
+    // menu as before, long-press jumps straight to the 白い熊 辞書 UI
+    // page — the sister repos' overflow-icon gesture.
+    return GestureDetector(
+      onLongPress: openUiSettingsPage,
+      child: buildShowMenuPopupButton(),
+    );
+  }
+
+  Widget buildShowMenuPopupButton() {
     return PopupMenuButton<VoidCallback>(
       splashRadius: 20,
       padding: EdgeInsets.zero,
@@ -783,6 +803,11 @@ class _HomePageState extends BasePageState<HomePage>
 
   List<PopupMenuItem<VoidCallback>> getMenuItems() {
     return [
+      buildPopupItem(
+        label: '白い熊 辞書 UI',
+        icon: Icons.palette_outlined,
+        action: openUiSettingsPage,
+      ),
       buildPopupItem(
         label:
             appModel.isDarkMode ? t.options_theme_light : t.options_theme_dark,

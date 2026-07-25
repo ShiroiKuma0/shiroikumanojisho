@@ -446,7 +446,13 @@ class _JidoujishoAppState extends ConsumerState<JidoujishoApp>
       darkTheme: appModel.darkTheme,
       // This is responsible for the initialising the global spacing across
       // the entire project, making use of the [spaces] package.
-      builder: (context, child) => Spacing(
+      builder: (context, child) => MediaQuery(
+        // Global UI text scale from the 白い熊 辞書 UI settings page.
+        data: MediaQuery.of(context).copyWith(
+          textScaler:
+              TextScaler.linear(appModel.uiTheme.fontScale / 100),
+        ),
+        child: Spacing(
         dataBuilder: (context) {
           return SpacingData.generate(10);
         },
@@ -461,6 +467,7 @@ class _JidoujishoAppState extends ConsumerState<JidoujishoApp>
             child!,
             _IndexBuildOverlay(appModel: appModel),
           ],
+        ),
         ),
       ),
     );

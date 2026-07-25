@@ -28,6 +28,7 @@ export 'src/pages/implementations/home_player_page.dart';
 export 'src/pages/implementations/home_reader_page.dart';
 export 'src/pages/implementations/home_viewer_page.dart';
 export 'src/pages/implementations/home_page.dart';
+export 'src/pages/implementations/jisho_ui_settings_page.dart';
 export 'src/pages/implementations/network_stream_dialog_page.dart';
 export 'src/pages/implementations/recursive_dictionary_page.dart';
 export 'src/pages/implementations/recursive_dictionary_history_page.dart';
