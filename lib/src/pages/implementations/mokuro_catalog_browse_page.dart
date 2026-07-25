@@ -529,23 +529,71 @@ class _MokuroCatalogBrowsePageState
     '.pageContainer { outline: 2px solid #FFFF00; }' +
     'html.jishoInvert .pageContainer { filter: url(#jishoYellowInk); }' +
     '#jishoInvertBtn { font-size: 1.2em; font-weight: bold; }' +
-    // Side-by-side OCR reveal: the recognised text pops out NEXT TO
-    // the scan instead of covering it -- left of the column for
-    // vertical text, below the line for horizontal -- so the OCR
-    // characters can be compared against the original ink.
-    'html.jishoPdf .textBox[style*="vertical-rl"] p' +
-    ' { position: relative; right: calc(100% + 8px); }' +
-    'html.jishoPdf .textBox:not([style*="vertical-rl"]) p' +
-    ' { position: relative; top: calc(100% + 8px); }' +
+    // Per-line OCR reveal: OCR blocks can span several columns, so
+    // revealing/shifting the whole box buried the tapped word in a
+    // wall of text (2026-07-25 report). Instead only the tapped LINE
+    // is revealed, displaced by exactly its own extent -- one column
+    // to the left for vertical text, one line below for horizontal --
+    // so it lands beside its own ink for character comparison. The
+    // template's hover-reveal (all lines, in place, white box) is
+    // suppressed in PDF mode.
+    'html.jishoPdf .textBox:hover { background: transparent; }' +
+    'html.jishoPdf .textBox:hover p:not(.jishoShow) { display: none; }' +
+    'html.jishoPdf .textBox p.jishoShow { display: table !important; }' +
+    'html.jishoPdf .textBox.jishoEditing p { display: table !important; }' +
+    'html.jishoPdf .textBox[style*="vertical-rl"] p.jishoShow,' +
+    ' html.jishoPdf .textBox.jishoEditing[style*="vertical-rl"] p' +
+    ' { transform: translateX(calc(-100% - 6px)); }' +
+    'html.jishoPdf .textBox:not([style*="vertical-rl"]) p.jishoShow,' +
+    ' html.jishoPdf .textBox.jishoEditing:not([style*="vertical-rl"]) p' +
+    ' { transform: translateY(calc(100% + 6px)); }' +
     'html.jishoPdf .textBox.jishoEditing' +
-    ' { outline: 2px dashed #FFFF00; z-index: 999 !important; }' +
-    'html.jishoPdf .textBox.jishoEditing p { display: table; }';
+    ' { outline: 2px dashed #FFFF00; z-index: 999 !important; }';
   // Long-press (contextmenu) on a revealed OCR line: edit the box
   // in place to fix recognition errors; the corrected text is what
   // tap-lookups search. On focus loss the edit is reported to the
   // app, which persists it into the volume's HTML on disk.
   if (!window.jishoEditHooked) {
     window.jishoEditHooked = true;
+    // Tap on a text box: reveal ONLY the tapped line beside its ink
+    // and run the standard lookup on the displaced copy, so the
+    // first tap both shows the comparison and searches. Taps on the
+    // already-revealed <p> fall through to the normal handler.
+    document.addEventListener('click', function(e) {
+      if (e.target && e.target.tagName === 'P') { return; }
+      var box = e.target && e.target.closest
+          ? e.target.closest('.textBox') : null;
+      var prev = document.querySelectorAll('.textBox p.jishoShow');
+      for (var i = 0; i < prev.length; i++) {
+        prev[i].classList.remove('jishoShow');
+      }
+      if (!box || box.classList.contains('jishoEditing')) { return; }
+      var ps = box.querySelectorAll('p');
+      if (!ps.length) { return; }
+      var rect = box.getBoundingClientRect();
+      var isVertical =
+          (box.getAttribute('style') || '').indexOf('vertical-rl') >= 0;
+      var idx;
+      if (isVertical) {
+        idx = Math.floor((rect.right - e.clientX) / (rect.width / ps.length));
+      } else {
+        idx = Math.floor((e.clientY - rect.top) / (rect.height / ps.length));
+      }
+      if (idx < 0) { idx = 0; }
+      if (idx >= ps.length) { idx = ps.length - 1; }
+      var p = ps[idx];
+      p.classList.add('jishoShow');
+      var pr = p.getBoundingClientRect();
+      var mx = e.clientX;
+      var my = e.clientY;
+      if (isVertical) { mx = e.clientX - (pr.width + 6); }
+      else { my = e.clientY + pr.height + 6; }
+      e.preventDefault();
+      e.stopPropagation();
+      if (typeof tapToSelect === 'function') {
+        tapToSelect({ target: p, clientX: mx, clientY: my });
+      }
+    }, true);
     document.addEventListener('contextmenu', function(e) {
       var box = e.target && e.target.closest && e.target.closest('.textBox');
       if (!box) { return; }
