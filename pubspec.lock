@@ -556,10 +556,10 @@ packages:
     dependency: "direct main"
     description:
       name: file_picker
-      sha256: f13a03000d942e476bc1ff0a736d2e9de711d2f89a95cd4c1d88f861c3348387
+      sha256: fdc6a37f715d19f35b131decf1ce39242eeed5ddae18c0818c3eccb731ab76be
       url: "https://pub.dev"
     source: hosted
-    version: "11.0.2"
+    version: "12.0.0-beta.7"
   file_selector_linux:
     dependency: transitive
     description:
@@ -924,12 +924,11 @@ packages:
     source: hosted
     version: "7.4.4"
   flutter_vlc_player_platform_interface:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: flutter_vlc_player_platform_interface
-      sha256: "99fbb806f86ce1c53ba007157c183104a100aa643eda0cec7e71118bf0460578"
-      url: "https://pub.dev"
-    source: hosted
+      path: "vendor/flutter_vlc_player_platform_interface"
+      relative: true
+    source: path
     version: "2.0.5"
   flutter_web_plugins:
     dependency: transitive
@@ -1339,10 +1338,9 @@ packages:
   material_floating_search_bar_2:
     dependency: "direct main"
     description:
-      name: material_floating_search_bar_2
-      sha256: ab0c6d209d9491f98dd4c72f2641d0ba1dd35c87effca1f23d8679bece43add0
-      url: "https://pub.dev"
-    source: hosted
+      path: "vendor/material_floating_search_bar_2"
+      relative: true
+    source: path
     version: "0.5.0"
   mecab_dart:
     dependency: "direct main"
@@ -1688,11 +1686,9 @@ packages:
   ruby_text:
     dependency: "direct main"
     description:
-      path: "."
-      ref: cb723f87c9ac575aa735b40016c0ffb3242d921e
-      resolved-ref: cb723f87c9ac575aa735b40016c0ffb3242d921e
-      url: "https://github.com/arianneorpilla/RubyText"
-    source: git
+      path: "vendor/ruby_text"
+      relative: true
+    source: path
     version: "3.0.1"
   rxdart:
     dependency: transitive
@@ -2215,7 +2211,7 @@ packages:
     source: hosted
     version: "2.4.0"
   win32:
-    dependency: "direct overridden"
+    dependency: transitive
     description:
       name: win32
       sha256: ba6f4bba816c8d7e3c1580e170f3786d216951cc6b94babc3b814c08d2cb2738

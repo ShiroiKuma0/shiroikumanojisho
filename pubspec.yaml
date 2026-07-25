@@ -1,7 +1,7 @@
 name: shiroikumanojisho
 description: A full-featured immersion language learning suite for mobile.
 publish_to: 'none'
-version: 1.4.0+30
+version: 1.4.0+31
 environment:
   sdk: ">=3.12.0 <4.0.0"
   flutter: "^3.44.0"
@@ -168,6 +168,13 @@ dependency_overrides:
     path: vendor/mecab_dart
   flutter_inappwebview_android: # hosted 1.1.3 + AGP 9 proguard fix + furigana-filter getSelectedText (the jidoujisho fork's patch)
     path: vendor/flutter_inappwebview_android
+  flutter_vlc_player_platform_interface:
+    # Upstream release bug: flutter_vlc_player 7.4.4's Java pigeon uses
+    # new-style channel names but the PUBLISHED interface 2.0.5 still
+    # has old-style ones -- every VLC call dies with channel-error. The
+    # regenerated Dart side exists only in the monorepo; vendored from
+    # the 7.4.4 tag (988a7e67).
+    path: vendor/flutter_vlc_player_platform_interface
   ffi: ^2.2.0 # Caused by mecab_dart 0.1.3 (via ve_dart) pinning ffi ^1
   mime: ^2.0.0 # Caused by local_assets_server 2.0.2+12 (latest) pinning mime ^1; share_plus 13 needs ^2
   path: ^1.9.1 # Caused by the subtitle fork pinning path <1.9
