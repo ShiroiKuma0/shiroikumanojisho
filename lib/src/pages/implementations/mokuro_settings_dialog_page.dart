@@ -66,6 +66,7 @@ class _MokuroSettingsDialogPageState extends BasePageState {
               buildInvertPageTurningSwitch(),
               buildUseDarkThemeSwitch(),
               buildExtendPageSwitch(),
+              buildPdfToolbarSizeDropdown(),
             ],
           ),
         ),
@@ -164,6 +165,39 @@ class _MokuroSettingsDialogPageState extends BasePageState {
               onChanged: (value) {
                 source.toggleExtendPageBeyondNavigationBar();
                 notifier.value = source.extendPageBeyondNavigationBar;
+              },
+            );
+          },
+        )
+      ],
+    );
+  }
+
+  Widget buildPdfToolbarSizeDropdown() {
+    ValueNotifier<double> notifier = ValueNotifier<double>(source.pdfMenuScale);
+
+    return Row(
+      children: [
+        Expanded(
+          child: Text(t.pdf_toolbar_size),
+        ),
+        ValueListenableBuilder<double>(
+          valueListenable: notifier,
+          builder: (_, value, __) {
+            return DropdownButton<double>(
+              value: value,
+              items: const [1.0, 1.25, 1.5, 1.75, 2.0]
+                  .map((scale) => DropdownMenuItem<double>(
+                        value: scale,
+                        child: Text('${(scale * 100).round()}%'),
+                      ))
+                  .toList(),
+              onChanged: (scale) {
+                if (scale == null) {
+                  return;
+                }
+                source.setPdfMenuScale(scale);
+                notifier.value = scale;
               },
             );
           },

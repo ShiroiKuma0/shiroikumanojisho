@@ -385,6 +385,7 @@
     "field_lock": "Lock Field",
     "field_unlock": "Unlock Field",
     "use_dark_theme": "Use dark theme",
+    "pdf_toolbar_size": "PDF toolbar size",
     "stretch_to_fill_screen": "Stretch to Fill Screen",
     "processing_embedded_subtitles": "Embedded subtitles are processing. Try again later.",
     "transcript_playback_mode": "Transcript Playback Mode",

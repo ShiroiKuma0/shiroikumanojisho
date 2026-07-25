@@ -4,9 +4,9 @@
 /// To regenerate, run: `dart run slang`
 ///
 /// Locales: 1
-/// Strings: 430
+/// Strings: 431
 ///
-/// Built on 2026-07-25 at 09:41 UTC
+/// Built on 2026-07-25 at 09:58 UTC
 
 // coverage:ignore-file
 // ignore_for_file: type=lint
@@ -507,6 +507,7 @@ class Translations implements BaseTranslations<AppLocale, Translations> {
 	String get field_lock => 'Lock Field';
 	String get field_unlock => 'Unlock Field';
 	String get use_dark_theme => 'Use dark theme';
+	String get pdf_toolbar_size => 'PDF toolbar size';
 	String get stretch_to_fill_screen => 'Stretch to Fill Screen';
 	String get processing_embedded_subtitles => 'Embedded subtitles are processing. Try again later.';
 	String get transcript_playback_mode => 'Transcript Playback Mode';
@@ -969,6 +970,7 @@ extension on Translations {
 			case 'field_lock': return 'Lock Field';
 			case 'field_unlock': return 'Unlock Field';
 			case 'use_dark_theme': return 'Use dark theme';
+			case 'pdf_toolbar_size': return 'PDF toolbar size';
 			case 'stretch_to_fill_screen': return 'Stretch to Fill Screen';
 			case 'processing_embedded_subtitles': return 'Embedded subtitles are processing. Try again later.';
 			case 'transcript_playback_mode': return 'Transcript Playback Mode';

@@ -374,7 +374,12 @@ class _MokuroCatalogBrowsePageState
           if (!_firstLoadFlag) {
             _firstLoadFlag = true;
 
-            if (mediaSource.useDarkTheme) {
+            if (url.contains('/scannedPdf/')) {
+              // Scanned-PDF volumes get the app's black/yellow chrome
+              // and inverted page rendering by default, regardless of
+              // the mokuro dark-theme toggle.
+              await injectPdfBlackYellowTheme();
+            } else if (mediaSource.useDarkTheme) {
               await injectDarkTheme();
             }
             await controller.evaluateJavascript(source: javascriptToExecute);
@@ -394,6 +399,68 @@ class _MokuroCatalogBrowsePageState
         }
       },
     );
+  }
+
+  /// Black/yellow chrome for scanned-PDF volumes: top menu on black
+  /// with yellow controls (the template icons stroke with
+  /// currentColor, so --color3 recolours them), scaled by the
+  /// [ReaderMokuroSource.pdfMenuScale] preference (the bar is em-sized
+  /// throughout; the SVGs carry fixed px attributes and need an
+  /// explicit em size to grow); black page surround; yellow page
+  /// edge; and inverted page rendering (black page, yellow text) by
+  /// default, toggleable with an injected ◐ button and remembered in
+  /// the webview's localStorage.
+  Future<void> injectPdfBlackYellowTheme() async {
+    final scale = ReaderMokuroSource.instance.pdfMenuScale;
+    await _controller.evaluateJavascript(source: """
+(function() {
+  var root = document.querySelector(':root');
+  root.style.setProperty('--colorBackground', '#000000');
+  root.style.setProperty('--color1', '#000000');
+  root.style.setProperty('--color2', '#333300');
+  root.style.setProperty('--color3', '#FFFF00');
+  root.style.setProperty('--color3a', 'rgba(255,255,0,0.3)');
+  var st = document.getElementById('jishoPdfStyle');
+  if (!st) {
+    st = document.createElement('style');
+    st.id = 'jishoPdfStyle';
+    document.head.appendChild(st);
+  }
+  st.textContent =
+    'body { background-color: #000000 !important; }' +
+    '#topMenu { font-size: ${scale}em; border: 1px solid #FFFF00; }' +
+    '#topMenu .menuButton svg { width: 1.5em; height: 1.5em; max-height: 1.5em; }' +
+    '#pageIdxInput { background: #000000 !important; color: #FFFF00 !important;' +
+    ' border: 1px solid #FFFF00; }' +
+    '#pageIdxDisplay { color: #FFFF00 !important; }' +
+    '.pageContainer { outline: 2px solid #FFFF00; }' +
+    'html.jishoInvert .pageContainer {' +
+    ' filter: invert(1) sepia(1) saturate(8) hue-rotate(355deg); }' +
+    '#jishoInvertBtn { font-size: 1.2em; font-weight: bold; }';
+  if (!document.getElementById('jishoInvertBtn')) {
+    var btn = document.createElement('button');
+    btn.id = 'jishoInvertBtn';
+    btn.className = 'menuButton';
+    btn.textContent = '\u25D0';
+    var anchor = document.getElementById('pageIdxInput');
+    anchor.parentNode.insertBefore(btn, anchor);
+    var applyInvert = function() {
+      var v = localStorage.getItem('jishoPdfInvert');
+      var on = (v === null ? '1' : v) === '1';
+      if (on) { document.documentElement.classList.add('jishoInvert'); }
+      else { document.documentElement.classList.remove('jishoInvert'); }
+    };
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      var v = localStorage.getItem('jishoPdfInvert');
+      var on = (v === null ? '1' : v) === '1';
+      localStorage.setItem('jishoPdfInvert', on ? '0' : '1');
+      applyInvert();
+    });
+    applyInvert();
+  }
+})();
+""");
   }
 
   Future<void> injectDarkTheme() async {

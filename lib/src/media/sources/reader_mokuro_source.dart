@@ -351,6 +351,19 @@ bgImage.substring(5, bgImage.length - 2);
         Uri.parse(mediaIdentifier).resolve(relativeUrl).toString());
   }
 
+  /// Scale factor for the in-page top toolbar of scanned-PDF volumes
+  /// (the mokuro-template menu bar). 1.5 = 50% larger than the
+  /// template default, per 白い熊's e-ink ergonomics; settable in the
+  /// mokuro/PDF settings dialog.
+  double get pdfMenuScale {
+    return getPreference<double>(key: 'pdf_menu_scale', defaultValue: 1.5);
+  }
+
+  /// Persists [pdfMenuScale].
+  void setPdfMenuScale(double scale) async {
+    await setPreference<double>(key: 'pdf_menu_scale', value: scale);
+  }
+
   /// Whether or not using the volume buttons in the Reader should turn the
   /// page.
   bool get volumePageTurningEnabled {
