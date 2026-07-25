@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [1.5.0] - 2026-07-25
+
+### Added
+
+- Scanned-PDF viewer redesign in the app's black/yellow: black page
+  surround, yellow page edge, black toolbar with yellow controls — 50%
+  larger by default and adjustable (100–200%) from the mokuro/PDF settings
+  dialog. Pages render inverted by default (pure `#FFFF00` ink on black via
+  an exact color-matrix filter), toggleable with a ◐ button in the toolbar.
+- Tapping scanned text now pops the recognised OCR line out BESIDE the ink
+  (left of the column for vertical text, below for horizontal) with the
+  tapped character aligned to the finger, and looks it up immediately —
+  compare the OCR against the scan at any zoom. Volumes imported from this
+  version carry exact per-line geometry; older volumes should be reimported.
+- Long-press a revealed OCR line to edit it in place and fix recognition
+  errors; corrections are searched immediately and persisted into the
+  volume on disk.
+- PDF import now runs under a foreground service with a progress
+  notification, so it keeps running when the app is backgrounded or the
+  screen is off.
+
 ### Changed
 
 - Full toolchain migration: Flutter 3.13.5 → 3.44.x, Gradle 7.2 → 9.1.0,
