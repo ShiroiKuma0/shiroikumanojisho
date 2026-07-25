@@ -566,6 +566,7 @@ class _MokuroCatalogBrowsePageState
       var prev = document.querySelectorAll('.textBox p.jishoShow');
       for (var i = 0; i < prev.length; i++) {
         prev[i].classList.remove('jishoShow');
+        prev[i].style.transform = '';
       }
       if (!box || box.classList.contains('jishoEditing')) { return; }
       var ps = box.querySelectorAll('p');
@@ -583,15 +584,46 @@ class _MokuroCatalogBrowsePageState
       if (idx >= ps.length) { idx = ps.length - 1; }
       var p = ps[idx];
       p.classList.add('jishoShow');
-      var pr = p.getBoundingClientRect();
-      var mx = e.clientX;
-      var my = e.clientY;
-      if (isVertical) { mx = e.clientX - (pr.width + 6); }
-      else { my = e.clientY + pr.height + 6; }
+      // The copy's rendered length never exactly matches the scan
+      // column (OCR font sizing is approximate), and panzoom scale
+      // magnifies the drift. So: derive the CHARACTER INDEX from the
+      // tap's fractional position along the scan column, then nudge
+      // the copy so that character sits level with the finger, and
+      // run the lookup at that character's actual on-screen rect.
+      var textNode = p.firstChild;
+      var textLen = textNode && textNode.textContent
+          ? textNode.textContent.length : 0;
+      if (!textLen) { e.preventDefault(); e.stopPropagation(); return; }
+      var frac = isVertical
+          ? (e.clientY - rect.top) / rect.height
+          : (e.clientX - rect.left) / rect.width;
+      var charIdx = Math.floor(frac * textLen);
+      if (charIdx < 0) { charIdx = 0; }
+      if (charIdx >= textLen) { charIdx = textLen - 1; }
+      var range = document.createRange();
+      range.setStart(textNode, charIdx);
+      range.setEnd(textNode, charIdx + 1);
+      var cr = range.getBoundingClientRect();
+      // Viewport px -> local (pre-zoom) px for the inline transform.
+      var scale = box.offsetWidth ? rect.width / box.offsetWidth : 1;
+      if (isVertical) {
+        var deltaY = (e.clientY - (cr.top + cr.height / 2)) / scale;
+        p.style.transform =
+            'translateX(calc(-100% - 6px)) translateY(' + deltaY + 'px)';
+      } else {
+        var deltaX = (e.clientX - (cr.left + cr.width / 2)) / scale;
+        p.style.transform =
+            'translateY(calc(100% + 6px)) translateX(' + deltaX + 'px)';
+      }
+      var cr2 = range.getBoundingClientRect();
       e.preventDefault();
       e.stopPropagation();
       if (typeof tapToSelect === 'function') {
-        tapToSelect({ target: p, clientX: mx, clientY: my });
+        tapToSelect({
+          target: p,
+          clientX: cr2.left + cr2.width / 2,
+          clientY: cr2.top + cr2.height / 2
+        });
       }
     }, true);
     document.addEventListener('contextmenu', function(e) {
