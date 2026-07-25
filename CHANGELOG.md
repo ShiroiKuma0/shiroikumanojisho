@@ -6,7 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- Full toolchain migration: Flutter 3.13.5 → 3.44.x, Gradle 7.2 → 9.1.0,
+  AGP 7.1.2 → 9.0.1, JDK 11 → 21, compileSdk 34 → 36, and the entire
+  dependency graph moved to maintained packages (isar → isar_community,
+  flutter_ffmpeg → ffmpeg-kit, upstream flutter_vlc_player 7.4.4 and
+  flutter_inappwebview 6.1.5 replacing 2023-era forks, ML Kit un-vendored).
+  Mostly invisible by design (Material 3 deliberately opted out to keep the
+  e-ink look; targetSdk stays 32), with two user-visible effects:
+  - Dictionary search bloom filters now actually persist: the optimisation
+    existed but silently never activated because code generation was frozen
+    on the old toolchain. Newly imported dictionaries get faster negative
+    lookups; existing dictionaries behave as before until reimported.
+  - Player upgraded to libVLC 3.6.3.
+
+### Fixed
+
+- PGS subtitles stay visible when pausing mid-cue: the paused-frame bitmap
+  overlay (from the OCR bitmap store) now redraws on any pause, not only at
+  auto-pause cue boundaries — the new libVLC clears its own subtitle surface
+  on every pause, which used to leave the frozen frame bare.
 
 ## [1.4.0+25] - 2026-07-24
 

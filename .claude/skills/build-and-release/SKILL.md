@@ -1,26 +1,37 @@
 ---
 name: build-and-release
-description: Build, deploy, and release the shiroikumanojisho Flutter Android app. Use this skill any time you are about to run `flutter build`, `gradle`, `adb push`, `adb install`, bump a version in pubspec.yaml, generate a release commit, tag a release, or upload to GitHub releases. Also use when reasoning about why a build is failing in confusing ways (the JDK pin and Gradle-daemon hygiene rules here cover the most common cause). Trigger words include "build", "release", "deploy", "APK", "tag", "version bump", "publish", "gradle", "JDK", "Zulu", "split-per-abi". The non-obvious rules — Zulu 11 JDK pin, archive-to-~/tmp + /after-build delivery, release filename without datetime, bare-semver tag, pubspec clean for release — are easy to get wrong from defaults and are encoded here precisely so Claude does not have to re-derive them every session.
+description: Build, deploy, and release the shiroikumanojisho Flutter Android app. Use this skill any time you are about to run `flutter build`, `gradle`, `adb push`, `adb install`, bump a version in pubspec.yaml, generate a release commit, tag a release, or upload to GitHub releases. Also use when reasoning about why a build is failing in confusing ways (the JDK pin and Gradle-daemon hygiene rules here cover the most common cause). Trigger words include "build", "release", "deploy", "APK", "tag", "version bump", "publish", "gradle", "JDK", "Zulu", "split-per-abi". The non-obvious rules — JDK 21 + dedicated Flutter SDK checkout, archive-to-~/tmp + /after-build delivery, release filename without datetime, bare-semver tag, pubspec clean for release — are easy to get wrong from defaults and are encoded here precisely so Claude does not have to re-derive them every session.
 ---
 
 # Build and release
 
 This skill encodes the build, deploy, and release conventions for `shiroikumanojisho`. The rules are not arbitrary — each one exists because the obvious default produces a bug. Follow them precisely.
 
-## Toolchain pin: JDK 11 (Zulu)
+## Toolchain pin: JDK 21 + dedicated Flutter SDK checkout
 
-This is the rule most likely to bite you on a fresh machine.
+This is the rule most likely to bite you on a fresh machine. (Until the
+2026-07 toolchain migration this section pinned Zulu JDK 11 for Gradle
+7.2 — that is INVERTED now; building with JDK 11 fails.)
 
-The project Gradle is pinned at 7.2 (see `android/gradle/wrapper/gradle-wrapper.properties`). Gradle 7.2 does not accept JDK 17 or later. Trying to build under a modern JDK fails with cryptic Kotlin/Gradle errors about unsupported class file versions.
+The project Gradle is 9.1.0 with AGP 9.0.1 (see
+`android/gradle/wrapper/gradle-wrapper.properties` and
+`android/settings.gradle`), which requires JDK 17+. The machine's
+system OpenJDK 21 is the pinned choice. The Flutter SDK is a dedicated
+3.44.x checkout at `~/git/flutter-3.44` — the machine-wide
+`~/git/flutter` is still the 3.13.5 SDK used by other projects
+(e.g. shiroikuma-jiyudoga) and CANNOT build this repo any more.
 
 Before any `flutter build`, `flutter clean`, or direct gradle invocation, set:
 
 ```bash
-export JAVA_HOME=/usr/lib/jvm/zulu11
-export PATH="$JAVA_HOME/bin:$PATH"
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+export PATH="$JAVA_HOME/bin:$HOME/git/flutter-3.44/bin:$PATH"
 ```
 
-Adjust the path if Zulu 11 is installed elsewhere on a specific machine — only the version matters. Verify with `java -version`; the output should start with `openjdk version "11.`.
+Verify with `java -version` (starts `openjdk version "21.`) and
+`flutter --version` (reports 3.44.x). `android/local.properties`
+`flutter.sdk` must also point at `~/git/flutter-3.44` (it does; the
+tool rewrites it from whichever `flutter` binary runs).
 
 Then kill any running Gradle daemon left over from a previous session under a different JDK, since the daemon caches the JDK it started with:
 
@@ -138,14 +149,14 @@ Commit messages on this repo are written in the kernel style: short imperative s
 
 ## Common failure modes
 
-- **Build fails with Kotlin/Gradle "unsupported class file" error.** JDK is wrong. Check `java -version`, expect `11.`.
+- **Build fails with Kotlin/Gradle "unsupported class file" error, or `Namespace not specified`/`newDsl` errors.** JDK or Flutter SDK is wrong. Check `java -version` (expect `21.`) and `flutter --version` (expect 3.44.x — the 3.13 SDK at `~/git/flutter` cannot build this repo).
 - **Build succeeds but APK won't install** ("app not installed" on device). Usually a signing mismatch with a previously-installed copy of the app. Uninstall the old one first.
 - **`adb push` fails with permission denied.** `/sdcard/tmp/` may not exist on a fresh device; create it with `adb shell mkdir -p /sdcard/tmp`.
 - **Patch or change doesn't take effect after rebuild.** Gradle daemon caching from a prior build under different settings. Kill daemons and `flutter clean`.
 
 ## What this skill does not cover
 
-- Setting up Flutter, Android SDK, or the Zulu 11 JDK on a fresh machine. Assumed already present.
+- Setting up Flutter, Android SDK, or the JDK on a fresh machine. Assumed already present (OpenJDK 21 + the `~/git/flutter-3.44` checkout).
 - Per-developer machine setup (working tree location, IDE config). Out of scope.
 - CI/Actions configuration. None at the moment; if added later, document there, not here.
 - The codebase itself — feature design, file layout, gotchas. See `CLAUDE.md` at the repo root for the project context that goes beyond build mechanics.

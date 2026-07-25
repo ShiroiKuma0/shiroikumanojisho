@@ -68,8 +68,8 @@ A fork of [arianneorpilla/jidoujisho](https://github.com/arianneorpilla/jidoujis
 ```bash
 git clone https://github.com/ShiroiKuma0/shiroikumanojisho.git
 cd shiroikumanojisho
-# Requires JDK 11 (Zulu) — Gradle 7.2 rejects JDK 17+.
-export JAVA_HOME=/usr/lib/jvm/zulu11 && export PATH="$JAVA_HOME/bin:$PATH"
+# Requires JDK 17+ (Gradle 9.1.0 / AGP 9.0.1) and Flutter 3.44.x (Dart 3.12).
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 && export PATH="$JAVA_HOME/bin:$PATH"
 flutter build apk --split-per-abi --release
 # APK: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
 ```

@@ -30,7 +30,7 @@ See `.claude/skills/build-and-release/SKILL.md` for the full workflow: JDK pin, 
 
 A handful of facts worth knowing up front, repeated here so they catch your eye even if you skip the skill:
 
-- **JDK must be Zulu 11.** Gradle 7.2 (which this project pins) does not accept JDK 17+. Set `JAVA_HOME=/usr/lib/jvm/zulu11` and `PATH="$JAVA_HOME/bin:$PATH"` before `flutter build`. Builds will fail in confusing ways otherwise.
+- **JDK must be 17+ (pinned: system OpenJDK 21) and the Flutter SDK is the dedicated `~/git/flutter-3.44` checkout.** Since the 2026-07 toolchain migration (Gradle 9.1.0 / AGP 9.0.1) the old Zulu-11 rule is INVERTED — JDK 11 no longer builds this repo, and neither does the machine-wide `~/git/flutter` (still 3.13.5 for other projects). Set `JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64` and `PATH="$JAVA_HOME/bin:$HOME/git/flutter-3.44/bin:$PATH"` before `flutter build`. Builds will fail in confusing ways otherwise.
 - **The build artifact ships to two places.** Every successful build pushes the APK to the test device at `/sdcard/tmp/` via `adb push` AND copies it to `~/tmp/` for archival. Never one or the other.
 - **Release tags are bare semver, no `v` prefix.** `1.3.1`, not `v1.3.1`. Same on the GitHub release name.
 
@@ -46,15 +46,17 @@ This is a single-developer fork; the build environment is fixed and the specific
 | Working tree | `~/git/shiroikumanojisho` |
 | Local archive directory for built APKs | `~/tmp/` |
 
-### JDK
+### JDK and Flutter SDK
 
 | Item | Value |
 |------|-------|
-| Vendor and version | Azul Zulu 11 |
-| `JAVA_HOME` | `/usr/lib/jvm/zulu11` |
-| Why pinned to 11 | Gradle 7.2 (see below) refuses JDK 17+ with cryptic Kotlin class-file errors |
+| JDK | system OpenJDK 21 |
+| `JAVA_HOME` | `/usr/lib/jvm/java-21-openjdk-amd64` |
+| Why 17+ | Gradle 9.1.0 / AGP 9.0.1 require it (the pre-2026-07 Zulu-11 pin is dead) |
+| Flutter SDK | dedicated checkout `~/git/flutter-3.44` (3.44.x, Dart 3.12) |
+| Why a second checkout | the machine-wide `~/git/flutter` stays at 3.13.5 for other projects (e.g. shiroikuma-jiyudoga) and cannot build this repo |
 
-Before every build session: `export JAVA_HOME=/usr/lib/jvm/zulu11 && export PATH="$JAVA_HOME/bin:$PATH"`. The Gradle daemon caches the JDK it started under, so if a previous session ran with a different JDK, kill it first: `pkill -f '[G]radleDaemon' || true`. (Bracket the `[G]` so the pattern can't match — and kill — the non-interactive shell running the command itself; a literal `pkill -f GradleDaemon` self-terminates the build. See the build-and-release skill for the full rationale.)
+Before every build session: `export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 && export PATH="$JAVA_HOME/bin:$HOME/git/flutter-3.44/bin:$PATH"`. The Gradle daemon caches the JDK it started under, so if a previous session ran with a different JDK, kill it first: `pkill -f '[G]radleDaemon' || true`. (Bracket the `[G]` so the pattern can't match — and kill — the non-interactive shell running the command itself; a literal `pkill -f GradleDaemon` self-terminates the build. See the build-and-release skill for the full rationale.)
 
 ### Build toolchain (project-pinned)
 
@@ -62,16 +64,17 @@ These versions are declared in the repo and do not vary by machine. Listed here 
 
 | Item | Value | Pinned in |
 |------|-------|-----------|
-| Gradle | 7.2 | `android/gradle/wrapper/gradle-wrapper.properties` |
-| Android Gradle Plugin | 7.1.2 | `android/build.gradle` |
-| Kotlin | 1.8.22 | `android/build.gradle` |
-| Android `compileSdk` | 34 | `android/app/build.gradle` |
-| Android `targetSdk` | 32 | `android/app/build.gradle` |
+| Gradle | 9.1.0 | `android/gradle/wrapper/gradle-wrapper.properties` |
+| Android Gradle Plugin | 9.0.1 | `android/settings.gradle` (declarative plugins DSL) |
+| Kotlin (KGP) | 2.3.20 declared; `android.builtInKotlin=false` + `android.newDsl=false` in `android/gradle.properties` are temporary AGP-9 escape hatches — remove when Flutter and the plugin set support the new DSL / built-in Kotlin | `android/settings.gradle` |
+| Android `compileSdk` | 36 (`flutter.compileSdkVersion`; forced onto all plugin modules by the root shim) | `android/app/build.gradle`, `android/build.gradle` |
+| Android `targetSdk` | 32 — deliberately held through the toolchain migration; raising it is its own project | `android/app/build.gradle` |
 | Android `minSdk` | 24 | `android/app/build.gradle` |
-| NDK | 21.4.7075529 | `android/app/build.gradle` |
-| Dart SDK | `>=3.0.0 <4.0.0` | `pubspec.yaml` `environment.sdk` |
+| NDK | no pin — inherits `flutter.ndkVersion` (28.x) | — |
+| Dart SDK | `>=3.12.0 <4.0.0` | `pubspec.yaml` `environment.sdk` |
+| Flutter | `^3.44.0` (the `~/git/flutter-3.44` checkout) | `pubspec.yaml` `environment.flutter` |
 
-There is no Flutter SDK pin in the repo; the project tracks whatever stable Flutter is installed on the machine, constrained only by the Dart SDK range. Upgrading the Flutter SDK is fine as long as it stays within Dart 3.x; bumping to a Flutter version that ships Dart 4 would require widening `environment.sdk`.
+The `versionCode` packing scheme is `X*1e8 + Y*1e6 + Z*1e4 + min(N,99)` with the thousands digit reserved for Flutter's non-overridable per-ABI offset under `--split-per-abi` (arm64 = +2000) — rationale documented in `android/app/build.gradle`.
 
 ### Test devices
 
@@ -113,6 +116,7 @@ The code carries inline comments explaining each of these where they live; this 
 
 - **TTU language lookup is by `languageCode`, not by map key.** `AppModel.languages` is keyed by `locale.toLanguageTag()` ("ja-JP"), but most external references use the bare language code ("ja"). The export bundle's `ttu_languages` field is bare codes too. See `_importTtuForLanguage` callsite in `app_export_import.dart`. A naive `appModel.languages[code]` lookup will silently return null for every language.
 - **`is_dark_mode` defaultValue is dynamic** — falls back to `WidgetsBinding.instance.platformDispatcher.platformBrightness`, which is unreliable at Flutter cold-start (may briefly return Light on a Dark device). For anything that needs the value to survive an app exit, force-persist before exit, do not rely on the read. See `_exportHive` in `app_export_import.dart`.
+- **`vendor/` carries locally-patched packages** (filesystem_picker, receive_intent, nowplaying, mecab_dart, async_zip, document_file_save_plus, flutter_inappwebview_android with the furigana-filter selection patch, flutter_vlc_player_platform_interface with the pigeon channel-name fix, ruby_text, material_floating_search_bar_2). Each file's header comment says why; `TOOLCHAIN_MIGRATION_PLAN.md` and `migration/` hold the full audit trail. R8 runs in full mode — reflective/JNI users need keep rules in `android/app/proguard-rules.pro` (Room `*_Impl`, `org.videolan.libvlc.**`, ML Kit script recognizers so far).
 - **The `t` getter is a slang i18n global.** Defined in `lib/i18n/strings.g.dart` and re-exported via `lib/utils.dart` — any file importing `utils.dart` gets `t.<key>` for free. No need to thread it through builders.
 
 ## Common workflows
