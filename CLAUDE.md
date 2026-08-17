@@ -143,6 +143,8 @@ This is intentional, not a missing piece. We do not mirror upstream into a branc
 
 See `.claude/skills/upstream-sync/SKILL.md` for the exact commands: adding the upstream remote, comparing since the last sync point, picking which commits to port, the tracking-tag convention (`upstream-sync-X.Y.Z`) that records what's been brought in, and how changelog entries should be annotated.
 
+When upstream cuts a **whole new release**, use `.claude/skills/upstream-new-version/SKILL.md` instead (`/upstream-new-version`). It absorbs the release on a throwaway `upstream-merge-<version>` branch — a merge, since `main` descends from upstream's tip and a rebase would replay the global rename against upstream's files — and it opens with a mandatory proceed-gated table describing what the new upstream version introduces, before anything is merged or built.
+
 ## What is intentionally NOT in this file
 
 - Tasker scene XML or HUD config from the user's personal device setup — not part of this codebase.

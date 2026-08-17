@@ -142,7 +142,7 @@ If the upstream change happens to do something this fork has *also* done indepen
 ## What NOT to do
 
 - Do not create an `upstream` branch on `origin`. Upstream lives only as a remote.
-- Do not merge `upstream/main` into local `main`. The merge will conflict everywhere the rename touched, and resolving in favour of the fork's identity is the same effort as hand-porting — without the per-commit granularity that lets you decide what to skip.
+- Do not merge `upstream/main` into local `main`. The merge will conflict everywhere the rename touched, and resolving in favour of the fork's identity is the same effort as hand-porting — without the per-commit granularity that lets you decide what to skip. (Exception, and only this one: absorbing a **whole new upstream release** goes through the `upstream-new-version` skill, which merges the upstream tag into a throwaway `upstream-merge-<version>` branch — never onto `main` directly — behind a mandatory proceed gate. An ungated merge onto `main` stays forbidden.)
 - Do not push to upstream. There is no upstream contribution flow here; this fork is a downstream-only project.
 - Do not silently adopt upstream commits without provenance. The `upstream-sync-X.Y.Z` tag and the changelog/commit annotations are how someone six months from now figures out what we wrote vs what we borrowed. Skipping the bookkeeping makes the next sync harder, not easier.
 

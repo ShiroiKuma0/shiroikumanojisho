@@ -160,7 +160,10 @@ Commit messages on this repo are written in the kernel style: short imperative s
 
 - Setting up Flutter, Android SDK, or the JDK on a fresh machine. Assumed already present (OpenJDK 21 + the `~/git/flutter-3.44` checkout).
 - Per-developer machine setup (working tree location, IDE config). Out of scope.
-- CI/Actions configuration. None at the moment; if added later, document there, not here.
+- CI/Actions configuration. `.github/workflows/main.yml` ("Build Android APK") exists but is
+  **disabled server-side** (2026-08-17) — it pins Zulu JDK 11 + Flutter 3.13.5, the toolchain the
+  2026-07 migration inverted, so it failed on every push and mailed 白い熊 each failure. All builds
+  are local, per this skill. Do not re-enable it without porting it to JDK 21 + Flutter 3.44 first.
 - The codebase itself — feature design, file layout, gotchas. See `CLAUDE.md` at the repo root for the project context that goes beyond build mechanics.
 
 ---
