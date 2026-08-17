@@ -24,7 +24,13 @@ import 'package:shiroikumanojisho/src/utils/ui_settings/ui_settings_export.dart'
 /// rows), Kōjiki export/import flow, Arcanechat pill button row.
 class JishoUiSettingsPage extends BasePage {
   /// Create an instance of this page.
-  const JishoUiSettingsPage({super.key});
+  const JishoUiSettingsPage({this.initialSection, super.key});
+
+  /// Section header to scroll to when the page opens, matched by its
+  /// exact title (e.g. 'Dictionary'). Lets other screens link into
+  /// their own part of a long page instead of dropping the user at
+  /// the top of it. Null opens at the top, as before.
+  final String? initialSection;
 
   @override
   BasePageState createState() => _JishoUiSettingsPageState();
@@ -48,6 +54,10 @@ class _JishoUiSettingsPageState extends BasePageState<JishoUiSettingsPage> {
   /// Latest-export display, refreshed on open and after exports.
   File? _latestExport;
 
+  /// One key per section header, filled in as the headers build.
+  /// [JishoUiSettingsPage.initialSection] scrolls to the matching one.
+  final Map<String, GlobalKey> _sectionKeys = {};
+
   /// 保存復元 automation controls, backed by native SharedPreferences
   /// over the automation channel (never part of any export).
   static const MethodChannel _automationChannel =
@@ -60,6 +70,25 @@ class _JishoUiSettingsPageState extends BasePageState<JishoUiSettingsPage> {
     super.initState();
     _refreshLatestExport();
     _loadAutomationState();
+    WidgetsBinding.instance
+        .addPostFrameCallback((_) => _scrollToInitialSection());
+  }
+
+  /// Jump to [JishoUiSettingsPage.initialSection] once the page has
+  /// laid out — the keys do not have contexts before the first frame.
+  void _scrollToInitialSection() {
+    final String? section = widget.initialSection;
+    if (section == null) {
+      return;
+    }
+    final BuildContext? target = _sectionKeys[section]?.currentContext;
+    if (target == null) {
+      return;
+    }
+    Scrollable.ensureVisible(
+      target,
+      duration: const Duration(milliseconds: 250),
+    );
   }
 
   void _loadAutomationState() async {
@@ -168,6 +197,20 @@ class _JishoUiSettingsPageState extends BasePageState<JishoUiSettingsPage> {
               ),
               onTap: _copyToken,
             ),
+            _sectionHeader('Toolbars'),
+            _row(
+              title: 'Anki card creator button',
+              summary: 'Show the card creator at the end of the source '
+                  'bar. The app bar slot it used to hold now carries the '
+                  "current Reader source's add button.",
+              trailing: Switch(
+                value: appModel.showCardCreatorButton,
+                onChanged: (enabled) {
+                  appModel.showCardCreatorButton = enabled;
+                  setState(() {});
+                },
+              ),
+            ),
             _sectionHeader('Colours'),
             _colorRow('Background', () => ui.backgroundColor,
                 (color) => ui.backgroundColor = color),
@@ -177,7 +220,7 @@ class _JishoUiSettingsPageState extends BasePageState<JishoUiSettingsPage> {
                 'Icons', () => ui.iconColor, (color) => ui.iconColor = color),
             _colorRow('Borders', () => ui.borderColor,
                 (color) => ui.borderColor = color),
-            _colorRow('Accent (sliders · switches)', () => ui.accentColor,
+            _colorRow('Accent (switches · checkboxes)', () => ui.accentColor,
                 (color) => ui.accentColor = color),
             _sectionHeader('Typography'),
             _row(
@@ -206,6 +249,68 @@ class _JishoUiSettingsPageState extends BasePageState<JishoUiSettingsPage> {
               onChanged: (value) => ui.fontScale = value.round(),
             ),
             _buildFontSample(),
+            _sectionHeader('Dictionary'),
+            _subHeader('Fonts'),
+            _dictionaryFontRow(
+              title: 'Heading',
+              summary: 'The term itself, with its furigana.',
+              read: () => appModel.dictionaryHeadingFontFamily,
+              write: (family) =>
+                  appModel.dictionaryHeadingFontFamily = family,
+            ),
+            _dictionaryFontRow(
+              title: 'Entry',
+              summary: 'Definitions written in the target language '
+                  '(国語辞典).',
+              read: () => appModel.dictionaryEntryFontFamily,
+              write: (family) => appModel.dictionaryEntryFontFamily = family,
+            ),
+            _dictionaryFontRow(
+              title: 'Translation',
+              summary: 'Glosses in another language (JMdict and other '
+                  'bilingual dictionaries).',
+              read: () => appModel.dictionaryTranslationFontFamily,
+              write: (family) =>
+                  appModel.dictionaryTranslationFontFamily = family,
+            ),
+            _subHeader('Sizes'),
+            _sliderRow(
+              title: 'Heading',
+              inset: _insetRowL2,
+              value: appModel.dictionaryHeadingFontSize,
+              min: 10,
+              max: 60,
+              display: (value) => value.round().toString(),
+              onChanged: (value) {
+                appModel.setDictionaryHeadingFontSize(value.roundToDouble());
+                setState(() {});
+              },
+            ),
+            _sliderRow(
+              title: 'Entry',
+              inset: _insetRowL2,
+              value: appModel.dictionaryFontSize,
+              min: 10,
+              max: 60,
+              display: (value) => value.round().toString(),
+              onChanged: (value) {
+                appModel.setDictionaryFontSize(value.roundToDouble());
+                setState(() {});
+              },
+            ),
+            _sliderRow(
+              title: 'Translation',
+              inset: _insetRowL2,
+              value: appModel.dictionaryTranslationFontSize,
+              min: 10,
+              max: 60,
+              display: (value) => value.round().toString(),
+              onChanged: (value) {
+                appModel
+                    .setDictionaryTranslationFontSize(value.roundToDouble());
+                setState(() {});
+              },
+            ),
             _sectionHeader('Shapes & borders'),
             _subHeader('Dialogs'),
             _sliderRow(
@@ -260,19 +365,21 @@ class _JishoUiSettingsPageState extends BasePageState<JishoUiSettingsPage> {
 
   Widget _sectionHeader(String title, {bool first = false}) {
     return Padding(
-      padding: EdgeInsets.only(top: first ? 12 : 0),
+      // The key is what [widget.initialSection] scrolls to.
+      key: _sectionKeys.putIfAbsent(title, () => GlobalKey()),
+      padding: EdgeInsets.only(top: first ? 8 : 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (!first)
             Container(
               height: 1,
-              margin: const EdgeInsets.only(top: 10),
+              margin: const EdgeInsets.only(top: 6),
               color: _accent.withValues(alpha: 0.35),
             ),
           Padding(
             padding: const EdgeInsets.only(
-                left: _insetHeading, top: 8, bottom: 2),
+                left: _insetHeading, top: 4, bottom: 0),
             child: IntrinsicWidth(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -280,7 +387,7 @@ class _JishoUiSettingsPageState extends BasePageState<JishoUiSettingsPage> {
                   Text(
                     title,
                     style: TextStyle(
-                      fontSize: 20,
+                      fontSize: 23,
                       fontWeight: FontWeight.bold,
                       color: _accent,
                     ),
@@ -302,7 +409,7 @@ class _JishoUiSettingsPageState extends BasePageState<JishoUiSettingsPage> {
   Widget _subHeader(String title) {
     return Padding(
       padding: const EdgeInsets.only(
-          left: _insetSubHeading, top: 10, bottom: 2),
+          left: _insetSubHeading, top: 4, bottom: 0),
       child: IntrinsicWidth(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -310,7 +417,7 @@ class _JishoUiSettingsPageState extends BasePageState<JishoUiSettingsPage> {
             Text(
               title,
               style: TextStyle(
-                fontSize: 17,
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: _accent,
               ),
@@ -337,7 +444,7 @@ class _JishoUiSettingsPageState extends BasePageState<JishoUiSettingsPage> {
       onTap: onTap,
       child: Padding(
         padding:
-            EdgeInsets.only(left: inset, right: 16, top: 5, bottom: 5),
+            EdgeInsets.only(left: inset, right: 16, top: 1, bottom: 1),
         child: Row(
           children: [
             Expanded(
@@ -345,10 +452,12 @@ class _JishoUiSettingsPageState extends BasePageState<JishoUiSettingsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title,
-                      style: TextStyle(fontSize: 16, color: _accent)),
+                      style: TextStyle(
+                          fontSize: 19, height: 1.1, color: _accent)),
                   if (summary != null)
                     Text(summary,
-                        style: TextStyle(fontSize: 13, color: _dim)),
+                        style: TextStyle(
+                            fontSize: 15, height: 1.1, color: _dim)),
                 ],
               ),
             ),
@@ -370,19 +479,36 @@ class _JishoUiSettingsPageState extends BasePageState<JishoUiSettingsPage> {
     int? divisions,
   }) {
     return Padding(
-      padding: EdgeInsets.only(left: inset, right: 16, top: 4, bottom: 4),
+      padding: EdgeInsets.only(left: inset, right: 16, top: 0, bottom: 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: TextStyle(fontSize: 16, color: _accent)),
+          Text(title,
+              style: TextStyle(fontSize: 19, height: 1.1, color: _accent)),
           Row(
             children: [
               Expanded(
-                child: SliderTheme(
+                // A Slider lays itself out at 48px tall whatever the
+                // track looks like; capping the box is what actually
+                // closes the gap between rows.
+                child: SizedBox(
+                  height: 30,
+                  child: SliderTheme(
                   data: SliderTheme.of(context).copyWith(
                     // Tight slider: no huge default paddings.
+                    trackHeight: 3,
                     overlayShape:
-                        const RoundSliderOverlayShape(overlayRadius: 12),
+                        const RoundSliderOverlayShape(overlayRadius: 10),
+                    // The page's own colours rather than Material's
+                    // red-on-grey: the accent colour drives switches,
+                    // but a slider reads as part of the text it sits
+                    // under, so it takes the text colour.
+                    activeTrackColor: _accent,
+                    inactiveTrackColor: _accent.withValues(alpha: 0.25),
+                    thumbColor: _accent,
+                    overlayColor: _accent.withValues(alpha: 0.15),
+                    activeTickMarkColor: _accent,
+                    inactiveTickMarkColor: _accent.withValues(alpha: 0.4),
                   ),
                   child: Slider(
                     value: value.clamp(min, max),
@@ -395,13 +521,14 @@ class _JishoUiSettingsPageState extends BasePageState<JishoUiSettingsPage> {
                     },
                   ),
                 ),
+                ),
               ),
               ConstrainedBox(
                 constraints: const BoxConstraints(minWidth: 44),
                 child: Text(
                   display(value),
                   textAlign: TextAlign.right,
-                  style: TextStyle(fontSize: 15, color: _accent),
+                  style: TextStyle(fontSize: 17, color: _accent),
                 ),
               ),
             ],
@@ -465,13 +592,60 @@ class _JishoUiSettingsPageState extends BasePageState<JishoUiSettingsPage> {
     );
   }
 
-  void _showFontPicker() async {
+  /// One of the three dictionary font rows. Shows the family
+  /// currently in force, rendered in that family so the row is its
+  /// own sample, and opens the shared picker on tap.
+  Widget _dictionaryFontRow({
+    required String title,
+    required String summary,
+    required String Function() read,
+    required void Function(String family) write,
+  }) {
+    final String family = read();
+    return _row(
+      title: title,
+      summary: summary,
+      inset: _insetRowL2,
+      onTap: () => _showFontPicker(
+        title: '$title font',
+        read: read,
+        write: write,
+      ),
+      trailing: Padding(
+        padding: const EdgeInsets.only(left: 12),
+        child: Text(
+          family.isEmpty ? 'App font' : family,
+          style: TextStyle(
+            fontSize: 14,
+            color: _accent,
+            fontFamily: family.isEmpty ? null : family,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Font chooser over the imported fonts plus the system default.
+  ///
+  /// Drives the app-wide font by default; pass [read]/[write] to
+  /// point it at another setting instead — the three dictionary
+  /// fonts share this picker, and its "Import font…" action, rather
+  /// than each growing its own.
+  void _showFontPicker({
+    String title = 'Font',
+    String Function()? read,
+    void Function(String family)? write,
+  }) async {
+    final String Function() current = read ?? () => ui.fontFamily;
+    final void Function(String) select =
+        write ?? (family) => ui.fontFamily = family;
+
     await showDialog(
       context: context,
       builder: (context) {
         final families = ['', ...ui.externalFontFamilies];
         return AlertDialog(
-          title: const Text('Font'),
+          title: Text(title),
           contentPadding: const EdgeInsets.symmetric(vertical: 12),
           content: SizedBox(
             width: double.maxFinite,
@@ -481,14 +655,14 @@ class _JishoUiSettingsPageState extends BasePageState<JishoUiSettingsPage> {
                 for (final family in families)
                   InkWell(
                     onTap: () {
-                      ui.fontFamily = family;
+                      select(family);
                       Navigator.pop(context);
                     },
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
                           horizontal: 20, vertical: 10),
                       child: Text(
-                        '${ui.fontFamily == family ? '✓  ' : ''}'
+                        '${current() == family ? '✓  ' : ''}'
                         '${family.isEmpty ? 'System default' : family}',
                         style: TextStyle(
                           fontSize: 18,
@@ -503,7 +677,11 @@ class _JishoUiSettingsPageState extends BasePageState<JishoUiSettingsPage> {
           ),
           actions: [
             TextButton(
-              onPressed: _importFont,
+              onPressed: () => _importFont(
+                title: title,
+                read: read,
+                write: select,
+              ),
               child: const Text('Import font…'),
             ),
             TextButton(
@@ -517,7 +695,11 @@ class _JishoUiSettingsPageState extends BasePageState<JishoUiSettingsPage> {
     setState(() {});
   }
 
-  void _importFont() async {
+  void _importFont({
+    String title = 'Font',
+    String Function()? read,
+    void Function(String family)? write,
+  }) async {
     final picked = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['ttf', 'otf'],
@@ -531,12 +713,12 @@ class _JishoUiSettingsPageState extends BasePageState<JishoUiSettingsPage> {
       Fluttertoast.showToast(msg: 'Not a .ttf/.otf font file.');
       return;
     }
-    ui.fontFamily = family;
+    (write ?? (f) => ui.fontFamily = f)(family);
     Fluttertoast.showToast(msg: 'Imported "$family"');
     if (mounted) {
       // Rebuild the open font list with the new entry.
       Navigator.pop(context);
-      _showFontPicker();
+      _showFontPicker(title: title, read: read, write: write);
     }
   }
 

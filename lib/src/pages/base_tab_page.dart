@@ -58,6 +58,8 @@ abstract class BaseTabPageState<T extends BaseTabPage> extends BasePageState {
         FloatingSearchBar(
           isScrollControlled: true,
           hint: mediaSource.getLocalisedSourceName(appModel),
+          title: buildSourcePill(),
+          centerTitle: true,
           controller: mediaType.floatingSearchBarController,
           builder: (_, _) => const SizedBox.shrink(),
           borderRadius: BorderRadius.zero,
@@ -75,15 +77,140 @@ abstract class BaseTabPageState<T extends BaseTabPage> extends BasePageState {
           automaticallyImplyBackButton: false,
           onFocusChanged: (focused) => onFocusChanged(focused: focused),
           leadingActions: [
-            buildChangeSourceButton(),
+            buildOpenSourceButton(),
             buildBackButton(),
           ],
-          actions: mediaSource.getActions(
-            context: context,
-            ref: ref,
-            appModel: appModel,
-          ),
+          actions: [
+            ...mediaSource.getActions(
+              context: context,
+              ref: ref,
+              appModel: appModel,
+            ),
+            ...buildCardCreatorActions(),
+          ],
         );
+  }
+
+  /// The source indicator, centred in the bar: the active source's
+  /// name and icon in bold, ringed by a rounded border in the UI
+  /// theme's own colours (yellow out of the box). It replaces the
+  /// grey left-aligned hint text, which was easy to read past — the
+  /// point of the pill is that "am I in the EPUB reader or the PDF
+  /// reader?" is answerable at a glance.
+  ///
+  /// Tapping it opens the source picker. The source's own open
+  /// action lives on the leading icon instead — see
+  /// [buildOpenSourceButton].
+  Widget buildSourcePill() {
+    final ui = appModel.uiTheme;
+    final Color accent = Color(ui.textColor);
+    final Color border = Color(ui.borderColor);
+    final double fontSize = textTheme.titleSmall?.fontSize ?? 14;
+
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: showSourcePicker,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+          decoration: BoxDecoration(
+            border: Border.all(color: border, width: 1.5),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                mediaSource.icon,
+                color: accent,
+                size: fontSize + 2,
+              ),
+              const SizedBox(width: 8),
+              // Flexible so a long source name ellipsises inside the
+              // pill rather than overflowing the bar on a narrow
+              // screen (the Palma is ~720px with up to four actions
+              // to the right of the pill).
+              Flexible(
+                child: Text(
+                  mediaSource.getLocalisedSourceName(appModel),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: accent,
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Leading action: opens the current source — its file picker, the
+  /// TTU library manager, the browser, whatever "use this source"
+  /// means for it. This is the action tapping the bar itself has
+  /// always run; it moved onto this icon when the centred pill took
+  /// over the bar's tap area for switching sources.
+  ///
+  /// Browse-only sources (the merged libraries) have nothing to open,
+  /// so they get no button rather than a dead one.
+  Widget buildOpenSourceButton() {
+    if (mediaSource.isBrowseOnly) {
+      return const FloatingSearchBarAction(child: SizedBox.shrink());
+    }
+
+    return FloatingSearchBarAction(
+      child: JidoujishoIconButton(
+        size: textTheme.titleLarge?.fontSize,
+        tooltip: mediaSource.getLocalisedSourceName(appModel),
+        icon: mediaSource.icon,
+        onTap: () => mediaSource.onSearchBarTap(
+          context: context,
+          ref: ref,
+          appModel: appModel,
+        ),
+      ),
+    );
+  }
+
+  /// Swap the current active [MediaSource] via the picker dialog.
+  void showSourcePicker() async {
+    await showDialog(
+      context: context,
+      builder: (context) => MediaSourcePickerDialogPage(
+        mediaType: mediaType,
+      ),
+    );
+    mediaType.refreshTab();
+  }
+
+  /// The Anki card creator action, tacked onto the end of the source
+  /// bar's actions. It used to live in the app bar, where the active
+  /// source's add button now sits instead; it is off by default, as
+  /// the creator is also reachable from dictionary results, and shows
+  /// here only when enabled on the 白い熊 辞書 UI page.
+  List<Widget> buildCardCreatorActions() {
+    if (!appModel.showCardCreatorButton) {
+      return const [];
+    }
+
+    return [
+      FloatingSearchBarAction(
+        child: JidoujishoIconButton(
+          size: textTheme.titleLarge?.fontSize,
+          tooltip: t.card_creator,
+          icon: Icons.note_add_outlined,
+          onTap: () => appModel.openCreator(
+            ref: ref,
+            killOnPop: false,
+          ),
+        ),
+      ),
+    ];
   }
 
   /// Respond to tapping to the search bar and execute an action if the source
@@ -116,22 +243,16 @@ abstract class BaseTabPageState<T extends BaseTabPage> extends BasePageState {
     return Container();
   }
 
-  /// Allows user to swap the current active [MediaSource].
+  /// Allows user to swap the current active [MediaSource]. Still the
+  /// leading action on search-driven bars ([BaseMediaSearchBar]),
+  /// whose input field cannot give up its space to a source pill.
   Widget buildChangeSourceButton() {
     return FloatingSearchBarAction(
       child: JidoujishoIconButton(
         size: textTheme.titleLarge?.fontSize,
         tooltip: t.change_source,
         icon: mediaSource.icon,
-        onTap: () async {
-          await showDialog(
-            context: context,
-            builder: (context) => MediaSourcePickerDialogPage(
-              mediaType: mediaType,
-            ),
-          );
-          mediaType.refreshTab();
-        },
+        onTap: showSourcePicker,
       ),
     );
   }

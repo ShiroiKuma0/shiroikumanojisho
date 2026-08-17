@@ -150,6 +150,50 @@ abstract class MediaSource {
     return [];
   }
 
+  /// Whether this source can delete the media behind a [MediaItem],
+  /// not merely forget the history row. True for sources that own a
+  /// library of their own — the ッツ reader's IndexedDB — where
+  /// "remove from history" would leave the book sitting in the
+  /// library and reappearing on the shelf. False for sources that
+  /// only point at files the user manages elsewhere.
+  bool get canDeleteMedia => false;
+
+  /// Delete the media behind [item] — the book, the volume, whatever
+  /// this source actually owns — along with any per-item state kept
+  /// for it. Only called when [canDeleteMedia] is true. Returns
+  /// whether the deletion succeeded.
+  Future<bool> deleteMedia({
+    required AppModel appModel,
+    required WidgetRef ref,
+    required MediaItem item,
+  }) async {
+    return false;
+  }
+
+  /// Whether this source only lists media that other sources own —
+  /// the merged libraries, which import nothing and launch nothing of
+  /// their own. The source bar hides its open action for these, since
+  /// there is nothing to open at the source level.
+  bool get isBrowseOnly => false;
+
+  /// This source's add action — import a book, pick a file, and so on.
+  /// Unlike the rest of [getActions] it is not rendered in the source
+  /// bar but hoisted into the home page app bar (Reader tab only), so
+  /// the top-right slot always adds media for whichever source is
+  /// selected: Scanned PDF offers its PDF import there, ッツ Ebook
+  /// Reader its EPUB import, mokuro its file picker. Sources with
+  /// nothing to add return null and the slot stays empty.
+  ///
+  /// Returns a bare button rather than a `FloatingSearchBarAction` —
+  /// unlike [getActions] entries, this one is mounted in an [AppBar].
+  Widget? buildAddButton({
+    required BuildContext context,
+    required WidgetRef ref,
+    required AppModel appModel,
+  }) {
+    return null;
+  }
+
   /// The widget to show when this source is launched. An optional [MediaItem]
   /// can be supplied as a launch parameter.
   BaseSourcePage buildLaunchPage({MediaItem? item});

@@ -14,7 +14,7 @@ class ReaderChatgptSource extends ReaderMediaSource {
   ReaderChatgptSource._privateConstructor()
       : super(
           uniqueKey: 'reader_chatgpt',
-          sourceName: 'ChatGPT',
+          sourceName: 'ChatGPT chat',
           description:
               'Allows the user to interact with an AI language model with an official API key from OpenAI.',
           icon: Icons.chat_outlined,

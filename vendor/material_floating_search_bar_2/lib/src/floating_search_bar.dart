@@ -56,6 +56,7 @@ class FloatingSearchBar extends ImplicitlyAnimatedWidget {
     this.transitionCurve = Curves.ease,
     this.debounceDelay = Duration.zero,
     this.title,
+    this.centerTitle = false,
     this.hint = 'Search...',
     this.actions,
     this.leadingActions,
@@ -264,6 +265,23 @@ class FloatingSearchBar extends ImplicitlyAnimatedWidget {
   /// `FloatingSearchBar` is closed.
   /// {@endtemplate}
   final Widget? title;
+
+  /// {@template floating_search_bar.centerTitle}
+  /// LOCAL PATCH (shiroikumanojisho): centre the [title] in the space
+  /// between the leading actions and the actions, instead of pinning
+  /// it to the start of that space.
+  ///
+  /// Upstream always wraps the title in a horizontally scrollable
+  /// [SingleChildScrollView] — which hands the title unbounded width,
+  /// so it renders at its intrinsic size, flush left, and cannot be
+  /// centred or ellipsised from the outside. This app uses the title
+  /// as the source indicator on the Reader and Player tabs, where it
+  /// has to sit in the middle of the bar to be noticed at all.
+  ///
+  /// Only affects the closed state; once the text field is showing,
+  /// the scrolling behaviour is untouched.
+  /// {@endtemplate}
+  final bool centerTitle;
 
   /// {@template floating_search_bar.hint}
   /// The text value of the hint of the [TextField].
@@ -736,6 +754,7 @@ class FloatingSearchBarState extends ImplicitlyAnimatedWidgetState<
       implicitDuration: widget.duration,
       implicitCurve: widget.curve,
       title: widget.title,
+      centerTitle: widget.centerTitle,
       actions: widget.actions,
       leadingActions: widget.leadingActions,
       autocorrect: widget.autocorrect,

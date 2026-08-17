@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:spaces/spaces.dart';
 import 'package:transparent_image/transparent_image.dart';
 import 'package:shiroikumanojisho/media.dart';
@@ -113,6 +114,13 @@ class _MediaItemDialogPageState extends BasePageState<MediaItemDialogPage> {
   }
 
   List<Widget> get actions => [
+        // Delete removes the media itself, for sources that own one
+        // (a book in the ッツ library). Clear only forgets the
+        // history row — meaningless for those, since the book would
+        // still be in the library and back on the shelf next
+        // refresh. No source offers both.
+        if (mediaSource.canDeleteMedia && widget.isHistory)
+          buildDeleteButton(),
         if (widget.item.canDelete && widget.isHistory) buildClearButton(),
         if (widget.extraActions != null) ...?widget.extraActions!(widget.item),
         if (widget.item.canEdit && widget.isHistory) buildEditButton(),
@@ -138,6 +146,16 @@ class _MediaItemDialogPageState extends BasePageState<MediaItemDialogPage> {
       child: Text(
         t.dialog_clear,
         style: TextStyle(color: theme.colorScheme.primary),
+      ),
+    );
+  }
+
+  Widget buildDeleteButton() {
+    return TextButton(
+      onPressed: executeDelete,
+      child: Text(
+        t.dialog_delete,
+        style: const TextStyle(color: Color(0xFFFF5252)),
       ),
     );
   }
@@ -177,6 +195,59 @@ class _MediaItemDialogPageState extends BasePageState<MediaItemDialogPage> {
   void executeClear() async {
     final navigator = Navigator.of(context);
     await appModel.deleteMediaItem(widget.item);
+    navigator.pop();
+  }
+
+  /// Delete the media itself, after confirming. Destructive and not
+  /// undoable — the book leaves the ッツ library, taking its
+  /// bookmarks and every per-book setting with it — so it asks
+  /// first, and reports rather than silently no-ops if the delete
+  /// could not be carried out.
+  void executeDelete() async {
+    final navigator = Navigator.of(context);
+    final String title =
+        mediaSource.getDisplayTitleFromMediaItem(widget.item);
+
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: Text(
+          'Delete this from ${mediaSource.getLocalisedSourceName(appModel)}? '
+          'Its reading position and per-book settings go with it. '
+          'This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(t.dialog_cancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(
+              t.dialog_delete,
+              style: const TextStyle(color: Color(0xFFFF5252)),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) {
+      return;
+    }
+
+    final bool deleted = await mediaSource.deleteMedia(
+      appModel: appModel,
+      ref: ref,
+      item: widget.item,
+    );
+
+    if (!deleted) {
+      Fluttertoast.showToast(msg: 'Could not delete $title.');
+      return;
+    }
+
+    widget.item.getMediaType(appModel: appModel).refreshTab();
     navigator.pop();
   }
 }

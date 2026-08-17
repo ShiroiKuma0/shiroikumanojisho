@@ -92,7 +92,7 @@ class _PlayerVolumeBrightnessControlPage
                         valueListenable: _volume,
                         builder: (context, value, _) {
                           return Slider(
-                            activeColor: Colors.red,
+                            activeColor: Theme.of(context).colorScheme.primary,
                             max: 100,
                             inactiveColor:
                                 Theme.of(context).unselectedWidgetColor,
@@ -130,7 +130,7 @@ class _PlayerVolumeBrightnessControlPage
                         valueListenable: _brightness,
                         builder: (context, value, _) {
                           return Slider(
-                            activeColor: Colors.red,
+                            activeColor: Theme.of(context).colorScheme.primary,
                             inactiveColor:
                                 Theme.of(context).unselectedWidgetColor,
                             value: value,

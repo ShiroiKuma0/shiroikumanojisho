@@ -6,7 +6,158 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+
+- **All books** — a merged shelf at the top of the Reader source
+  picker holding every imported book at once: EPUBs from the ッツ
+  reader, scanned PDFs and mokuro manga volumes, ordered by what was
+  read last, with never-opened books settling after. Each tile is
+  badged with the icon of the source it came from, and opens with
+  that source. The shelf imports nothing itself — importing stays
+  with the individual sources — so its bar carries no add button.
+- **All videos** — the same for the Player tab: local video files and
+  downloaded YouTube videos in one list, last-played first, each row
+  naming its source. Streamed sources (YouTube search, network
+  streams) are not on the device and stay in their own tabs.
+
+- **Delete** on the long-press dialog for books held in the ッツ
+  library. Clearing only forgot the history row, which did nothing
+  for an EPUB — the book stayed in the library and came straight back
+  on the shelf. Delete (confirmed first, red, not undoable) removes
+  the book from TTU's IndexedDB along with its bookmarks, this app's
+  history row, and every per-book setting: attached audio,
+  translation-book association, split ratio, per-book reader
+  settings. Purging that last group is what makes a re-import of the
+  same file come back clean — per-book state is keyed by title, so it
+  would otherwise be inherited by the new copy.
+
+- Separate dictionary fonts for **heading**, **entry** and
+  **translation**, on the 白い熊 辞書 UI page under a new
+  **Dictionary** section, alongside the two sizes. "Entry" is a
+  definition written in the target language (a 国語辞典); "translation"
+  is a gloss in another one (JMdict and other bilingual
+  dictionaries). Which applies is decided per entry from its own
+  text, since the import formats record which language a dictionary
+  *applies to* but never which language it explains it in. All three
+  share the UI page's font list and its "Import font…" action.
+
+### Changed
+
+- **Entry and translation now have separate font sizes**, not just
+  separate fonts — three sliders on the UI page (heading, entry,
+  translation). An unset translation size follows the entry size, so
+  nothing changes until you move it, and the left-edge swipe gesture
+  scales all three together, each keeping its proportion.
+- The word you tap in a book, a manga page or a web page highlights
+  **black on yellow** instead of white on translucent red — the last
+  red left inside the reader itself.
+- The dictionary popup over a book now has a border, in the same
+  colour and corner radius as dialogs (both settable on the UI page),
+  so it reads as a panel over the text rather than a hole in it.
+- **The accent colour is yellow now, not red.** Red was the shipped
+  default and it drove switches, sliders, focus underlines, progress
+  spinners, the selected navigation item and the video position bar —
+  a splash of red on every black-and-yellow screen. Installs still on
+  that default are moved to the theme's yellow once; an accent you
+  picked yourself is untouched.
+- Toggles are the accent colour throughout: solid when on, the same
+  colour at low alpha when off, instead of Material's grey-for-off.
+  Slider tracks lost their grey inactive half the same way.
+- Media-tile progress bars, the loading bar over an opening source,
+  the video position slider, the transcript's selected line, the
+  volume and brightness sliders and the subtitle picker's folder
+  icons all follow the accent instead of a hardcoded red. Red is kept
+  where it carries meaning: destructive actions (delete, clear),
+  warnings, the recording indicator, and the toggled-on markers that
+  need to stand out *against* yellow.
+- Long-pressing the **cog** in the ッツ source bar opens the 白い熊
+  辞書 UI page — the same gesture the home page's ⋮ already carried,
+  so appearance settings are reachable without leaving the Reader.
+- The dictionary settings dialog and the 白い熊 辞書 UI page are both
+  **packed tight and set larger** — bigger labels, no inter-line
+  padding, switches and radios stripped of their 48px tap-target
+  padding, sliders capped so rows sit directly under each other.
+- The two font-size fields left the dictionary settings dialog; all
+  dictionary typography now lives in one place, on the UI page. The
+  dialog carries a **"Fonts and sizes — 白い熊 辞書 UI"** row that opens
+  that page scrolled straight to its Dictionary section.
+- Dictionary defaults are now **24** for entries and **28** for
+  headings (were 16 and 22). Installs still sitting on the old
+  defaults are moved up once; a size you set yourself is left alone.
+
+### Fixed
+
+- **The Reader tab no longer waits on the ッツ library.** Opening it
+  boots the whole ッツ web app in a hidden webview and has it
+  enumerate IndexedDB — 57 MB of assets served by a Dart HTTP server
+  on the same isolate that draws the spinner — and until it answered,
+  the tab showed nothing. It now paints the last known library
+  immediately from a cache and swaps in the fresh listing when the
+  scan lands. The same applies to the All books shelf.
+- **A stalled scan can no longer hang the tab forever.** The scan
+  waited with `while (items == null)` and no timeout, so a single
+  dropped request left the spinner turning until the app was killed.
+  Every step now has a 25-second deadline, falls back to the cached
+  listing, and drops the wedged webview so the next attempt starts
+  clean.
+- Book covers are written to disk once and skipped on later scans
+  (they were re-encoded as base64 blobs on every single scan), and
+  one webview per language is now shared by scans and deletes and
+  disposed after two minutes idle, instead of one cold-loaded webview
+  per operation.
+- **Startup could hang on a black screen.** Every cold start
+  requested the camera permission — which nothing in the app uses —
+  and waited for the system dialog. Dismissed rather than answered,
+  that dialog leaves the request unresolved, and it runs before the
+  database opens, so the app sat at 0% CPU showing nothing. The
+  camera request is gone and the remaining permission requests carry
+  a 45-second deadline: missing it costs the permission, not the
+  launch.
+- Importing an EPUB from the Reader tab could attach the imported
+  book as its own **translation book**, opening the split view with
+  the same book on both sides. The translation pane adopts whatever
+  book it lands on — correct when picking a translation through its
+  manager, wrong when an import was routed there. The Reader tab's
+  import button now always targets the primary pane (forcing it onto
+  the library manager if needed), a book can no longer be registered
+  as a translation of itself, and any such association already saved
+  is dropped when the book is next opened.
+
+### Changed
+
+- The current source is now shown as a **centred pill** — its name and
+  icon in bold, ringed by a rounded border in the UI theme's colours —
+  instead of grey hint text at the left edge of the bar, which was
+  easy to read past. Tapping the pill opens the source picker; the
+  source's own open action (file picker, library manager, browser)
+  moved onto the leading icon beside it.
+- Every source was renamed to say what it reads or plays: **EPUB
+  reader (ッツ)**, **PDF reader**, **Manga reader (mokuro)**, **Web
+  browser**, **Song lyrics**, **ChatGPT chat**, **Clipboard text**,
+  **WebSocket text**; **Local video files**, **Downloaded YouTube**,
+  **YouTube search**, **Network stream**. The Reader picker is
+  reordered to match: All books, EPUB, PDF, manga, then the rest.
+- Each Player source's tab now lists only its own videos. Every one of
+  them used to show the entire player history, so switching source
+  changed nothing on screen; the merged view is now **All videos**.
+- The add button and the Anki card creator swapped places. The app
+  bar's second slot now carries the active Reader source's add action
+  — Scanned PDF its PDF import, ッツ Ebook Reader its EPUB import,
+  mokuro its file picker — so adding a book is one reach from the top
+  of the screen and always matches the selected source. The source bar
+  below keeps its other actions (tweaks, catalogue, open link, TTU
+  settings, manager). Reader sources with nothing to add (browser,
+  clipboard, ChatGPT, WebSocket, lyrics) and the Player and Dictionary
+  tabs leave the slot empty.
+- The Anki card creator button is now **hidden by default**. It moved
+  from the app bar to the end of the media source bar; switch it back
+  on with "Anki card creator button" under **Toolbars** on the 白い熊
+  辞書 UI page (preference key `show_card_creator_button`). The
+  creator itself is unchanged and still reachable from dictionary
+  results and the quick actions.
+- Dev build counters are zero-padded to three digits — `1.5.0+008`
+  in the title bar and in the APK filename — so builds sort in order
+  in a file manager. Releases are unaffected: still bare `X.Y.Z`.
 
 ## [1.5.0+6] - 2026-07-25
 

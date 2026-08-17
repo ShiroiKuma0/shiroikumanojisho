@@ -103,8 +103,12 @@ class _DictionaryResultPageState extends BasePageState<DictionaryResultPage> {
   // visibility. The structured-content rebuild still runs at the
   // throttled 20 fps so the actual text resize is smooth without
   // janking the UI thread.
-  double _gestureEntryFontSize = 16;
-  double _gestureRatio = 22.0 / 16.0;
+  double _gestureEntryFontSize = 24;
+  double _gestureRatio = 28.0 / 24.0;
+
+  /// Translation size as a proportion of the entry size, captured at
+  /// the start of a drag so the two keep their relationship.
+  double _gestureTranslationRatio = 1;
   final ValueNotifier<bool> _indicatorVisible = ValueNotifier<bool>(false);
   final ValueNotifier<double> _indicatorSize = ValueNotifier<double>(16);
   DateTime? _lastRefreshAt;
@@ -125,7 +129,14 @@ class _DictionaryResultPageState extends BasePageState<DictionaryResultPage> {
       final double headingNow = appModel.dictionaryHeadingFontSize;
       _gestureRatio = _gestureEntryFontSize > 0
           ? headingNow / _gestureEntryFontSize
-          : (22.0 / 16.0);
+          : (28.0 / 24.0);
+      // Translation glosses have their own size but ride along on
+      // the same drag, keeping whatever proportion to the entry size
+      // they were set to — otherwise a swipe would grow the 国語
+      // definitions and leave the bilingual ones behind.
+      _gestureTranslationRatio = _gestureEntryFontSize > 0
+          ? appModel.dictionaryTranslationFontSize / _gestureEntryFontSize
+          : 1;
     }
 
     final double step = -d.delta.dy / 12;
@@ -133,6 +144,9 @@ class _DictionaryResultPageState extends BasePageState<DictionaryResultPage> {
         .clamp(_fontSizeMin, _fontSizeMax);
     final double newHeading = (_gestureEntryFontSize * _gestureRatio)
         .clamp(_fontSizeMin, _headingSizeMax);
+    final double newTranslation =
+        (_gestureEntryFontSize * _gestureTranslationRatio)
+            .clamp(_fontSizeMin, _fontSizeMax);
 
     // Overlay updates take the fast path — they do not call
     // setState so the dictionary subtree is untouched.
@@ -144,6 +158,7 @@ class _DictionaryResultPageState extends BasePageState<DictionaryResultPage> {
         now.difference(_lastRefreshAt!) >= _refreshThrottle) {
       appModel.setDictionaryFontSize(_gestureEntryFontSize);
       appModel.setDictionaryHeadingFontSize(newHeading);
+      appModel.setDictionaryTranslationFontSize(newTranslation);
       appModel.refresh();
       _lastRefreshAt = now;
     }
@@ -155,8 +170,12 @@ class _DictionaryResultPageState extends BasePageState<DictionaryResultPage> {
     // window) aren't lost.
     final double finalHeading = (_gestureEntryFontSize * _gestureRatio)
         .clamp(_fontSizeMin, _headingSizeMax);
+    final double finalTranslation =
+        (_gestureEntryFontSize * _gestureTranslationRatio)
+            .clamp(_fontSizeMin, _fontSizeMax);
     appModel.setDictionaryFontSize(_gestureEntryFontSize);
     appModel.setDictionaryHeadingFontSize(finalHeading);
+    appModel.setDictionaryTranslationFontSize(finalTranslation);
     appModel.refresh();
     _lastRefreshAt = null;
     _hideIndicatorTimer?.cancel();

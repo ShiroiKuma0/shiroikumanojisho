@@ -42,6 +42,7 @@ class FloatingSearchAppBar extends ImplicitlyAnimatedWidget {
     this.transitionCurve = Curves.easeOut,
     this.debounceDelay = Duration.zero,
     this.title,
+    this.centerTitle = false,
     this.hint = 'Search...',
     this.actions,
     this.leadingActions,
@@ -151,6 +152,9 @@ class FloatingSearchAppBar extends ImplicitlyAnimatedWidget {
 
   /// {@macro floating_search_bar.title}
   final Widget? title;
+
+  /// {@macro floating_search_bar.centerTitle}
+  final bool centerTitle;
 
   /// {@macro floating_search_bar.hint}
   final String? hint;
@@ -658,6 +662,24 @@ class FloatingSearchAppBarState extends ImplicitlyAnimatedWidgetState<
           maxLines: 1,
         );
       }
+    }
+
+    // LOCAL PATCH (shiroikumanojisho): a centred title skips the
+    // horizontal scroll view entirely. Inside it the child is laid
+    // out with unbounded width, which pins it to the start and stops
+    // it from ellipsising; a plain padded Center gives it the bar's
+    // real width so it can do both. Only the closed title takes this
+    // path — the text field keeps the scrolling behaviour.
+    if (widget.centerTitle && !showTextInput && widget.title != null) {
+      return Padding(
+        padding: insets,
+        child: Center(
+          child: Opacity(
+            opacity: opacity,
+            child: input,
+          ),
+        ),
+      );
     }
 
     return NotificationListener<ScrollNotification>(

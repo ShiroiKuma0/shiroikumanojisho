@@ -108,6 +108,9 @@ class JapaneseLanguage extends Language {
         style: Theme.of(context).textTheme.titleLarge!.copyWith(
               fontWeight: FontWeight.bold,
               fontSize: appModel.dictionaryHeadingFontSize,
+              fontFamily: appModel.dictionaryHeadingFontFamily.isEmpty
+                  ? null
+                  : appModel.dictionaryHeadingFontFamily,
               color: Color(appModel.dictionaryFontColor),
             ),
         rubyStyle: Theme.of(context).textTheme.labelSmall?.copyWith(
@@ -124,6 +127,9 @@ class JapaneseLanguage extends Language {
       style: Theme.of(context).textTheme.titleLarge!.copyWith(
             fontWeight: FontWeight.bold,
             fontSize: appModel.dictionaryHeadingFontSize,
+            fontFamily: appModel.dictionaryHeadingFontFamily.isEmpty
+                ? null
+                : appModel.dictionaryHeadingFontFamily,
             color: Color(appModel.dictionaryFontColor),
           ),
       rubyStyle: Theme.of(context).textTheme.labelSmall?.copyWith(

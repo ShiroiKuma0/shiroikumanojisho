@@ -18,7 +18,7 @@ class ReaderClipboardSource extends ReaderMediaSource {
   ReaderClipboardSource._privateConstructor()
       : super(
           uniqueKey: 'reader_clipboard',
-          sourceName: 'Clipboard',
+          sourceName: 'Clipboard text',
           description:
               'Allows text pasted from the clipboard to be displayed as '
               'selectable text.',

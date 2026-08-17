@@ -39,9 +39,20 @@ class HistoryPlayerPageState<T extends HistoryPlayerPage>
   MediaSource get mediaSource =>
       appModel.getCurrentSourceForMediaType(mediaType: mediaType);
 
+  /// The items this page lists, newest-first.
+  ///
+  /// Scoped to the page's own source. It used to be the whole player
+  /// history regardless of source, which made every source's tab show
+  /// an identical list; the merged view is now an explicit source of
+  /// its own ([PlayerLibrarySource]), so the per-source tabs show
+  /// only what belongs to them.
+  ///
+  /// Isar returns history oldest-first, hence the reverse.
+  List<MediaItem> get historyItems =>
+      appModel.getMediaSourceHistory(mediaSource: mediaSource).reversed.toList();
+
   @override
-  bool get shouldPlaceholderBeShown =>
-      appModel.getMediaTypeHistory(mediaType: mediaType).isEmpty;
+  bool get shouldPlaceholderBeShown => historyItems.isEmpty;
 
   @override
   void initState() {
@@ -56,20 +67,19 @@ class HistoryPlayerPageState<T extends HistoryPlayerPage>
 
   @override
   Widget build(BuildContext context) {
-    List<MediaItem> items = appModel.getMediaTypeHistory(mediaType: mediaType);
+    List<MediaItem> items = historyItems;
 
-    if (shouldPlaceholderBeShown) {
+    if (items.isEmpty) {
       return buildPlaceholder();
     } else {
       return buildHistory(items);
     }
   }
 
-  /// This is shown as the body when [shouldPlaceholderBeShown] is false.
+  /// This is shown as the body when there is history to show. Takes
+  /// its items already in display order — newest first.
   @override
   Widget buildHistory(List<MediaItem> items) {
-    items = items.reversed.toList();
-
     return RawScrollbar(
       thumbVisibility: true,
       thickness: 3,
@@ -106,8 +116,13 @@ class HistoryPlayerPageState<T extends HistoryPlayerPage>
     );
   }
 
-  /// Build the thumbnail for the history item.
+  /// Build the thumbnail for the history item. Uses the item's own
+  /// source rather than the page's, so a merged list
+  /// ([PlayerLibraryHistoryPage]) still resolves each thumbnail
+  /// through whichever source knows how to fetch it.
   Widget buildThumbnail(MediaItem item) {
+    final MediaSource mediaSource = item.getMediaSource(appModel: appModel);
+
     return Stack(
       alignment: Alignment.bottomCenter,
       children: [
@@ -172,7 +187,8 @@ class HistoryPlayerPageState<T extends HistoryPlayerPage>
                       ? 1
                       : (item.position / item.duration),
               backgroundColor: Colors.white.withValues(alpha: 0.6),
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.red),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                  Theme.of(context).colorScheme.primary),
               minHeight: 2,
             ),
           ),

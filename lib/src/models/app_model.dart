@@ -679,17 +679,23 @@ class AppModel with ChangeNotifier {
         unselectedWidgetColor: text.withValues(alpha: 0.7),
         textTheme: darkTextTheme,
         iconTheme: IconThemeData(color: icon),
+        // Toggles are the accent colour throughout: solid when on,
+        // the same colour at low alpha when off. Material's default
+        // grey-for-off read as a dead control on a black panel and
+        // put a second hue on screen for no reason.
         switchTheme: SwitchThemeData(
           thumbColor: WidgetStateColor.resolveWith((states) {
             return states.contains(WidgetState.selected)
                 ? accent
-                : Colors.grey;
+                : accent.withValues(alpha: 0.35);
           }),
           trackColor: WidgetStateColor.resolveWith((states) {
             return states.contains(WidgetState.selected)
-                ? accent.withValues(alpha: 0.5)
-                : Colors.grey;
+                ? accent.withValues(alpha: 0.45)
+                : accent.withValues(alpha: 0.12);
           }),
+          trackOutlineColor:
+              WidgetStateProperty.all(accent.withValues(alpha: 0.5)),
         ),
         // Checkboxes: bordered square with a checkmark in the border
         // color, never a filled block (白い熊, 2026-07-25).
@@ -765,7 +771,7 @@ class AppModel with ChangeNotifier {
         sliderTheme: SliderThemeData(
           thumbColor: accent,
           activeTrackColor: accent,
-          inactiveTrackColor: Colors.grey,
+          inactiveTrackColor: accent.withValues(alpha: 0.25),
           trackShape: const RectangularSliderTrackShape(),
           trackHeight: 2,
           thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
@@ -1032,6 +1038,26 @@ class AppModel with ChangeNotifier {
     hiddenReaderToolbarItems = current;
   }
 
+  /// Whether the Anki card creator button is shown at the end of the
+  /// media source bar. The button used to sit in the app bar, where
+  /// the active source's add/import action now lives instead — the
+  /// creator is reachable from dictionary results and the quick
+  /// actions anyway, so it ships hidden and only appears here when
+  /// this is turned on from the 白い熊 辞書 UI page.
+  bool get showCardCreatorButton {
+    return _preferences.get(
+      'show_card_creator_button',
+      defaultValue: false,
+    );
+  }
+
+  /// Sets whether the Anki card creator button is shown in the media
+  /// source bar.
+  set showCardCreatorButton(bool value) {
+    _preferences.put('show_card_creator_button', value);
+    notifyListeners();
+  }
+
   /// Slider thumb radius for the reader audio toolbar's position
   /// slider. Material's default `Slider` thumb radius is 10. Scales
   /// with the toolbar height so the thumb stays grabbable in tall
@@ -1155,16 +1181,22 @@ class AppModel with ChangeNotifier {
   void populateMediaSources() async {
     /// A list of media sources that the app will support at runtime.
     final Map<MediaType, List<MediaSource>> availableMediaSources = {
+      // Order is the order of the source picker, and the first entry
+      // is also the fallback source when nothing is stored yet — so
+      // the merged library leads each list, followed by the sources
+      // that actually import media, then the incidental text ones.
       PlayerMediaType.instance: [
+        PlayerLibrarySource.instance,
         PlayerLocalMediaSource.instance,
         PlayerYoutubeOfflineSource.instance,
         PlayerYoutubeSource.instance,
         PlayerNetworkStreamSource.instance
       ],
       ReaderMediaType.instance: [
+        ReaderLibrarySource.instance,
         ReaderTtuSource.instance,
-        ReaderMokuroSource.instance,
         ReaderScannedPdfSource.instance,
+        ReaderMokuroSource.instance,
         ReaderBrowserSource.instance,
         ReaderLyricsSource.instance,
         ReaderChatgptSource.instance,
@@ -1539,6 +1571,8 @@ class AppModel with ChangeNotifier {
     _preferences = await Hive.openBox('appModel');
     uiTheme = UiThemeSettings(box: _preferences, notify: notifyListeners);
     await uiTheme.loadExternalFonts();
+    migrateDictionaryFontSizeDefaults();
+    migrateAccentColourDefault();
 
     /// Perform startup activities unnecessary to further initialisation here.
     await requestExternalStoragePermissions();
@@ -3055,22 +3089,46 @@ class AppModel with ChangeNotifier {
       );
     }
 
-    final cameraGranted = await Permission.camera.isGranted;
-    if (!cameraGranted) {
-      await Permission.camera.request();
-    }
+    // The camera permission used to be requested here too. Nothing
+    // in the app opens a camera — the viewer media type that would
+    // have is not even registered — so all it did was put a system
+    // permission dialog in front of every cold start, which is also
+    // the dialog most likely to be dismissed rather than answered
+    // (see [_requestWithDeadline]). Request it where a camera is
+    // actually opened, if one ever is.
 
     final storageGranted = await Permission.storage.isGranted;
     if (!storageGranted) {
-      await Permission.storage.request();
+      await _requestWithDeadline(Permission.storage);
     }
 
     if (_androidDeviceInfo.version.sdkInt >= 30) {
       final manageStorageGranted =
           await Permission.manageExternalStorage.isGranted;
       if (!manageStorageGranted) {
-        await Permission.manageExternalStorage.request();
+        await _requestWithDeadline(Permission.manageExternalStorage);
       }
+    }
+  }
+
+  /// How long startup will wait on a single permission dialog.
+  static const Duration _permissionTimeout = Duration(seconds: 45);
+
+  /// Request [permission] without letting startup hang on it.
+  ///
+  /// `permission_handler` completes its future when the system
+  /// returns a result. A dialog that is dismissed instead of
+  /// answered, or one whose host activity is torn down underneath it
+  /// (manageExternalStorage sends the user to Settings and waits for
+  /// them to walk back), can leave that future unresolved forever —
+  /// and this runs before the database opens, so the app sits on a
+  /// black screen at 0% CPU until it is force-stopped. Missing the
+  /// deadline costs the permission, not the launch.
+  Future<void> _requestWithDeadline(Permission permission) async {
+    try {
+      await permission.request().timeout(_permissionTimeout);
+    } catch (error) {
+      debugPrint('Permission $permission was never answered: $error');
     }
   }
 
@@ -4909,10 +4967,160 @@ class AppModel with ChangeNotifier {
   }
 
   /// Default dictionary font size for meanings.
-  final double defaultDictionaryFontSize = 16;
+  final double defaultDictionaryFontSize = 24;
 
   /// Default value of [dictionaryHeadingFontSize].
-  final double defaultDictionaryHeadingFontSize = 22;
+  final double defaultDictionaryHeadingFontSize = 28;
+
+  /// The sizes these two defaults used to be, before 1.5.0+011.
+  /// Kept only for [migrateDictionaryFontSizeDefaults].
+  static const double _legacyDictionaryFontSize = 16;
+  static const double _legacyDictionaryHeadingFontSize = 22;
+
+  /// One-shot bump of installs still sitting on the old dictionary
+  /// font sizes (16 entry / 22 heading) to the new defaults (24 /
+  /// 28). A stored value that differs from the old default was set
+  /// deliberately and is left alone; a stored value that equals it
+  /// is indistinguishable from "never touched", and following the
+  /// default is the friendlier reading.
+  void migrateDictionaryFontSizeDefaults() {
+    const String flagKey = 'dictionary_font_sizes_24_28';
+    if (_preferences.get(flagKey, defaultValue: false)) {
+      return;
+    }
+
+    final dynamic entry = _preferences.get('dictionary_entry_font_size');
+    if (entry == null || entry == _legacyDictionaryFontSize) {
+      _preferences.put('dictionary_entry_font_size', defaultDictionaryFontSize);
+    }
+    final dynamic heading = _preferences.get('dictionary_heading_font_size');
+    if (heading == null || heading == _legacyDictionaryHeadingFontSize) {
+      _preferences.put(
+          'dictionary_heading_font_size', defaultDictionaryHeadingFontSize);
+    }
+
+    _preferences.put(flagKey, true);
+  }
+
+  /// One-shot move of the accent colour off pure red.
+  ///
+  /// Red was the shipped default and drives switches, sliders, the
+  /// focus underline, progress spinners and the selected navigation
+  /// item — every one of them a splash of red on a black-and-yellow
+  /// screen. Installs still carrying that default are moved to the
+  /// theme's yellow; an accent the user picked themselves is left
+  /// alone.
+  void migrateAccentColourDefault() {
+    const String flagKey = 'ui_accent_colour_yellow';
+    if (_preferences.get(flagKey, defaultValue: false)) {
+      return;
+    }
+    const int legacyRed = 0xFFFF0000;
+    const int themeYellow = 0xFFFFFF00;
+    if (_preferences.get('ui_accent_color', defaultValue: legacyRed) ==
+        legacyRed) {
+      uiTheme.accentColor = themeYellow;
+    }
+    _preferences.put(flagKey, true);
+  }
+
+  /// Font family for dictionary headings — the term itself, with its
+  /// furigana. Empty means the app's own font.
+  String get dictionaryHeadingFontFamily {
+    return _preferences.get('dictionary_heading_font_family',
+        defaultValue: '');
+  }
+
+  set dictionaryHeadingFontFamily(String value) {
+    _preferences.put('dictionary_heading_font_family', value);
+    notifyListeners();
+  }
+
+  /// Font family for definitions written in the target language —
+  /// what a 国語辞典 gives back. Empty means the app's own font.
+  String get dictionaryEntryFontFamily {
+    return _preferences.get('dictionary_entry_font_family', defaultValue: '');
+  }
+
+  set dictionaryEntryFontFamily(String value) {
+    _preferences.put('dictionary_entry_font_family', value);
+    notifyListeners();
+  }
+
+  /// Font family for glosses in another language — what a bilingual
+  /// dictionary (JMdict and friends) gives back. Empty means the
+  /// app's own font.
+  String get dictionaryTranslationFontFamily {
+    return _preferences.get('dictionary_translation_font_family',
+        defaultValue: '');
+  }
+
+  set dictionaryTranslationFontFamily(String value) {
+    _preferences.put('dictionary_translation_font_family', value);
+    notifyListeners();
+  }
+
+  /// The font and size a definition should be rendered at: the entry
+  /// pair when it is written in the target language, the translation
+  /// pair when it is a gloss in another one. A null family means "no
+  /// override", which is also what an unset preference gives.
+  ///
+  /// Decided from the text, not from the dictionary, because the
+  /// import formats record no gloss language — a dictionary declares
+  /// which language it *applies to*, never which language it
+  /// explains that language in. So 広辞苑 and JMdict are both
+  /// Japanese dictionaries as far as the schema is concerned.
+  ///
+  /// The test is which script dominates the first 200 characters,
+  /// compared against the script the target language is written in.
+  /// A bilingual gloss that quotes the headword still comes out
+  /// mostly Latin, and a 国語 definition still comes out mostly CJK.
+  ({String? family, double size}) dictionaryStyleForDefinition(String text) {
+    final bool inTargetScript = _definitionIsInTargetScript(text);
+    final String family = inTargetScript
+        ? dictionaryEntryFontFamily
+        : dictionaryTranslationFontFamily;
+    return (
+      family: family.isEmpty ? null : family,
+      size: inTargetScript ? dictionaryFontSize : dictionaryTranslationFontSize,
+    );
+  }
+
+  /// Whether [text] is written in the same script as the target
+  /// language. CJK-scripted target languages (Japanese, Chinese,
+  /// Korean) are matched against kana/kanji; everything else against
+  /// Latin letters.
+  bool _definitionIsInTargetScript(String text) {
+    const Set<String> cjkLanguages = {'ja', 'zh', 'ko'};
+    final bool targetIsCjk =
+        cjkLanguages.contains(targetLanguage.languageCode);
+
+    int cjk = 0;
+    int latin = 0;
+    final int limit = text.length < 200 ? text.length : 200;
+    for (int i = 0; i < limit; i++) {
+      final int c = text.codeUnitAt(i);
+      if ((c >= 0x3040 && c <= 0x30FF) || // kana
+          (c >= 0x3400 && c <= 0x4DBF) || // CJK ext A
+          (c >= 0x4E00 && c <= 0x9FFF)) {
+        // CJK unified
+        cjk++;
+      } else if ((c >= 0x41 && c <= 0x5A) ||
+          (c >= 0x61 && c <= 0x7A) ||
+          (c >= 0xC0 && c <= 0x24F)) {
+        // Latin, including the accented ranges Czech needs
+        latin++;
+      }
+    }
+
+    // Nothing decisive either way (numbers, punctuation, an empty
+    // definition): treat it as target-language text so the entry
+    // font stays the default rather than the exception.
+    if (cjk == 0 && latin == 0) {
+      return true;
+    }
+    return targetIsCjk ? cjk >= latin : latin >= cjk;
+  }
 
   /// The search debounce delay in milliseconds for searching in the app..
   double get dictionaryFontSize {
@@ -4923,6 +5131,24 @@ class AppModel with ChangeNotifier {
   /// Sets the debounce delay in milliseconds for searching in the app..
   void setDictionaryFontSize(double fontSize) async {
     await _preferences.put('dictionary_entry_font_size', fontSize);
+  }
+
+  /// Font size for glosses in another language.
+  ///
+  /// Unset means "same as the entry size", so a user who never
+  /// touches it keeps one dictionary size for everything, exactly as
+  /// before this setting existed.
+  double get dictionaryTranslationFontSize {
+    final dynamic stored = _preferences.get('dictionary_translation_font_size');
+    if (stored is num) {
+      return stored.toDouble();
+    }
+    return dictionaryFontSize;
+  }
+
+  /// Sets the font size for glosses in another language.
+  void setDictionaryTranslationFontSize(double fontSize) async {
+    await _preferences.put('dictionary_translation_font_size', fontSize);
   }
 
   /// The heading font size used in the dictionary.

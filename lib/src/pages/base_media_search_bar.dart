@@ -60,6 +60,7 @@ abstract class BaseMediaSearchBarState<T extends BaseMediaSearchBar>
           ref: ref,
           appModel: appModel,
         ),
+        ...buildCardCreatorActions(),
         buildSearchButton(),
       ],
     );

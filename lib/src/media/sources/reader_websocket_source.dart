@@ -15,7 +15,7 @@ class ReaderWebsocketSource extends ReaderMediaSource {
   ReaderWebsocketSource._privateConstructor()
       : super(
           uniqueKey: 'reader_websocket',
-          sourceName: 'WebSocket',
+          sourceName: 'WebSocket text',
           description: 'Select and mine text received from a WebSocket server.',
           icon: Icons.webhook,
           implementsSearch: false,

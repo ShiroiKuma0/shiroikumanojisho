@@ -24,7 +24,7 @@ class ReaderMokuroSource extends ReaderMediaSource {
   ReaderMokuroSource._privateConstructor()
       : this.forSubclass(
           uniqueKey: 'reader_mokuro',
-          sourceName: 'Mokuro',
+          sourceName: 'Manga reader (mokuro)',
           description:
               'Read manga volumes pre-processed as a single HTML file via Mokuro.',
           icon: Icons.dashboard_outlined,
@@ -109,7 +109,6 @@ class ReaderMokuroSource extends ReaderMediaSource {
       buildTweaksButton(context: context, ref: ref, appModel: appModel),
       buildCatalogButton(context: context, ref: ref, appModel: appModel),
       buildOpenLinkButton(context: context, ref: ref, appModel: appModel),
-      buildPickFileButton(context: context, ref: ref, appModel: appModel),
     ];
   }
 
@@ -191,24 +190,23 @@ class ReaderMokuroSource extends ReaderMediaSource {
     );
   }
 
-  /// Menu bar action.
-  Widget buildPickFileButton(
+  /// App bar action — the source's add button, hoisted out of the
+  /// source bar into the home page app bar.
+  @override
+  Widget? buildAddButton(
       {required BuildContext context,
       required WidgetRef ref,
       required AppModel appModel}) {
-    return FloatingSearchBarAction(
-      child: JidoujishoIconButton(
-        size: Theme.of(context).textTheme.titleLarge?.fontSize,
-        tooltip: t.pick_file,
-        icon: Icons.upload_file,
-        onTap: () async {
-          launchFilePicker(
-            context: context,
-            ref: ref,
-            appModel: appModel,
-          );
-        },
-      ),
+    return JidoujishoIconButton(
+      tooltip: t.pick_file,
+      icon: Icons.upload_file,
+      onTap: () async {
+        launchFilePicker(
+          context: context,
+          ref: ref,
+          appModel: appModel,
+        );
+      },
     );
   }
 

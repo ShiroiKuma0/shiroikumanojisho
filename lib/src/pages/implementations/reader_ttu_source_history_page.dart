@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:local_assets_server/local_assets_server.dart';
+import 'package:shiroikumanojisho/language.dart';
 import 'package:shiroikumanojisho/media.dart';
 import 'package:shiroikumanojisho/pages.dart';
 import 'package:shiroikumanojisho/utils.dart';
@@ -37,11 +38,32 @@ class _ReaderTtuSourceHistoryPageState<T extends HistoryReaderPage>
 
   @override
   Widget build(BuildContext context) {
-    AsyncValue<LocalAssetsServer> server =
-        ref.watch(ttuServerProvider(appModel.targetLanguage));
+    final Language language = appModel.targetLanguage;
+
+    // Paint the last known library straight away. A scan has to boot
+    // the whole ッツ app in a webview before it can answer, so
+    // waiting on it meant a spinner on every visit to this tab; the
+    // fresh listing swaps in when it lands.
+    final List<MediaItem> cached =
+        ReaderTtuSource.instance.cachedBooks(language: language);
+    final AsyncValue<List<MediaItem>> books =
+        ref.watch(ttuBooksProvider(language));
+    final List<MediaItem> items = books.valueOrNull ?? cached;
+
+    if (items.isNotEmpty) {
+      return buildHistory(items);
+    }
+    if (books.isLoading) {
+      return buildLoading();
+    }
+
+    // Nothing to show and nothing in flight: either the library is
+    // genuinely empty, or the local server never came up — the
+    // latter is worth saying out loud, with its retry.
+    AsyncValue<LocalAssetsServer> server = ref.watch(ttuServerProvider(language));
 
     return server.when(
-        data: buildData,
+        data: (_) => buildPlaceholder(),
         loading: buildLoading,
         error: (error, stack) {
           if (_tryAgainCountdownNotifier.value == 0) {
@@ -79,31 +101,6 @@ class _ReaderTtuSourceHistoryPageState<T extends HistoryReaderPage>
             },
           );
         });
-  }
-
-  Widget buildData(LocalAssetsServer server) {
-    AsyncValue<List<MediaItem>> books =
-        ref.watch(ttuBooksProvider(appModel.targetLanguage));
-
-    return books.when(
-      data: buildBody,
-      error: (error, stack) => buildError(
-        error: error,
-        stack: stack,
-        refresh: () {
-          ref.invalidate(ttuBooksProvider(appModel.targetLanguage));
-        },
-      ),
-      loading: buildLoading,
-    );
-  }
-
-  Widget buildBody(List<MediaItem> books) {
-    if (books.isEmpty) {
-      return buildPlaceholder();
-    } else {
-      return buildHistory(books);
-    }
   }
 
   /// This is shown as the body when [shouldPlaceholderBeShown] is true.

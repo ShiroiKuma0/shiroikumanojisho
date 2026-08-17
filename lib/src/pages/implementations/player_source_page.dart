@@ -1862,7 +1862,7 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
 
         return Expanded(
           child: Slider(
-            activeColor: Colors.red,
+            activeColor: Theme.of(context).colorScheme.primary,
             inactiveColor: Theme.of(context).unselectedWidgetColor,
             value: sliderValue,
             max: (!validPosition || isEnded)
@@ -3843,7 +3843,7 @@ class _PlayerSourcePageState extends BaseSourcePageState<PlayerSourcePage>
       rootDirectories: await appModel
           .getFilePickerDirectoriesForMediaType(PlayerMediaType.instance),
       fsType: FilesystemType.file,
-      folderIconColor: Colors.red,
+      folderIconColor: Theme.of(context).colorScheme.primary,
       themeData: themeData,
     );
 

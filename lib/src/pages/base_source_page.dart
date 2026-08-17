@@ -395,7 +395,22 @@ class BaseSourcePageState<T extends BaseSourcePage> extends BasePageState<T> {
       child: Container(
         padding: Spacing.of(context).insets.all.semiSmall,
         margin: Spacing.of(context).insets.all.normal,
-        color: color.withValues(alpha: dictionaryBackgroundOpacity),
+        clipBehavior: Clip.antiAlias,
+        // The popup floats over a page of text and needs an edge to
+        // sit inside, or it reads as a hole rather than a panel. Same
+        // border colour and corner radius as dialogs, both settable
+        // on the 白い熊 辞書 UI page.
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: dictionaryBackgroundOpacity),
+          borderRadius:
+              BorderRadius.circular(appModel.uiTheme.dialogCornerRadius),
+          border: Border.all(
+            color: Color(appModel.uiTheme.borderColor),
+            width: appModel.uiTheme.dialogBorderWidth <= 0
+                ? 1.5
+                : appModel.uiTheme.dialogBorderWidth,
+          ),
+        ),
         child: Stack(
           children: [
             buildSearchResult(),
@@ -439,9 +454,10 @@ class BaseSourcePageState<T extends BaseSourcePage> extends BasePageState<T> {
               shape: const RoundedRectangleBorder(),
               child: Column(
                 children: [
-                  const LinearProgressIndicator(
+                  LinearProgressIndicator(
                     backgroundColor: Colors.transparent,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                        Theme.of(context).colorScheme.primary),
                     minHeight: 2.75,
                   ),
                   Expanded(child: Container())

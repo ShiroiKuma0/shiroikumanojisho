@@ -105,6 +105,19 @@ class HistoryReaderPageState<T extends BaseHistoryPage>
   MediaSource get mediaSource =>
       appModel.getCurrentSourceForMediaType(mediaType: mediaType);
 
+  /// The source that owns [item] — the one whose thumbnail, title and
+  /// icon a tile must use. Per-source pages only ever hold their own
+  /// items, so this is the same as [mediaSource] there; on the merged
+  /// shelf ([ReaderLibraryHistoryPage]) it differs tile by tile, and
+  /// getting it from the item is what makes one grid able to render
+  /// EPUBs, PDFs and manga volumes side by side.
+  MediaSource sourceOf(MediaItem item) =>
+      item.getMediaSource(appModel: appModel);
+
+  /// Whether each tile is badged with the icon of the source it came
+  /// from. Only meaningful where a page mixes sources.
+  bool get showSourceBadge => false;
+
   @override
   bool get shouldPlaceholderBeShown => true;
 
@@ -145,6 +158,7 @@ class HistoryReaderPageState<T extends BaseHistoryPage>
   /// Build the widget visually representing the [MediaItem]'s history tile.
   @override
   Widget buildMediaItemContent(MediaItem item) {
+    final MediaSource source = sourceOf(item);
     final bool showAudio = _hasAudio(item);
     final bool showTranslation = _hasTranslationBook(item);
 
@@ -156,12 +170,12 @@ class HistoryReaderPageState<T extends BaseHistoryPage>
           ColoredBox(
             color: Colors.grey.shade800.withValues(alpha: 0.3),
             child: AspectRatio(
-              aspectRatio: mediaSource.aspectRatio,
+              aspectRatio: source.aspectRatio,
               child: FadeInImage(
                 key: UniqueKey(),
                 imageErrorBuilder: (_, _, _) => const SizedBox.shrink(),
                 placeholder: MemoryImage(kTransparentImage),
-                image: mediaSource.getDisplayThumbnailFromMediaItem(
+                image: source.getDisplayThumbnailFromMediaItem(
                   appModel: appModel,
                   item: item,
                 ),
@@ -170,14 +184,17 @@ class HistoryReaderPageState<T extends BaseHistoryPage>
               ),
             ),
           ),
-          // Top-row attachment badges. Translation icon at top-left,
-          // audio icon at top-right. Each badge is rendered only
-          // when the user has attached the corresponding asset to
-          // this book in the reader. No padding wrapper at the row
-          // level so the icons sit flush in the corners; the icon
-          // backgrounds carry their own internal padding to keep
-          // touch targets visually consistent with the title bar.
-          if (showAudio || showTranslation)
+          // Top-row badges. Source and translation icons at top-left,
+          // audio icon at top-right. The attachment badges render
+          // only when the user has attached the corresponding asset
+          // to this book in the reader; the source badge only on
+          // pages that mix sources, where it is the tile's answer to
+          // "is this an EPUB, a PDF or a manga volume?". No padding
+          // wrapper at the row level so the icons sit flush in the
+          // corners; the icon backgrounds carry their own internal
+          // padding to keep touch targets visually consistent with
+          // the title bar.
+          if (showAudio || showTranslation || showSourceBadge)
             Positioned(
               top: 0,
               left: 0,
@@ -185,10 +202,14 @@ class HistoryReaderPageState<T extends BaseHistoryPage>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  if (showTranslation)
-                    _buildAttachmentBadge(Icons.translate)
-                  else
-                    const SizedBox.shrink(),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (showSourceBadge) _buildAttachmentBadge(source.icon),
+                      if (showTranslation)
+                        _buildAttachmentBadge(Icons.translate),
+                    ],
+                  ),
                   if (showAudio)
                     _buildAttachmentBadge(Icons.headphones)
                   else
@@ -204,7 +225,7 @@ class HistoryReaderPageState<T extends BaseHistoryPage>
               width: double.maxFinite,
               color: Colors.black.withValues(alpha: 0.6),
               child: Text(
-                mediaSource.getDisplayTitleFromMediaItem(item),
+                source.getDisplayTitleFromMediaItem(item),
                 overflow: TextOverflow.ellipsis,
                 maxLines: 2,
                 textAlign: TextAlign.center,
@@ -224,7 +245,8 @@ class HistoryReaderPageState<T extends BaseHistoryPage>
                     ? 1
                     : (item.position / item.duration),
             backgroundColor: Colors.white.withValues(alpha: 0.6),
-            valueColor: const AlwaysStoppedAnimation<Color>(Colors.red),
+            valueColor: AlwaysStoppedAnimation<Color>(
+                Theme.of(context).colorScheme.primary),
             minHeight: 2,
           ),
         ],

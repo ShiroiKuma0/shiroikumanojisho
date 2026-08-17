@@ -75,6 +75,12 @@ class _HomePageState extends BasePageState<HomePage>
     WidgetsBinding.instance.addObserver(this);
     appModelNoUpdate.databaseCloseNotifier.addListener(refresh);
 
+    /// The app bar carries the active Reader source's add button, and
+    /// switching source (the source picker dialog) only refreshes the
+    /// tab — nothing here would otherwise rebuild, leaving the old
+    /// source's add button in the bar.
+    ReaderMediaType.instance.tabRefreshNotifier.addListener(refresh);
+
     /// Populate and define the tabs and their respective content bodies based
     /// on the media types specified and ordered by [AppModel]. As [ref.watch]
     /// cannot be used here, [ref.read] is used instead, via [appModelNoUpdate].
@@ -111,6 +117,7 @@ class _HomePageState extends BasePageState<HomePage>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     appModelNoUpdate.databaseCloseNotifier.removeListener(refresh);
+    ReaderMediaType.instance.tabRefreshNotifier.removeListener(refresh);
     super.dispose();
   }
 
@@ -240,7 +247,7 @@ class _HomePageState extends BasePageState<HomePage>
   List<Widget> buildActions() {
     return [
       buildLanguageButton(),
-      buildCreatorButton(),
+      buildSourceAddButton(),
       buildShowMenuButton(),
     ];
   }
@@ -254,15 +261,32 @@ class _HomePageState extends BasePageState<HomePage>
     );
   }
 
-  Widget buildCreatorButton() {
-    return JidoujishoIconButton(
-      tooltip: t.card_creator,
-      icon: Icons.note_add_outlined,
-      onTap: () => appModel.openCreator(
-        ref: ref,
-        killOnPop: false,
-      ),
-    );
+  /// The active source's add/import action, hoisted out of the source
+  /// bar below into the app bar — the reachable top-right slot now
+  /// adds media for whichever Reader source is selected (Scanned PDF
+  /// → PDF import, ッツ Ebook Reader → EPUB import, mokuro → file
+  /// picker). The Anki card creator that used to sit here moved down
+  /// into the source bar and is hidden by default; see
+  /// [BaseTabPageState.buildCardCreatorActions].
+  ///
+  /// Empty on the Player and Dictionary tabs, and for Reader sources
+  /// with nothing to add (browser, clipboard, ChatGPT, WebSocket,
+  /// lyrics), so those keep their bars exactly as they were.
+  Widget buildSourceAddButton() {
+    final MediaType mediaType =
+        appModel.mediaTypes.values.toList()[currentHomeTabIndex];
+    if (mediaType is! ReaderMediaType) {
+      return const SizedBox.shrink();
+    }
+
+    return appModel
+            .getCurrentSourceForMediaType(mediaType: mediaType)
+            .buildAddButton(
+              context: context,
+              ref: ref,
+              appModel: appModel,
+            ) ??
+        const SizedBox.shrink();
   }
 
   /// Quick language-switcher: a globe icon in the app bar that opens a

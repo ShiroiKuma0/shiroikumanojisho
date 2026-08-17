@@ -1,6 +1,5 @@
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
-import 'package:spaces/spaces.dart';
 import 'package:shiroikumanojisho/models.dart';
 import 'package:shiroikumanojisho/pages.dart';
 import 'package:shiroikumanojisho/utils.dart';
@@ -16,9 +15,18 @@ class DictionarySettingsDialogPage extends BasePage {
 
 class _DictionaryDialogPageState extends BasePageState {
   late TextEditingController _debounceDelayController;
-  late TextEditingController _dictionaryFontSizeController;
-  late TextEditingController _dictionaryHeadingFontSizeController;
   late TextEditingController _maximumTermsController;
+
+  /// Label size for every row in this dialog. Deliberately larger
+  /// than the theme's body text — this is a settings sheet read at
+  /// arm's length on an e-ink screen, not running prose.
+  static const double _labelFontSize = 19;
+
+  TextStyle get _labelStyle => TextStyle(
+        fontSize: _labelFontSize,
+        height: 1.1,
+        color: Theme.of(context).appBarTheme.foregroundColor,
+      );
 
   @override
   void initState() {
@@ -26,11 +34,6 @@ class _DictionaryDialogPageState extends BasePageState {
 
     _debounceDelayController = TextEditingController(
         text: appModelNoUpdate.searchDebounceDelay.toString());
-    _dictionaryFontSizeController = TextEditingController(
-        text: appModelNoUpdate.dictionaryFontSize.toString());
-    _dictionaryHeadingFontSizeController = TextEditingController(
-        text: appModelNoUpdate.dictionaryHeadingFontSize.toString());
-
     _maximumTermsController =
         TextEditingController(text: appModelNoUpdate.maximumTerms.toString());
   }
@@ -38,9 +41,9 @@ class _DictionaryDialogPageState extends BasePageState {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      contentPadding: MediaQuery.of(context).orientation == Orientation.portrait
-          ? Spacing.of(context).insets.exceptBottom.big
-          : Spacing.of(context).insets.exceptBottom.normal,
+      // Tight: the dialog's own padding used to eat as much height
+      // as two rows of settings.
+      contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
       content: buildContent(),
       actions: actions,
     );
@@ -74,15 +77,15 @@ class _DictionaryDialogPageState extends BasePageState {
               buildAutoSearchSwitch(),
               buildAutoFullScreenDictionarySwitch(),
               buildDictionaryFontSizeSwipeSwitch(),
-              const Space.small(),
+              const JidoujishoDivider(),
+              // Fonts and sizes moved to the 白い熊 辞書 UI page, where
+              // the rest of the app's typography lives; this row is
+              // the way back to them.
+              buildTypographyLink(),
               const JidoujishoDivider(),
               buildDebounceDelayField(),
-              buildDictionaryFontSizeField(),
-              buildDictionaryHeadingFontSizeField(),
               buildMaximumTermsField(),
-              const Space.normal(),
               buildIndexPrewarmMode(),
-              const Space.normal(),
               buildManageDuplicateChecks(),
             ],
           ),
@@ -91,78 +94,59 @@ class _DictionaryDialogPageState extends BasePageState {
     );
   }
 
-  Widget buildAutoSearchSwitch() {
-    ValueNotifier<bool> notifier =
-        ValueNotifier<bool>(appModel.autoSearchEnabled);
+  /// One label-plus-switch line, packed tight: the switch gives up
+  /// its 48px tap target and the row carries no vertical padding, so
+  /// the rows sit directly under each other.
+  Widget buildSwitchRow({
+    required String label,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return InkWell(
+      onTap: () => onChanged(!value),
+      child: Row(
+        children: [
+          Expanded(child: Text(label, style: _labelStyle)),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ],
+      ),
+    );
+  }
 
-    return Row(
-      children: [
-        Expanded(
-          child: Text(t.auto_search),
-        ),
-        ValueListenableBuilder<bool>(
-          valueListenable: notifier,
-          builder: (_, value, _) {
-            return Switch(
-              value: value,
-              onChanged: (value) {
-                appModel.toggleAutoSearchEnabled();
-                notifier.value = appModel.autoSearchEnabled;
-              },
-            );
-          },
-        )
-      ],
+  Widget buildAutoSearchSwitch() {
+    return buildSwitchRow(
+      label: t.auto_search,
+      value: appModel.autoSearchEnabled,
+      onChanged: (value) {
+        appModel.toggleAutoSearchEnabled();
+        setState(() {});
+      },
     );
   }
 
   Widget buildAutoFullScreenDictionarySwitch() {
-    ValueNotifier<bool> notifier =
-        ValueNotifier<bool>(appModel.autoFullScreenDictionary);
-
-    return Row(
-      children: [
-        const Expanded(
-          child: Text('Open dictionary full-screen on tap'),
-        ),
-        ValueListenableBuilder<bool>(
-          valueListenable: notifier,
-          builder: (_, value, _) {
-            return Switch(
-              value: value,
-              onChanged: (v) {
-                appModel.toggleAutoFullScreenDictionary();
-                notifier.value = appModel.autoFullScreenDictionary;
-              },
-            );
-          },
-        )
-      ],
+    return buildSwitchRow(
+      label: 'Open dictionary full-screen on tap',
+      value: appModel.autoFullScreenDictionary,
+      onChanged: (value) {
+        appModel.toggleAutoFullScreenDictionary();
+        setState(() {});
+      },
     );
   }
 
   Widget buildDictionaryFontSizeSwipeSwitch() {
-    ValueNotifier<bool> notifier =
-        ValueNotifier<bool>(appModel.dictionaryFontSizeSwipeEnabled);
-
-    return Row(
-      children: [
-        const Expanded(
-          child: Text('Left-edge font-size swipe gesture'),
-        ),
-        ValueListenableBuilder<bool>(
-          valueListenable: notifier,
-          builder: (_, value, _) {
-            return Switch(
-              value: value,
-              onChanged: (v) {
-                appModel.setDictionaryFontSizeSwipeEnabled(v);
-                notifier.value = v;
-              },
-            );
-          },
-        )
-      ],
+    return buildSwitchRow(
+      label: 'Left-edge font-size swipe gesture',
+      value: appModel.dictionaryFontSizeSwipeEnabled,
+      onChanged: (value) {
+        appModel.setDictionaryFontSizeSwipeEnabled(value);
+        setState(() {});
+      },
     );
   }
 
@@ -180,7 +164,10 @@ class _DictionaryDialogPageState extends BasePageState {
       },
       controller: _debounceDelayController,
       keyboardType: TextInputType.number,
+      style: _labelStyle,
       decoration: InputDecoration(
+        isDense: true,
+        contentPadding: const EdgeInsets.only(top: 2, bottom: 4),
         floatingLabelBehavior: FloatingLabelBehavior.always,
         suffixText: t.unit_milliseconds,
         suffixIcon: JidoujishoIconButton(
@@ -200,67 +187,46 @@ class _DictionaryDialogPageState extends BasePageState {
     );
   }
 
-  Widget buildDictionaryFontSizeField() {
-    return TextField(
-      onChanged: (value) {
-        double newSize =
-            double.tryParse(value) ?? appModel.defaultDictionaryFontSize;
-        if (newSize.isNegative) {
-          newSize = appModel.defaultDictionaryFontSize;
-          _dictionaryFontSizeController.text = newSize.toString();
-        }
-
-        appModel.setDictionaryFontSize(newSize);
-      },
-      controller: _dictionaryFontSizeController,
-      keyboardType: TextInputType.number,
-      decoration: InputDecoration(
-        floatingLabelBehavior: FloatingLabelBehavior.always,
-        suffixText: t.unit_pixels,
-        suffixIcon: JidoujishoIconButton(
-          tooltip: t.reset,
-          size: 18,
-          onTap: () async {
-            _dictionaryFontSizeController.text =
-                appModel.defaultDictionaryFontSize.toString();
-            appModel.setDictionaryFontSize(appModel.defaultDictionaryFontSize);
-            FocusScope.of(context).unfocus();
-          },
-          icon: Icons.undo,
+  /// Opens the 白い熊 辞書 UI page at its Dictionary section, which
+  /// holds the heading/entry/translation fonts and the two sizes
+  /// this dialog used to carry.
+  Widget buildTypographyLink() {
+    return InkWell(
+      onTap: openDictionaryTypography,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Icon(
+              Icons.text_fields,
+              size: _labelFontSize,
+              color: activeTextColor,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text('Fonts and sizes — 白い熊 辞書 UI',
+                  style: _labelStyle),
+            ),
+            Icon(
+              Icons.chevron_right,
+              size: _labelFontSize,
+              color: activeTextColor,
+            ),
+          ],
         ),
-        labelText: t.dictionary_font_size,
       ),
     );
   }
 
-  Widget buildDictionaryHeadingFontSizeField() {
-    return TextField(
-      onChanged: (value) {
-        double newSize =
-            double.tryParse(value) ?? appModel.defaultDictionaryHeadingFontSize;
-        if (newSize.isNegative) {
-          newSize = appModel.defaultDictionaryHeadingFontSize;
-          _dictionaryHeadingFontSizeController.text = newSize.toString();
-        }
-        appModel.setDictionaryHeadingFontSize(newSize);
-      },
-      controller: _dictionaryHeadingFontSizeController,
-      keyboardType: TextInputType.number,
-      decoration: InputDecoration(
-        floatingLabelBehavior: FloatingLabelBehavior.always,
-        suffixText: t.unit_pixels,
-        suffixIcon: JidoujishoIconButton(
-          tooltip: t.reset,
-          size: 18,
-          onTap: () async {
-            _dictionaryHeadingFontSizeController.text =
-                appModel.defaultDictionaryHeadingFontSize.toString();
-            appModel.setDictionaryHeadingFontSize(appModel.defaultDictionaryHeadingFontSize);
-            FocusScope.of(context).unfocus();
-          },
-          icon: Icons.undo,
-        ),
-        labelText: t.dictionary_heading_font_size,
+  void openDictionaryTypography() {
+    // Grab the navigator that owns the page stack before this dialog
+    // pops itself off it.
+    final NavigatorState navigator = Navigator.of(context, rootNavigator: true);
+    Navigator.pop(context);
+    navigator.push(
+      MaterialPageRoute<void>(
+        builder: (context) =>
+            const JishoUiSettingsPage(initialSection: 'Dictionary'),
       ),
     );
   }
@@ -280,7 +246,10 @@ class _DictionaryDialogPageState extends BasePageState {
       },
       controller: _maximumTermsController,
       keyboardType: TextInputType.number,
+      style: _labelStyle,
       decoration: InputDecoration(
+        isDense: true,
+        contentPadding: const EdgeInsets.only(top: 2, bottom: 4),
         floatingLabelBehavior: FloatingLabelBehavior.always,
         suffixIcon: JidoujishoIconButton(
           tooltip: t.reset,
@@ -324,8 +293,13 @@ class _DictionaryDialogPageState extends BasePageState {
         },
         child: Row(
           children: [
-            Radio<IndexPrewarmMode>(value: mode),
-            Expanded(child: Text(label)),
+            Radio<IndexPrewarmMode>(
+              value: mode,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: const VisualDensity(horizontal: -4, vertical: -4),
+            ),
+            const SizedBox(width: 8),
+            Expanded(child: Text(label, style: _labelStyle)),
           ],
         ),
       );
@@ -335,12 +309,10 @@ class _DictionaryDialogPageState extends BasePageState {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: Spacing.of(context).insets.onlyLeft.small,
+          padding: const EdgeInsets.only(top: 6, bottom: 2),
           child: Text(
             t.index_prewarm_title,
-            style: textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+            style: _labelStyle.copyWith(fontWeight: FontWeight.bold),
           ),
         ),
         // RadioGroup (the 3.32+ replacement for per-Radio groupValue/
@@ -376,7 +348,8 @@ class _DictionaryDialogPageState extends BasePageState {
     return InkWell(
       onTap: showDuplicateChecksPage,
       child: Container(
-        padding: Spacing.of(context).insets.vertical.normal,
+        margin: const EdgeInsets.only(top: 6),
+        padding: const EdgeInsets.symmetric(vertical: 8),
         alignment: Alignment.center,
         width: double.infinity,
         color: activeButtonColor,
@@ -385,16 +358,13 @@ class _DictionaryDialogPageState extends BasePageState {
           children: [
             Icon(
               Icons.checklist_sharp,
-              size: textTheme.titleSmall?.fontSize,
+              size: _labelFontSize,
               color: activeTextColor,
             ),
-            const Space.small(),
+            const SizedBox(width: 8),
             Text(
               t.manage_duplicate_checks,
-              style: textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: activeTextColor,
-              ),
+              style: _labelStyle.copyWith(fontWeight: FontWeight.bold),
             ),
           ],
         ),

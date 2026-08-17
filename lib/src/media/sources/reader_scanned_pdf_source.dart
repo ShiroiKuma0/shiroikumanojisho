@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:filesystem_picker/filesystem_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:material_floating_search_bar_2/material_floating_search_bar_2.dart';
 import 'package:path/path.dart' as path;
 
 import 'package:shiroikumanojisho/media.dart';
@@ -27,7 +26,7 @@ class ReaderScannedPdfSource extends ReaderMokuroSource {
   ReaderScannedPdfSource._privateConstructor()
       : super.forSubclass(
           uniqueKey: 'reader_scanned_pdf',
-          sourceName: 'Scanned PDF',
+          sourceName: 'PDF reader',
           description: 'Import a scanned PDF and study it with an on-device '
               'OCR text overlay.',
           icon: Icons.picture_as_pdf,
@@ -79,28 +78,27 @@ class ReaderScannedPdfSource extends ReaderMokuroSource {
   }) {
     return [
       buildTweaksButton(context: context, ref: ref, appModel: appModel),
-      buildImportPdfButton(context: context, ref: ref, appModel: appModel),
     ];
   }
 
-  /// Menu bar action.
-  Widget buildImportPdfButton(
+  /// App bar action — this source's add button. Overrides the mokuro
+  /// file picker inherited from [ReaderMokuroSource] with the PDF
+  /// import flow, which is what "add" means for this source.
+  @override
+  Widget? buildAddButton(
       {required BuildContext context,
       required WidgetRef ref,
       required AppModel appModel}) {
-    return FloatingSearchBarAction(
-      child: JidoujishoIconButton(
-        size: Theme.of(context).textTheme.titleLarge?.fontSize,
-        tooltip: t.pick_file,
-        icon: Icons.upload_file,
-        onTap: () async {
-          launchPdfPicker(
-            context: context,
-            ref: ref,
-            appModel: appModel,
-          );
-        },
-      ),
+    return JidoujishoIconButton(
+      tooltip: t.pick_file,
+      icon: Icons.upload_file,
+      onTap: () async {
+        launchPdfPicker(
+          context: context,
+          ref: ref,
+          appModel: appModel,
+        );
+      },
     );
   }
 

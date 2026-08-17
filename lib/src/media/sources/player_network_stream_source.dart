@@ -21,7 +21,7 @@ class PlayerNetworkStreamSource extends PlayerMediaSource {
   PlayerNetworkStreamSource._privateConstructor()
       : super(
           uniqueKey: 'player_network_stream',
-          sourceName: 'Network Stream',
+          sourceName: 'Network stream',
           description: 'Stream videos from a direct URL.',
           icon: Icons.podcasts,
           implementsSearch: false,

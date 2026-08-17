@@ -361,6 +361,19 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
     String key = _safeBookKey();
     _secondaryUrl = _readerBox.get('secondary_url_$key');
     _secondaryTitle = _readerBox.get('secondary_title_$key');
+    // Heal a book attached to itself. Releases before 1.5.0+009
+    // could write one (see the guard in the secondary pane's
+    // onTitleChanged), and restoring it would reopen the split with
+    // the same book on both sides forever. Drop the association
+    // instead of rendering it.
+    if (_secondaryUrl != null &&
+        _isPrimaryBookId(Uri.tryParse(_secondaryUrl!)?.queryParameters['id'])) {
+      _readerBox.delete('secondary_url_$key');
+      _readerBox.delete('secondary_title_$key');
+      _readerBox.delete('secondary_shown_$key');
+      _secondaryUrl = null;
+      _secondaryTitle = null;
+    }
     _hasSecondary = _secondaryUrl != null;
     double? ratio = (_readerBox.get('split_ratio_$key') as num?)?.toDouble();
     if (ratio != null) _splitRatio = ratio;
@@ -478,6 +491,15 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
     return k.replaceAll(RegExp('[^a-zA-Z0-9]'), '_');
   }
 
+  /// Whether [bookId] is the book currently open in the primary
+  /// pane. Both panes share one TTU instance per language, so their
+  /// `?id=` values are directly comparable. Null ids never match —
+  /// an unknown id is not evidence of sameness.
+  bool _isPrimaryBookId(String? bookId) {
+    if (bookId == null || bookId.isEmpty) return false;
+    return bookId == _currentBookId;
+  }
+
   /// Returns the legacy id-derived key for the current book, or
   /// null if no id is known. Used by [_migrateBookKeyIfNeeded] to
   /// find pre-1.1.x entries to copy forward.
@@ -550,16 +572,10 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
   /// hash a book gets at first read is the same one it gets six
   /// months later — that is what makes Hive entries survive across
   /// app launches.
-  static String _stableHashHex(String s) {
-    var h = 0x811c9dc5;
-    for (final code in s.codeUnits) {
-      h ^= code & 0xff;
-      h = (h * 0x01000193) & 0xffffffff;
-      h ^= (code >> 8) & 0xff;
-      h = (h * 0x01000193) & 0xffffffff;
-    }
-    return h.toRadixString(16).padLeft(8, '0');
-  }
+  /// Delegates to [ReaderTtuSource.stableHashHex] — one
+  /// implementation, so deleting a book purges exactly the keys this
+  /// page would later read back.
+  static String _stableHashHex(String s) => ReaderTtuSource.stableHashHex(s);
 
   /// Extract the primary-book portion of TTU's page title. TTU
   /// formats the title as either `BOOK | ッツ Ebook Reader` or, when
@@ -1197,6 +1213,16 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
         // SPA navigates to /b?id=X — convert to /b.html?id=X for direct load
         String saveUrl = rawUrl.replaceFirst('/b?id=', '/b.html?id=');
         if (!saveUrl.contains('/b.html?id=')) return;
+        // A book can never be its own translation. This pane auto-
+        // adopts whatever book it lands on, which is right when the
+        // user picks one through the manager — but an EPUB import
+        // routed here also ends by navigating to the imported book,
+        // and if that book is the one open in the primary pane the
+        // auto-adoption would attach it to itself. Bail before the
+        // write and before the "PRIMARY ⇨ SECONDARY" rename.
+        if (_isPrimaryBookId(uri.queryParameters['id'])) {
+          return;
+        }
         // Save URL if new
         if (saveUrl != _secondaryUrl) {
           _secondaryUrl = saveUrl;
@@ -1727,9 +1753,23 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
   /// because that's where the input element exists. The FAB that
   /// triggers this is gated on the same condition. If somehow
   /// called from elsewhere we navigate to the manager page first.
-  Future<void> _importEpubViaFilePicker() async {
+  /// [intoActivePane] distinguishes the two ways an import starts.
+  ///
+  /// The in-reader FAB (true) targets whichever pane is showing the
+  /// manager, preferring the translation pane — there, importing is
+  /// part of picking a translation book, and the pane adopting the
+  /// imported book afterwards is the point.
+  ///
+  /// The Reader tab's import button (false) means "add a book to my
+  /// library" and nothing else, so it always targets the primary
+  /// pane, forcing it onto the manager if necessary. Routing that
+  /// import to the translation pane made the imported book attach
+  /// itself as a translation of whatever the primary held.
+  Future<void> _importEpubViaFilePicker({bool intoActivePane = true}) async {
     if (!_controllerInitialised) return;
-    final InAppWebViewController? target = _pickImportController();
+    final InAppWebViewController? target = intoActivePane
+        ? _pickImportController()
+        : await _primaryManagerController();
     if (target == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1861,6 +1901,35 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
   /// pane the user most recently navigated to manage; the primary
   /// having the manager page open is the cold-start state and not
   /// the active context.
+  /// The primary pane's controller, with the pane parked on TTU's
+  /// library manager — the only page carrying the import input.
+  /// Navigates it there when it is elsewhere (reading a book) and
+  /// waits for the load to settle, since the injected querySelector
+  /// has to find that input. Gives up after ~5s rather than hang.
+  Future<InAppWebViewController?> _primaryManagerController() async {
+    bool onManager() =>
+        _primaryCurrentUrl?.contains('/manage.html') ?? false;
+
+    if (onManager()) {
+      return _controller;
+    }
+
+    final int port = ReaderTtuSource.instance
+        .getPortForLanguage(appModel.targetLanguage);
+    await _controller.loadUrl(
+      urlRequest: URLRequest(
+        url: WebUri('http://localhost:$port/manage.html'),
+      ),
+    );
+
+    for (int attempt = 0; attempt < 20; attempt++) {
+      await Future.delayed(const Duration(milliseconds: 250));
+      if (!mounted) return null;
+      if (onManager()) return _controller;
+    }
+    return null;
+  }
+
   InAppWebViewController? _pickImportController() {
     final s = _secondaryCurrentUrl;
     if (_secondaryController != null &&
@@ -2919,8 +2988,11 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
           appModel.ttuImportPending = false;
           // Slight delay so the manager DOM is fully laid out;
           // querySelector on the import input must succeed.
+          // intoActivePane: false — this button means "add to my
+          // library", so the book must land in the primary pane even
+          // when a translation pane is open on the manager.
           Future.delayed(const Duration(milliseconds: 300), () {
-            if (mounted) _importEpubViaFilePicker();
+            if (mounted) _importEpubViaFilePicker(intoActivePane: false);
           });
         }
       },
@@ -3524,8 +3596,11 @@ rp {
 }
 
 ::selection {
-  color: white;
-  background: rgba(255, 0, 0, 0.6);
+  /* Black on yellow, matching the app's own selection identity —
+     white on translucent red was the upstream default and the only
+     red left inside the reader (白い熊, 2026-08-17). */
+  color: #000000;
+  background: #FFFF00;
 }
 </style>
 `);

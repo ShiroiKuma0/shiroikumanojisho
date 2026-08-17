@@ -752,7 +752,10 @@ class _PlayerTranscriptPageState
             builder: (context, currentSubtitle, child) {
               return ListTile(
                 selected: _selectedIndexNotifier.value == index,
-                selectedTileColor: Colors.red.withValues(alpha: 0.15),
+                selectedTileColor: Theme.of(context)
+                    .colorScheme
+                    .primary
+                    .withValues(alpha: 0.15),
                 dense: true,
                 title: child,
                 onTap: () async {

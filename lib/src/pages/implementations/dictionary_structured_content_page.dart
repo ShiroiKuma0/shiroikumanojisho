@@ -238,8 +238,15 @@ class DictionaryHtmlWidget extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final textColor = Color(ref.read(appProvider).dictionaryFontColor);
     final linkColor = Theme.of(context).colorScheme.error;
-    final dictionaryFontSize = ref.read(appProvider).dictionaryFontSize;
-    final fontSize = FontSize(dictionaryFontSize);
+    // Definitions in the target language and glosses in another one
+    // each get their own font and size — see
+    // [AppModel.dictionaryStyleForDefinition], which decides which of
+    // the two this entry is from its own text.
+    final style = ref
+        .read(appProvider)
+        .dictionaryStyleForDefinition(entry.definitions.join(' '));
+    final fontSize = FontSize(style.size);
+    final fontFamily = style.family;
     const tableWidth = 0.3;
     final tableBorder = Border.all(color: textColor, width: tableWidth);
     final tableStyle = Style(
@@ -255,6 +262,7 @@ class DictionaryHtmlWidget extends ConsumerWidget {
       style: {
         '*': Style(
           fontSize: fontSize,
+          fontFamily: fontFamily,
           color: textColor,
         ),
         'td': tableStyle,

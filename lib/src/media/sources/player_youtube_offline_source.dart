@@ -31,7 +31,7 @@ class PlayerYoutubeOfflineSource extends PlayerMediaSource {
   PlayerYoutubeOfflineSource._privateConstructor()
       : super(
           uniqueKey: 'player_youtube_offline',
-          sourceName: 'YouTube offline',
+          sourceName: 'Downloaded YouTube',
           description: 'Play study videos exported from jiyudoga, with '
               'generated subtitles.',
           icon: Icons.download_for_offline,

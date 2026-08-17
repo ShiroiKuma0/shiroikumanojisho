@@ -396,6 +396,9 @@ abstract class Language {
               .copyWith(
                 fontWeight: FontWeight.bold,
                 fontSize: appModel.dictionaryHeadingFontSize,
+                fontFamily: appModel.dictionaryHeadingFontFamily.isEmpty
+                    ? null
+                    : appModel.dictionaryHeadingFontFamily,
                 color: Color(appModel.dictionaryFontColor),
               ),
         ),

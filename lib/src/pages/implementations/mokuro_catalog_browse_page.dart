@@ -1415,8 +1415,11 @@ rp {
 }
 
 ::selection {
-  color: white;
-  background: rgba(255, 0, 0, 0.6);
+  /* Black on yellow, matching the app's own selection identity —
+     white on translucent red was the upstream default and the only
+     red left inside the reader (白い熊, 2026-08-17). */
+  color: #000000;
+  background: #FFFF00;
 }
 </style>
 `);

@@ -24,25 +24,11 @@ class _PlayerYoutubeOfflineHistoryPageState
   @override
   MediaSource get mediaSource => PlayerYoutubeOfflineSource.instance;
 
-  List<MediaItem> get _items => PlayerYoutubeOfflineSource.instance
+  /// The folder scan is already newest-first, which is the order
+  /// [HistoryPlayerPageState.buildHistory] renders in.
+  @override
+  List<MediaItem> get historyItems => PlayerYoutubeOfflineSource.instance
       .getStudyFolderItems(appModel: appModel);
-
-  @override
-  bool get shouldPlaceholderBeShown => _items.isEmpty;
-
-  @override
-  Widget build(BuildContext context) {
-    List<MediaItem> items = _items;
-
-    if (items.isEmpty) {
-      return buildPlaceholder();
-    } else {
-      // The parent's buildHistory reverses its input (Isar history is
-      // oldest-first); our folder scan is already newest-first, so
-      // pre-reverse to cancel that out.
-      return buildHistory(items.reversed.toList());
-    }
-  }
 
   @override
   Widget buildPlaceholder() {

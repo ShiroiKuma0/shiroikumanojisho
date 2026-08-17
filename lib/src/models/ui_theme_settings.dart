@@ -69,7 +69,7 @@ class UiThemeSettings {
 
   /// Accent color: sliders, switches, selection highlights, primary.
   /// Defaults to the app's long-standing red accents.
-  int get accentColor => _box.get('ui_accent_color', defaultValue: 0xFFFF0000);
+  int get accentColor => _box.get('ui_accent_color', defaultValue: 0xFFFFFF00);
   set accentColor(int value) {
     _box.put('ui_accent_color', value);
     _notify();
