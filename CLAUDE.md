@@ -76,6 +76,8 @@ These versions are declared in the repo and do not vary by machine. Listed here 
 
 The `versionCode` packing scheme is `X*1e8 + Y*1e6 + Z*1e4 + min(N,99)` with the thousands digit reserved for Flutter's non-overridable per-ABI offset under `--split-per-abi` (arm64 = +2000) — rationale documented in `android/app/build.gradle`.
 
+Dev build counters are **zero-padded to three digits** in `pubspec.yaml` itself (`version: 1.5.0+008`, written by `tools/bump-build.sh`), so APK filenames sort in build order. Gradle parses the counter as base 10, so padding does not disturb `versionCode` monotonicity.
+
 ### Test devices
 
 | Device | Role | Notes |

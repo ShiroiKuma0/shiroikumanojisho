@@ -7,6 +7,13 @@
 #   X.Y.Z+N  -> rewrites to X.Y.Z+(N+1)
 #   X.Y.Z    -> rewrites to X.Y.Z+1  (first dev build after a release)
 #
+# The counter is always written zero-padded to three digits (+007,
+# +014, +123) so APK filenames sort in build order in a file
+# manager's plain lexical listing -- unpadded, +10 sorts before +9.
+# Older unpadded counters are accepted as input and padded on the
+# next bump; the gradle layer parses the group with toInteger(), so
+# "008" is read as decimal 8 and versionCode stays monotonic.
+#
 # Prints the new full version string to stdout for easy capture in
 # shell blocks via new_ver=$(tools/bump-build.sh).
 #
@@ -43,8 +50,10 @@ else
     CURRENT_SEMVER=$CURRENT_VER
     CURRENT_BUILD=0
 fi
-NEW_BUILD=$((CURRENT_BUILD + 1))
-NEW_FULL="$CURRENT_SEMVER+$NEW_BUILD"
+# 10# forces base-10: a zero-padded counter (008, 009) would
+# otherwise be read as octal and either misparse or hard-error.
+NEW_BUILD=$((10#$CURRENT_BUILD + 1))
+NEW_FULL=$(printf '%s+%03d' "$CURRENT_SEMVER" "$NEW_BUILD")
 
 # Precise match on the full current line so nothing similar-looking
 # elsewhere in the file gets rewritten.

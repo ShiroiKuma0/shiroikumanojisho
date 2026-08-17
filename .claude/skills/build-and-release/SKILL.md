@@ -79,9 +79,11 @@ The filename encodes whether a build is a dev iteration or a published release, 
 
 ### Dev builds
 
-Filename: `shiroikuma-jisho_X.Y.Z+N_arm64-v8a.apk`
+Filename: `shiroikuma-jisho_X.Y.Z+NNN_arm64-v8a.apk`
 
-The `+N` is the pubspec build counter (auto-bumped by `tools/bump-build.sh`, see below). No datetime — every build bumps `+N` (hard rule), so the counter alone identifies the build. This matches the other shiroikuma-* apps (e.g. `shiroikuma-chizu_5.4.0+7_arm64-v8a.apk`). Because there is no datetime, the bump before every build is what keeps filenames unique — never build twice at the same `+N`.
+The `+NNN` is the pubspec build counter (auto-bumped by `tools/bump-build.sh`, see below), **zero-padded to three digits** — `+008`, `+014`, `+123` — so a file manager's plain lexical listing sorts in build order (unpadded, `+10` sorts before `+9`). No datetime — every build bumps the counter (hard rule), so it alone identifies the build. This matches the other shiroikuma-* apps (e.g. `shiroikuma-denwa_1.11.1+059_arm64-v8a.apk`). Because there is no datetime, the bump before every build is what keeps filenames unique — never build twice at the same counter.
+
+The padding lives in `tools/bump-build.sh`, which writes it into `pubspec.yaml` itself (`version: 1.5.0+008`), so the padded form is what the APK filename, the Android `versionName`, and the app's title bar all show. The gradle layer parses the counter with `toInteger()`, i.e. base 10 — `008` is 8, not octal — so `versionCode` stays monotonic across the switch. Builds before 1.5.0+008 used an unpadded counter; that history is not rewritten.
 
 ### Release builds
 
@@ -93,12 +95,12 @@ No `+N`. The tag and the version both pinpoint the build. The only difference fr
 
 The project follows semver. `pubspec.yaml`'s `version:` line has two forms:
 
-- During development: `X.Y.Z+N` where `N` is a monotonic build counter.
-- At release: plain `X.Y.Z` with no `+N`.
+- During development: `X.Y.Z+NNN` where `NNN` is a monotonic build counter, zero-padded to three digits.
+- At release: plain `X.Y.Z` with no counter.
 
 ### Dev: auto-bump before every build
 
-`tools/bump-build.sh` reads the current `version:` line, increments `+N`, writes it back, and prints the new version. Run it before every dev build:
+`tools/bump-build.sh` reads the current `version:` line, increments the counter, writes it back zero-padded to three digits, and prints the new version. Run it before every dev build:
 
 ```bash
 new_ver=$(tools/bump-build.sh)
