@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [1.5.0+015] - 2026-08-17
+
 ### Added
 
 - **All books** — a merged shelf at the top of the Reader source
@@ -43,6 +47,39 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- The current source is now shown as a **centred pill** — its name and
+  icon in bold, ringed by a rounded border in the UI theme's colours —
+  instead of grey hint text at the left edge of the bar, which was
+  easy to read past. Tapping the pill opens the source picker; the
+  source's own open action (file picker, library manager, browser)
+  moved onto the leading icon beside it.
+- Every source was renamed to say what it reads or plays: **EPUB
+  reader (ッツ)**, **PDF reader**, **Manga reader (mokuro)**, **Web
+  browser**, **Song lyrics**, **ChatGPT chat**, **Clipboard text**,
+  **WebSocket text**; **Local video files**, **Downloaded YouTube**,
+  **YouTube search**, **Network stream**. The Reader picker is
+  reordered to match: All books, EPUB, PDF, manga, then the rest.
+- Each Player source's tab now lists only its own videos. Every one of
+  them used to show the entire player history, so switching source
+  changed nothing on screen; the merged view is now **All videos**.
+- The add button and the Anki card creator swapped places. The app
+  bar's second slot now carries the active Reader source's add action
+  — Scanned PDF its PDF import, ッツ Ebook Reader its EPUB import,
+  mokuro its file picker — so adding a book is one reach from the top
+  of the screen and always matches the selected source. The source bar
+  below keeps its other actions (tweaks, catalogue, open link, TTU
+  settings, manager). Reader sources with nothing to add (browser,
+  clipboard, ChatGPT, WebSocket, lyrics) and the Player and Dictionary
+  tabs leave the slot empty.
+- The Anki card creator button is now **hidden by default**. It moved
+  from the app bar to the end of the media source bar; switch it back
+  on with "Anki card creator button" under **Toolbars** on the 白い熊
+  辞書 UI page (preference key `show_card_creator_button`). The
+  creator itself is unchanged and still reachable from dictionary
+  results and the quick actions.
+- Dev build counters are zero-padded to three digits — `1.5.0+008`
+  in the title bar and in the APK filename — so builds sort in order
+  in a file manager. Releases are unaffected: still bare `X.Y.Z`.
 - **Entry and translation now have separate font sizes**, not just
   separate fonts — three sliders on the UI page (heading, entry,
   translation). An unset translation size follows the entry size, so
@@ -122,42 +159,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   the library manager if needed), a book can no longer be registered
   as a translation of itself, and any such association already saved
   is dropped when the book is next opened.
-
-### Changed
-
-- The current source is now shown as a **centred pill** — its name and
-  icon in bold, ringed by a rounded border in the UI theme's colours —
-  instead of grey hint text at the left edge of the bar, which was
-  easy to read past. Tapping the pill opens the source picker; the
-  source's own open action (file picker, library manager, browser)
-  moved onto the leading icon beside it.
-- Every source was renamed to say what it reads or plays: **EPUB
-  reader (ッツ)**, **PDF reader**, **Manga reader (mokuro)**, **Web
-  browser**, **Song lyrics**, **ChatGPT chat**, **Clipboard text**,
-  **WebSocket text**; **Local video files**, **Downloaded YouTube**,
-  **YouTube search**, **Network stream**. The Reader picker is
-  reordered to match: All books, EPUB, PDF, manga, then the rest.
-- Each Player source's tab now lists only its own videos. Every one of
-  them used to show the entire player history, so switching source
-  changed nothing on screen; the merged view is now **All videos**.
-- The add button and the Anki card creator swapped places. The app
-  bar's second slot now carries the active Reader source's add action
-  — Scanned PDF its PDF import, ッツ Ebook Reader its EPUB import,
-  mokuro its file picker — so adding a book is one reach from the top
-  of the screen and always matches the selected source. The source bar
-  below keeps its other actions (tweaks, catalogue, open link, TTU
-  settings, manager). Reader sources with nothing to add (browser,
-  clipboard, ChatGPT, WebSocket, lyrics) and the Player and Dictionary
-  tabs leave the slot empty.
-- The Anki card creator button is now **hidden by default**. It moved
-  from the app bar to the end of the media source bar; switch it back
-  on with "Anki card creator button" under **Toolbars** on the 白い熊
-  辞書 UI page (preference key `show_card_creator_button`). The
-  creator itself is unchanged and still reachable from dictionary
-  results and the quick actions.
-- Dev build counters are zero-padded to three digits — `1.5.0+008`
-  in the title bar and in the APK filename — so builds sort in order
-  in a file manager. Releases are unaffected: still bare `X.Y.Z`.
 
 ## [1.5.0+6] - 2026-07-25
 

@@ -6,11 +6,11 @@
 
 **An immersion language-learning suite: video player, audio-synced ebook reader, dictionary and Anki card factory in one app.**
 
-A fork of [arianneorpilla/jidoujisho](https://github.com/arianneorpilla/jidoujisho) with **major additions**: on-device OCR for Blu-ray subtitles and scanned PDFs, five new languages, an audio-synced reader with SRT subtitles and Tasker control, a dual-language translation split view, per-book appearance settings, cross-device backup, and an e-ink-friendly UI.
+A fork of [arianneorpilla/jidoujisho](https://github.com/arianneorpilla/jidoujisho) with **major additions**: on-device OCR for Blu-ray subtitles and scanned PDFs, five new languages, an audio-synced reader with SRT subtitles and Tasker control, a dual-language translation split view, one shelf for every imported book, per-book appearance settings, cross-device backup, and an e-ink-friendly UI.
 
 Installs **side-by-side** with jidoujisho (app id `shiroikuma.jisho`).
 
-**📥 Latest release: [`1.5.0+6`](https://github.com/ShiroiKuma0/shiroikumanojisho/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikumanojisho/releases)
+**📥 Latest release: [`1.5.0+015`](https://github.com/ShiroiKuma0/shiroikumanojisho/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikumanojisho/releases)
 
 </div>
 
@@ -33,6 +33,11 @@ German, Polish, Russian, Ukrainian and Czech added on top of upstream's Japanese
 
 ## 🎧 Audio-synced reading with external control
 A reader audio toolbar plays an audiobook alongside the ebook, synced by SRT subtitles: seek by subtitle, replay, chapter navigation, condensed and auto-pause (shadowing) playback modes. Seven broadcast intents in the `shiroikuma.jisho.action.PLAYBACK_*` namespace let Tasker or any automation tool drive playback — next/previous/replay subtitle, play/pause, chapter navigation, mode cycling — without touching the screen. The toolbar's buttons are individually hideable so it fits narrow screens.
+
+---
+
+## 📚 One shelf for every book
+**All books** merges everything already imported — EPUBs held by the ッツ reader, OCR'd scanned PDFs, mokuro manga volumes — into a single shelf ordered by what was read last, each tile badged with the source it came from and opening in that source. **All videos** does the same for local files and downloaded YouTube. The active source is named in a bold bordered pill in the middle of the bar, so which reader you are in is never a guess, and the pill is itself the source picker. The ッツ library is cached, so the tab paints instantly instead of waiting for a hidden webview to boot the entire reader; a scan that stalls now falls back to the cache instead of spinning forever. Books can be deleted outright — record, bookmarks, and every per-book setting — so a re-import comes back clean.
 
 ---
 
@@ -62,7 +67,7 @@ A yellow-on-black high-contrast theme, wrapping menus, and UI-fit work targeted 
 ---
 
 ## 📘 Dictionary upgrades
-Every Japanese word in an entry is tappable for recursive lookup with clean back/close-all navigation; word-boundary detection on tap works in all supported languages; dictionaries can be edited, reordered and searched; font size adjusts live with an edge swipe (toggleable).
+Every Japanese word in an entry is tappable for recursive lookup with clean back/close-all navigation; word-boundary detection on tap works in all supported languages; dictionaries can be edited, reordered and searched; font size adjusts live with an edge swipe (toggleable). Typography is settable per role — separate font and size for the heading, for definitions in the target language, and for glosses in another one — with the role decided from each entry's own text, since dictionary formats record which language a dictionary applies to but never which language it explains it in.
 
 ---
 
