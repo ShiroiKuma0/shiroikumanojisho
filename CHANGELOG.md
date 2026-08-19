@@ -6,7 +6,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- **Importing a book no longer replaces the one already in the
+  library that happens to share its title.** ッツ identifies books by
+  title alone: it looked the incoming `dc:title` up, found a match,
+  and rewrote *that* record in place — so the new book took over the
+  old one's library entry, and, because bookmarks are keyed to the
+  record rather than the book, its reading position too. The old book
+  was simply gone, with nothing said about it. Two translations of the
+  same novel carry the same `dc:title`, which is how this surfaced:
+  importing the second one produced a single shelf tile, both halves
+  of a split view showing the same text, and a translation book that
+  could not be attached to anything because it *was* the primary.
+
+  Imports now insert instead of replacing, and the newcomer's library
+  entry is labelled so the two can be told apart — by the language the
+  EPUB declares (`Lázár` and `Lázár [cs]`), or by a counter
+  (`Lázár (2)`) when it declares none or the tagged name is itself
+  taken. A short message names both titles when this happens.
+
+  The EPUB file is never modified: the label exists only as the title
+  of ッツ's library entry. This also settles the knock-on problems,
+  since per-book state — the translation-book association, split
+  ratio, font size, per-book reader settings — is keyed by title and
+  so was shared between same-titled books as well. Applies to both
+  import buttons and to ッツ's own.
 
 ## [1.5.0+015] - 2026-08-17
 

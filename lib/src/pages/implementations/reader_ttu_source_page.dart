@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:async_zip/async_zip.dart';
 import 'package:document_file_save_plus/document_file_save_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -1811,6 +1813,13 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
       }
       return;
     }
+    // Arm the title-collision guard before the file goes anywhere
+    // near TTU. Without it, an EPUB whose `dc:title` matches a book
+    // already in the library replaces that book instead of joining
+    // it — see [_armTitleCollisionGuard].
+    final String? languageTag = await _epubLanguageTag(f.path, bytes);
+    await _armTitleCollisionGuard(target, languageTag);
+
     // Sanitize filename for JS string literal.
     final String safeName = (f.name.isNotEmpty ? f.name : 'imported.epub')
         .replaceAll(r'\', r'\\')
@@ -1865,18 +1874,195 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
       // webview was mid-rebuild) and the dispatch likely succeeded.
       if (parsed != null && parsed['ok'] == false) {
         final String err = parsed['err']?.toString() ?? 'unknown error';
+        await _disarmTitleCollisionGuard(target);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Import failed: $err')),
           );
         }
+        return;
       }
+      // The dispatch landed; TTU's parse-and-store runs in the
+      // background from here. Watch for the guard firing so a
+      // relabelled book is announced rather than silently appearing
+      // in the library under a name the user didn't choose.
+      unawaited(_watchTitleCollisionGuard(target));
     } catch (e) {
+      await _disarmTitleCollisionGuard(target);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Injection failed: $e')),
         );
       }
+    }
+  }
+
+  /// Language code declared by an EPUB's OPF `dc:language`,
+  /// normalised to a short lowercase tag (`de`, `cs`, `ja`). Used to
+  /// label a book whose title collides with one already in the
+  /// library — see [_armTitleCollisionGuard].
+  ///
+  /// Strictly read-only. The archive is opened, two small entries are
+  /// decompressed, and it is closed again; nothing about the source
+  /// file is ever rewritten. The disambiguation this feeds lands in
+  /// TTU's IndexedDB, never in the book.
+  ///
+  /// [sourcePath] is the picker's on-disk copy when it has one. When
+  /// it doesn't, [bytes] are spilled to a temp file, because the zip
+  /// reader works off a [File]. Returns null on any failure, which
+  /// downgrades the label to a `(2)`-style counter rather than
+  /// blocking the import over a missing nicety.
+  Future<String?> _epubLanguageTag(String? sourcePath, Uint8List bytes) async {
+    File? spill;
+    File archive;
+    if (sourcePath != null && File(sourcePath).existsSync()) {
+      archive = File(sourcePath);
+    } else {
+      spill = File('${Directory.systemTemp.path}/sk_epub_probe_'
+          '${DateTime.now().microsecondsSinceEpoch}.epub');
+      await spill.writeAsBytes(bytes, flush: true);
+      archive = spill;
+    }
+    final ZipFileReader reader = ZipFileReader();
+    try {
+      await reader.open(archive);
+      // META-INF/container.xml names the OPF package document; the
+      // OPF is where dc:language lives. Both are tiny.
+      final String container = utf8.decode(
+          await reader.read('META-INF/container.xml'),
+          allowMalformed: true);
+      final String? opfPath =
+          RegExp('full-path\\s*=\\s*[\'"]([^\'"]+)[\'"]')
+              .firstMatch(container)
+              ?.group(1);
+      if (opfPath == null) {
+        return null;
+      }
+      final String opf =
+          utf8.decode(await reader.read(opfPath), allowMalformed: true);
+      final String? declared = RegExp(
+        '<dc:language[^>]*>\\s*([^<\\s]+)',
+        caseSensitive: false,
+      ).firstMatch(opf)?.group(1);
+      if (declared == null) {
+        return null;
+      }
+      // 'de' / 'cs-CZ' / 'ja_JP' → 'de' / 'cs' / 'ja'.
+      final String tag = declared
+          .split(RegExp('[-_]'))
+          .first
+          .toLowerCase()
+          .replaceAll(RegExp('[^a-z]'), '');
+      if (tag.isEmpty || tag.length > 8) {
+        return null;
+      }
+      return tag;
+    } catch (_) {
+      // Malformed archive, missing container, unreadable OPF — none
+      // of which should stop the book being imported.
+      return null;
+    } finally {
+      try {
+        await reader.close();
+      } catch (_) {}
+      try {
+        spill?.deleteSync();
+      } catch (_) {}
+    }
+  }
+
+  /// Arm the webview-side title-collision guard for one import.
+  ///
+  /// TTU looks a book up by title and, on a hit, rewrites that record
+  /// under its existing id — so importing an EPUB whose `dc:title` is
+  /// already in the library REPLACES that entry, silently, and hands
+  /// the newcomer the replaced book's bookmark. Two translations of
+  /// one novel share a `dc:title`, which is precisely the case this
+  /// exists for.
+  ///
+  /// Armed, the guard suppresses that single lookup so TTU inserts a
+  /// new record instead, then relabels it with [languageTag]
+  /// (`Lázár [cs]`) or, failing that, a counter (`Lázár (2)`). The
+  /// EPUB file is not touched — the new name exists only as the title
+  /// of TTU's library entry.
+  ///
+  /// Best-effort: if the patch isn't installed yet (webview mid-
+  /// rebuild) the import still proceeds, just unguarded.
+  Future<void> _armTitleCollisionGuard(
+      InAppWebViewController controller, String? languageTag) async {
+    final String tag =
+        (languageTag ?? '').replaceAll(RegExp('[^a-zA-Z0-9]'), '');
+    try {
+      await controller.evaluateJavascript(
+          source: 'window.__skArmImportGuard && '
+              'window.__skArmImportGuard("$tag", 180000);');
+    } catch (_) {
+      // No guard for this import; the import itself is unaffected.
+    }
+  }
+
+  /// Poll the armed guard for a rename and report it to the user.
+  ///
+  /// TTU parses the EPUB and writes to IndexedDB on its own schedule,
+  /// so a rename lands well after the `change` dispatch returns —
+  /// a moment for a short book, tens of seconds for a long one.
+  /// Polling keeps the importer non-blocking. Disarms on every exit
+  /// path so a stale guard can't intercept an unrelated title lookup
+  /// later in the session.
+  Future<void> _watchTitleCollisionGuard(
+      InAppWebViewController controller) async {
+    for (int i = 0; i < 45; i++) {
+      await Future<void>.delayed(const Duration(seconds: 1));
+      if (!mounted) {
+        return;
+      }
+      String raw;
+      try {
+        final dynamic result = await controller.evaluateJavascript(
+            source: 'window.__skImportGuardResult ? '
+                'window.__skImportGuardResult() : "";');
+        raw = result is String ? result : '';
+      } catch (_) {
+        // Webview torn down mid-import — nothing left to report to.
+        return;
+      }
+      if (raw.isEmpty) {
+        continue;
+      }
+      String from = '';
+      String to = '';
+      try {
+        final Map<String, dynamic> parsed =
+            jsonDecode(raw) as Map<String, dynamic>;
+        from = parsed['from']?.toString() ?? '';
+        to = parsed['to']?.toString() ?? '';
+      } catch (_) {
+        // Unparseable result still means the guard is spent.
+      }
+      await _disarmTitleCollisionGuard(controller);
+      if (mounted && to.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            duration: const Duration(seconds: 8),
+            content: Text('“$from” was already in the library. '
+                'Imported as “$to” instead of replacing it.'),
+          ),
+        );
+      }
+      return;
+    }
+    await _disarmTitleCollisionGuard(controller);
+  }
+
+  /// Clear the import guard so it cannot intercept a later lookup.
+  Future<void> _disarmTitleCollisionGuard(
+      InAppWebViewController controller) async {
+    try {
+      await controller.evaluateJavascript(
+          source: 'window.__skDisarmImportGuard && '
+              'window.__skDisarmImportGuard();');
+    } catch (_) {
+      // Webview gone; the guard's own TTL closes it regardless.
     }
   }
 
@@ -2381,7 +2567,13 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
   ///      that has a translation attached, which isn't what the user
   ///      wants to see there.
   ///
-  ///   2. Expose `window.__ttuFlushBookmark(timeoutMs)` → Promise.
+  ///   2. Install the title-collision import guard — see the
+  ///      comment block on the guard itself. TTU resolves books by
+  ///      title, so importing a book whose `dc:title` already exists
+  ///      overwrites the existing library entry; the guard turns that
+  ///      overwrite into an insert and relabels the new entry.
+  ///
+  ///   3. Expose `window.__ttuFlushBookmark(timeoutMs)` → Promise.
   ///      Dispatches a synthetic `beforeunload` event to `window` —
   ///      which TTU's book page registers a handler for, the same
   ///      handler the browser would normally fire on real navigation
@@ -2455,6 +2647,219 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
           }, timeoutMs);
         });
       };
+
+      // ---- Title-collision import guard ------------------------
+      //
+      // TTU's `upsertData` resolves a book by TITLE and, on a hit,
+      // rewrites that record under the EXISTING id. Importing a book
+      // whose `dc:title` already exists therefore REPLACES the
+      // library entry rather than adding one — and because the
+      // bookmark store is keyed by record id, the replacement
+      // inherits the replaced book's reading position. Two
+      // translations of one novel carry the same `dc:title`, so this
+      // is an everyday case here, not a corner case.
+      //
+      // While armed, the guard makes that one lookup miss. TTU then
+      // takes its insert branch and creates a genuinely new record,
+      // whose title is relabelled on the way into the store so the
+      // library shows two books that can be told apart. The EPUB
+      // file is never modified — only the title TTU stores.
+
+      // Snapshot of the titles currently in the `data` store. The
+      // interception point is inside IDBIndex.get, which is
+      // synchronous and so cannot await an IDB read; this cache is
+      // what makes the decision possible there. Refreshed at install
+      // and on every arm.
+      var titleCache = [];
+
+      function refreshTitleCache() {
+        return new Promise(function(resolve) {
+          var out = [];
+          try {
+            var open = indexedDB.open('books');
+            // TTU opens `books` at version 4 behind a
+            // switch(oldVersion) whose only cases are 0, 2 and 3,
+            // each with its own break. There is no case 1. A
+            // version-less open() here on a profile where TTU has
+            // not yet created the database would create an empty one
+            // at version 1 — and TTU's own open would then "upgrade"
+            // 1 to 4, match no case at all, and end up with a
+            // database that has no object stores and a library that
+            // can never work again. This only ever runs once TTU has
+            // its database open, but detect the creation anyway and
+            // undo it, so this can never be what bricks a fresh
+            // install.
+            var created = false;
+            open.onupgradeneeded = function() { created = true; };
+            open.onerror = function() { resolve(titleCache); };
+            open.onblocked = function() { resolve(titleCache); };
+            open.onsuccess = function() {
+              var db = open.result;
+              if (created) {
+                try {
+                  db.close();
+                  indexedDB.deleteDatabase('books');
+                } catch (e) {}
+                // There was no library at all, so there are no titles
+                // to collide with. Say so rather than leaving an older
+                // snapshot standing: the guard decides from this list
+                // alone, and a list describing books that no longer
+                // exist makes it relabel imports that collide with
+                // nothing.
+                titleCache = [];
+                resolve(titleCache);
+                return;
+              }
+              try {
+                var tx = db.transaction('data', 'readonly');
+                // A key cursor walks index entries only. Reading the
+                // records instead would materialise every book's
+                // full HTML and image blobs just to see its title.
+                var cursor = tx.objectStore('data')
+                    .index('title').openKeyCursor();
+                cursor.onerror = function() {
+                  db.close();
+                  resolve(titleCache);
+                };
+                cursor.onsuccess = function(ev) {
+                  var c = ev.target.result;
+                  if (c) {
+                    out.push(String(c.key));
+                    c.continue();
+                    return;
+                  }
+                  titleCache = out;
+                  db.close();
+                  resolve(titleCache);
+                };
+              } catch (e) {
+                // No `data` store to read — same conclusion as above.
+                try { db.close(); } catch (e2) {}
+                titleCache = [];
+                resolve(titleCache);
+              }
+            };
+          } catch (e) { resolve(titleCache); }
+        });
+      }
+
+      function activeGuard() {
+        var st = window.__skImportGuard;
+        if (!st) return null;
+        if (st.done || Date.now() > st.until) return null;
+        return st;
+      }
+
+      // Pick a library label that is free. The language tag goes
+      // first because it says something ("Lazar [cs]"); a counter is
+      // the fallback when the EPUB declares no language or the
+      // tagged form is itself taken.
+      function freeTitle(base, lang, taken) {
+        var have = {};
+        for (var i = 0; i < taken.length; i++) have[taken[i]] = true;
+        if (lang) {
+          var tagged = base + ' [' + lang + ']';
+          if (!have[tagged]) return tagged;
+        }
+        for (var n = 2; n < 1000; n++) {
+          var numbered = base + ' (' + n + ')';
+          if (!have[numbered]) return numbered;
+        }
+        return base + ' (' + Date.now() + ')';
+      }
+
+      window.__skArmImportGuard = function(lang, ttlMs) {
+        var st = {
+          lang: (lang || '').trim(),
+          until: Date.now() + (ttlMs || 180000),
+          taken: titleCache.slice(),
+          collided: null,
+          pending: null,
+          renamed: null,
+          done: false
+        };
+        window.__skImportGuard = st;
+        // Freshen in the background. Everything still to happen
+        // before upsertData runs — base64 of the file, the bridge
+        // hop, TTU unzipping and parsing the whole book — is orders
+        // of magnitude slower than this one index scan, so the
+        // refreshed list is always in place in time.
+        refreshTitleCache().then(function(titles) {
+          if (window.__skImportGuard === st && st.collided === null) {
+            st.taken = titles;
+          }
+        });
+        return true;
+      };
+
+      window.__skDisarmImportGuard = function() {
+        window.__skImportGuard = null;
+        return true;
+      };
+
+      window.__skImportGuardResult = function() {
+        var st = window.__skImportGuard;
+        if (!st || !st.renamed) return '';
+        return JSON.stringify(st.renamed);
+      };
+
+      // A title no book can have. Re-issuing the lookup with this
+      // key yields a real IDBRequest that really misses, which is
+      // what the idb promise wrapper downstream expects — far safer
+      // than trying to fabricate an IDBRequest resolving to
+      // undefined.
+      var NO_SUCH_TITLE = '__sk_no_such_title_4f91c7__';
+
+      var origIndexGet = IDBIndex.prototype.get;
+      IDBIndex.prototype.get = function(key) {
+        try {
+          var st = activeGuard();
+          if (st && st.collided === null
+              && this.name === 'title'
+              && this.objectStore && this.objectStore.name === 'data'
+              && typeof key === 'string'
+              && st.taken.indexOf(key) !== -1) {
+            st.collided = key;
+            st.pending = freeTitle(key, st.lang, st.taken);
+            return origIndexGet.call(this, NO_SUCH_TITLE);
+          }
+        } catch (e) {}
+        return origIndexGet.apply(this, arguments);
+      };
+
+      var origAdd = IDBObjectStore.prototype.add;
+      IDBObjectStore.prototype.add = function(value) {
+        try {
+          var st = activeGuard();
+          if (st && st.collided !== null && this.name === 'data'
+              && value && value.title === st.collided) {
+            value.title = st.pending;
+            st.renamed = { from: st.collided, to: st.pending };
+            // One relabel per arm: the importer sends one file at a
+            // time, and leaving the guard live past its own import
+            // is how it would start intercepting unrelated lookups.
+            st.done = true;
+            titleCache.push(st.pending);
+          }
+        } catch (e) {}
+        return origAdd.apply(this, arguments);
+      };
+
+      // TTU's own import button never goes through the Flutter
+      // importer, so arm from the file input's change event as well.
+      // No language tag is available on that path, so the label
+      // falls back to a counter. Skipped when the Flutter importer
+      // already armed — it dispatches this very event, and its arm
+      // carries the tag.
+      document.addEventListener('change', function(ev) {
+        try {
+          var el = ev.target;
+          if (!el || el.tagName !== 'INPUT' || el.type !== 'file') return;
+          if ((el.getAttribute('accept') || '').indexOf('.epub') === -1) return;
+          if (activeGuard()) return;
+          window.__skArmImportGuard('', 180000);
+        } catch (e) {}
+      }, true);
     })();
   ''';
 
