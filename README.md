@@ -10,7 +10,7 @@ A fork of [arianneorpilla/jidoujisho](https://github.com/arianneorpilla/jidoujis
 
 Installs **side-by-side** with jidoujisho (app id `shiroikuma.jisho`).
 
-**📥 Latest release: [`1.5.0+015`](https://github.com/ShiroiKuma0/shiroikumanojisho/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikumanojisho/releases)
+**📥 Latest release: [`1.5.0+016`](https://github.com/ShiroiKuma0/shiroikumanojisho/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikumanojisho/releases)
 
 </div>
 
@@ -42,7 +42,7 @@ A reader audio toolbar plays an audiobook alongside the ebook, synced by SRT sub
 ---
 
 ## 📖 Dual-language reader
-Open a translation book in a split view next to the original and keep both in sight while reading. Per-book, per-pane appearance settings: writing mode (Japanese defaults to vertical), font size, font color, background, weight, margins and line spacing — every book remembers its own.
+Open a translation book in a split view next to the original and keep both in sight while reading. Per-book, per-pane appearance settings: writing mode (Japanese defaults to vertical), font size, font color, background, weight, margins and line spacing — every book remembers its own. Two editions of the same novel carry the same title in their metadata, and ッツ identifies books by title alone — so importing the second one used to silently replace the first, taking its reading position with it. Here they import side by side, the newcomer labelled by the language it declares (`Lázár` and `Lázár [cs]`), without the EPUB files being touched.
 
 ---
 
