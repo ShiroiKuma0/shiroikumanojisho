@@ -40,6 +40,25 @@ enum BookNavigationType {
   goToPercent,
 }
 
+/// Wraps a reader bottom sheet's body in the yellow line that marks
+/// where the sheet begins.
+///
+/// The reader's sheets are black and slide up over a black page, so
+/// without an explicit edge they have no visible top boundary and their
+/// rows read as part of the book text. [Container] rather than
+/// [DecoratedBox] on purpose: it insets the child by the border width,
+/// so the line sits above the first row instead of painting over it.
+/// The player's sheets get their edge from [JidoujishoBottomSheet],
+/// which draws a full yellow border of its own in dark mode.
+Widget _sheetWithTopEdge({required Widget child}) => Container(
+      decoration: const BoxDecoration(
+        border: Border(
+          top: BorderSide(color: Color(0xFFFFFF00), width: 2),
+        ),
+      ),
+      child: child,
+    );
+
 /// A toolbar for playing audiobook MP3 files synced with SRT subtitles,
 /// displayed at the bottom of the reader page.
 class ReaderAudioToolbar extends StatefulWidget {
@@ -949,7 +968,8 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
                 displayColor: const Color(0xFFFFFF00),
               ),
         ),
-        child: SafeArea(
+        child: _sheetWithTopEdge(
+          child: SafeArea(
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1067,6 +1087,7 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
         ),
         ),
         ),
+        ),
       ),
     );
   }
@@ -1125,7 +1146,8 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
       context: context,
       backgroundColor: Colors.black,
       builder: (ctx) {
-        return SafeArea(
+        return _sheetWithTopEdge(
+          child: SafeArea(
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1223,6 +1245,7 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
                 ],
               ],
             ),
+          ),
           ),
         );
       },

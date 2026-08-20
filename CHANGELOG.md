@@ -6,7 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **The reader's pull-up sheets — the toolbar's options (`⋮`) and
+  navigate-to menus — now draw a yellow line along their top edge.**
+  Both are black and slide up over a black reader page, so nothing
+  marked where the page ended and the menu began: the rows read as if
+  they were part of the text. The line uses the reader's own yellow,
+  matching the rest of the sheets' palette. The player's sheets were
+  already bounded — `JidoujishoBottomSheet` draws a full yellow border
+  around itself in dark mode — so this brings the reader in line with
+  them.
 
 ## [1.5.0+016] - 2026-08-19
 
