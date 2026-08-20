@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [1.5.0+018] - 2026-08-20
+
 ### Changed
 
 - **The reader's pull-up sheets — the toolbar's options (`⋮`) and

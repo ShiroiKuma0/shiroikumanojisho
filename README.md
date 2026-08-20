@@ -10,7 +10,7 @@ A fork of [arianneorpilla/jidoujisho](https://github.com/arianneorpilla/jidoujis
 
 Installs **side-by-side** with jidoujisho (app id `shiroikuma.jisho`).
 
-**📥 Latest release: [`1.5.0+016`](https://github.com/ShiroiKuma0/shiroikumanojisho/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikumanojisho/releases)
+**📥 Latest release: [`1.5.0+018`](https://github.com/ShiroiKuma0/shiroikumanojisho/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikumanojisho/releases)
 
 </div>
 
@@ -62,7 +62,7 @@ Everything — dictionaries, reading positions, books, preferences, browser book
 ---
 
 ## 🖥️ E-ink friendly
-A yellow-on-black high-contrast theme, wrapping menus, and UI-fit work targeted at narrow e-ink devices (developed against a Boox Palma 2 Pro). EPUB import bypasses the in-webview file chooser that crashes Boox firmware.
+A yellow-on-black high-contrast theme, wrapping menus, and UI-fit work targeted at narrow e-ink devices (developed against a Boox Palma 2 Pro). Panels are drawn with a visible edge rather than a shade of grey — the reader's pull-up sheets carry a yellow line along their top, since a black sheet over a black page has no boundary an e-ink screen can show. EPUB import bypasses the in-webview file chooser that crashes Boox firmware.
 
 ---
 
