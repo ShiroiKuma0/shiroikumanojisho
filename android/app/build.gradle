@@ -78,6 +78,23 @@ def computedVersionCode =
     pubspecPatch * 10000 +
     pubspecBuildN
 
+// Release signing. The keystore and its passwords live OUTSIDE the
+// repo — `keystore.properties` at the repo root is gitignored, and the
+// canonical copies are in ~/.android-keystores/ and the 暗号 vault.
+//
+// Until 1.5.0+024 this app's release buildType carried
+// `signingConfig signingConfigs.debug`, so every "release" APK ever
+// shipped — tagged releases included — was signed with the universal
+// Android debug key. That is why the missing-keystore path below
+// FAILS the build instead of falling back to debug: a silent fallback
+// is exactly how it went unnoticed for so long.
+def keystorePropertiesFile = rootProject.file("../keystore.properties")
+def keystoreProperties = new Properties()
+def hasKeystore = keystorePropertiesFile.exists()
+if (hasKeystore) {
+    keystorePropertiesFile.withInputStream { keystoreProperties.load(it) }
+}
+
 android {
     namespace "shiroikuma.jisho"
     compileSdk flutter.compileSdkVersion
@@ -94,6 +111,17 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
+    signingConfigs {
+        if (hasKeystore) {
+            release {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
+
     defaultConfig {
         applicationId "shiroikuma.jisho"
         minSdkVersion 24
@@ -108,7 +136,13 @@ android {
     buildTypes {
         release {
             minifyEnabled true
-            signingConfig signingConfigs.debug
+            if (!hasKeystore) {
+                throw new GradleException(
+                    "keystore.properties is missing — a release build would " +
+                    "silently fall back to the Android debug key. Restore it " +
+                    "from the 暗号 vault (android-keystores.org) before building.")
+            }
+            signingConfig signingConfigs.release
             proguardFiles 'proguard-rules.pro'
         }
 

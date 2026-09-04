@@ -56,3 +56,9 @@ app.*.map.json
 *.*~android/build/
 vendor/async_zip/android/.cxx/
 vendor/mecab_dart/android/.cxx/
+
+# Release signing — the keystore and its passwords never enter the repo.
+# Canonical copies live in ~/.android-keystores/ and the 暗号 vault.
+keystore.properties
+*.jks
+*.keystore
