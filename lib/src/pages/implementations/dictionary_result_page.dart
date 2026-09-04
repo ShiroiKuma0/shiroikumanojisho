@@ -109,6 +109,7 @@ class _DictionaryResultPageState extends BasePageState<DictionaryResultPage> {
   /// Translation size as a proportion of the entry size, captured at
   /// the start of a drag so the two keep their relationship.
   double _gestureTranslationRatio = 1;
+  double _gestureRubyRatio = 14.0 / 24.0;
   final ValueNotifier<bool> _indicatorVisible = ValueNotifier<bool>(false);
   final ValueNotifier<double> _indicatorSize = ValueNotifier<double>(16);
   DateTime? _lastRefreshAt;
@@ -117,6 +118,10 @@ class _DictionaryResultPageState extends BasePageState<DictionaryResultPage> {
   static const double _fontSizeMin = 8;
   static const double _fontSizeMax = 60;
   static const double _headingSizeMax = 80;
+
+  /// Furigana is allowed below [_fontSizeMin] — it is meant to be the
+  /// small text, and the settings slider bottoms out at 6 too.
+  static const double _rubySizeMin = 6;
   static const Duration _refreshThrottle = Duration(milliseconds: 50);
 
   void _onFontDragUpdate(DragUpdateDetails d) {
@@ -137,6 +142,12 @@ class _DictionaryResultPageState extends BasePageState<DictionaryResultPage> {
       _gestureTranslationRatio = _gestureEntryFontSize > 0
           ? appModel.dictionaryTranslationFontSize / _gestureEntryFontSize
           : 1;
+      // Furigana rides along on the same terms. Leaving it out would
+      // grow the heading away from the reading printed above it,
+      // which is the exact mismatch its own setting exists to fix.
+      _gestureRubyRatio = _gestureEntryFontSize > 0
+          ? appModel.dictionaryHeadingRubyFontSize / _gestureEntryFontSize
+          : (14.0 / 24.0);
     }
 
     final double step = -d.delta.dy / 12;
@@ -147,6 +158,8 @@ class _DictionaryResultPageState extends BasePageState<DictionaryResultPage> {
     final double newTranslation =
         (_gestureEntryFontSize * _gestureTranslationRatio)
             .clamp(_fontSizeMin, _fontSizeMax);
+    final double newRuby = (_gestureEntryFontSize * _gestureRubyRatio)
+        .clamp(_rubySizeMin, _fontSizeMax);
 
     // Overlay updates take the fast path — they do not call
     // setState so the dictionary subtree is untouched.
@@ -159,6 +172,7 @@ class _DictionaryResultPageState extends BasePageState<DictionaryResultPage> {
       appModel.setDictionaryFontSize(_gestureEntryFontSize);
       appModel.setDictionaryHeadingFontSize(newHeading);
       appModel.setDictionaryTranslationFontSize(newTranslation);
+      appModel.setDictionaryHeadingRubyFontSize(newRuby);
       appModel.refresh();
       _lastRefreshAt = now;
     }
@@ -173,9 +187,12 @@ class _DictionaryResultPageState extends BasePageState<DictionaryResultPage> {
     final double finalTranslation =
         (_gestureEntryFontSize * _gestureTranslationRatio)
             .clamp(_fontSizeMin, _fontSizeMax);
+    final double finalRuby = (_gestureEntryFontSize * _gestureRubyRatio)
+        .clamp(_rubySizeMin, _fontSizeMax);
     appModel.setDictionaryFontSize(_gestureEntryFontSize);
     appModel.setDictionaryHeadingFontSize(finalHeading);
     appModel.setDictionaryTranslationFontSize(finalTranslation);
+    appModel.setDictionaryHeadingRubyFontSize(finalRuby);
     appModel.refresh();
     _lastRefreshAt = null;
     _hideIndicatorTimer?.cancel();

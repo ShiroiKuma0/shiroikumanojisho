@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:async_zip/async_zip.dart';
 import 'package:document_file_save_plus/document_file_save_plus.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
@@ -200,15 +201,22 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
   String? _secondaryCurrentUrl;
 
   // Edge gesture state
-  static const _volumeChannel =
-      MethodChannel('shiroikuma.jisho/volume');
-  double _gestureVolume = 0.5;
-  double _gestureMaxVolume = 15;
   double _gestureFontSize = 20;
   double _gestureFontSizeSecondary = 20;
   bool _lastFontSwipeWasSecondary = false;
-  bool _showVolumeIndicator = false;
   bool _showFontSizeIndicator = false;
+
+  /// Handle on the audio toolbar, so the right-edge swipe can open
+  /// its subtitle list. The gesture has to live up here — it sits in
+  /// the [Stack] over the webview — while the subtitles and the audio
+  /// player belong to the toolbar.
+  final GlobalKey<ReaderAudioToolbarState> _audioToolbarKey =
+      GlobalKey<ReaderAudioToolbarState>();
+
+  /// Guards against a single swipe opening the sheet more than once:
+  /// [GestureDetector.onVerticalDragStart] can fire again while the
+  /// modal route is still going up.
+  bool _subtitleListOpening = false;
 
   @override
   void initState() {
@@ -235,7 +243,6 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
             ? 'vertical-rl'
             : 'horizontal-tb';
     _initSecondaryBook();
-    _initGestureVolume();
     _startProgressPolling();
 
     // Pre-warm the in-memory term index for the current language if
@@ -606,14 +613,18 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
     return 'sec_${k.replaceAll(RegExp('[^a-zA-Z0-9]'), '_')}';
   }
 
-  Future<void> _initGestureVolume() async {
+  /// Open the audio toolbar's subtitle list — what the right-edge
+  /// vertical swipe does. It used to drive the system volume; the
+  /// list is the more useful thing to reach from a reading position,
+  /// and the volume keys are a hardware gesture away.
+  Future<void> _openSubtitleList() async {
+    if (_subtitleListOpening) return;
+    _subtitleListOpening = true;
     try {
-      final result = await _volumeChannel.invokeMethod('getVolume');
-      if (result is List) {
-        _gestureVolume = (result[0] as num).toDouble();
-        _gestureMaxVolume = (result[1] as num).toDouble();
-      }
-    } catch (_) {}
+      await _audioToolbarKey.currentState?.showSubtitleList();
+    } finally {
+      _subtitleListOpening = false;
+    }
   }
 
   Future<void> _initGestureFontSize() async {
@@ -639,75 +650,87 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
     } catch (_) {}
   }
 
-  void _onEdgeVerticalDragUpdate(
-      DragUpdateDetails d, bool isRight, bool isSecondary) {
+  /// Left-edge vertical drag: font size, routed to the controller for
+  /// the half being swiped. (The right edge no longer drags anything
+  /// — it opens the subtitle list on drag start, see
+  /// [_openSubtitleList].)
+  void _onEdgeVerticalDragUpdate(DragUpdateDetails d, bool isSecondary) {
     double delta = -d.delta.dy;
-    if (isRight) {
-      // Volume: map drag to volume steps. Global — not per book.
-      double step = delta / 8;
-      _gestureVolume = (_gestureVolume + step).clamp(0, _gestureMaxVolume);
-      _volumeChannel.invokeMethod(
-          'setVolume', {'level': _gestureVolume.round()});
-      setState(() => _showVolumeIndicator = true);
+    final InAppWebViewController? target =
+        isSecondary ? _secondaryController : _controller;
+    if (target == null) return;
+    double step = delta / 12;
+    if (isSecondary) {
+      _gestureFontSizeSecondary =
+          (_gestureFontSizeSecondary + step).clamp(8, 60);
     } else {
-      // Font size: route to the controller for the half being swiped.
-      final InAppWebViewController? target =
-          isSecondary ? _secondaryController : _controller;
-      if (target == null) return;
-      double step = delta / 12;
-      if (isSecondary) {
-        _gestureFontSizeSecondary =
-            (_gestureFontSizeSecondary + step).clamp(8, 60);
-      } else {
-        _gestureFontSize = (_gestureFontSize + step).clamp(8, 60);
-      }
-      final int px =
-          (isSecondary ? _gestureFontSizeSecondary : _gestureFontSize)
-              .round();
-      target.evaluateJavascript(
-          source: 'window.localStorage.setItem("fontSize", "$px")');
-      // Use setProperty with the "important" priority flag so the
-      // inline style wins over the per-book reader-appearance
-      // stylesheet, which sets `font-size` with `!important` on
-      // `.book-content`. CSS specificity rules: inline !important
-      // beats stylesheet !important. Without the flag, this swipe-
-      // driven write is overridden visually by the stylesheet
-      // (though it still persists to Hive, which is why the change
-      // showed up only on book reopen).
-      target.evaluateJavascript(
-          source:
-              'document.querySelector(".book-content").style.setProperty("font-size", "${px}px", "important")');
-      setState(() {
-        _showFontSizeIndicator = true;
-        _lastFontSwipeWasSecondary = isSecondary;
-      });
+      _gestureFontSize = (_gestureFontSize + step).clamp(8, 60);
     }
+    final int px =
+        (isSecondary ? _gestureFontSizeSecondary : _gestureFontSize).round();
+    target.evaluateJavascript(
+        source: 'window.localStorage.setItem("fontSize", "$px")');
+    // Use setProperty with the "important" priority flag so the
+    // inline style wins over the per-book reader-appearance
+    // stylesheet, which sets `font-size` with `!important` on
+    // `.book-content`. CSS specificity rules: inline !important
+    // beats stylesheet !important. Without the flag, this swipe-
+    // driven write is overridden visually by the stylesheet
+    // (though it still persists to Hive, which is why the change
+    // showed up only on book reopen).
+    target.evaluateJavascript(
+        source:
+            'document.querySelector(".book-content").style.setProperty("font-size", "${px}px", "important")');
+    setState(() {
+      _showFontSizeIndicator = true;
+      _lastFontSwipeWasSecondary = isSecondary;
+    });
   }
 
-  void _onEdgeVerticalDragEnd(bool isRight) {
-    if (isRight) {
-      Future.delayed(const Duration(milliseconds: 600),
-          () { if (mounted) setState(() => _showVolumeIndicator = false); });
-    } else {
-      Future.delayed(const Duration(milliseconds: 600),
-          () { if (mounted) setState(() => _showFontSizeIndicator = false); });
-      // Persist the final font size to the appropriate per-book
-      // Hive entry. The drag-update path writes localStorage on
-      // every tick for immediate display, but localStorage is
-      // shared per-origin between primary and secondary panes —
-      // routing fontSize through the periodic snapshot loop
-      // instead would land the most recent shared write into the
-      // wrong pane's Hive entry. _lastFontSwipeWasSecondary is
-      // set in the drag-update handler at the time of the actual
-      // swipe so it's authoritative for which pane to attribute
-      // this end event to.
-      final bool isSecondary = _lastFontSwipeWasSecondary;
-      final int px = (isSecondary
-              ? _gestureFontSizeSecondary
-              : _gestureFontSize)
-          .round();
-      _persistFontSizeForPane(isSecondary: isSecondary, fontSize: px);
-    }
+  void _onEdgeVerticalDragEnd() {
+    Future.delayed(const Duration(milliseconds: 600),
+        () { if (mounted) setState(() => _showFontSizeIndicator = false); });
+    // Persist the final font size to the appropriate per-book
+    // Hive entry. The drag-update path writes localStorage on
+    // every tick for immediate display, but localStorage is
+    // shared per-origin between primary and secondary panes —
+    // routing fontSize through the periodic snapshot loop
+    // instead would land the most recent shared write into the
+    // wrong pane's Hive entry. _lastFontSwipeWasSecondary is
+    // set in the drag-update handler at the time of the actual
+    // swipe so it's authoritative for which pane to attribute
+    // this end event to.
+    final bool isSecondary = _lastFontSwipeWasSecondary;
+    final int px =
+        (isSecondary ? _gestureFontSizeSecondary : _gestureFontSize).round();
+    _persistFontSizeForPane(isSecondary: isSecondary, fontSize: px);
+  }
+
+  /// A translucent edge strip that reacts only to drags which are
+  /// clearly vertical, leaving everything else to the webview
+  /// underneath. See [_AxisLockedVerticalDragRecognizer] for why the
+  /// stock [GestureDetector] cannot be used here.
+  Widget _axisLockedVerticalDrag({
+    GestureDragStartCallback? onStart,
+    GestureDragUpdateCallback? onUpdate,
+    GestureDragEndCallback? onEnd,
+  }) {
+    return RawGestureDetector(
+      behavior: HitTestBehavior.translucent,
+      gestures: <Type, GestureRecognizerFactory>{
+        _AxisLockedVerticalDragRecognizer:
+            GestureRecognizerFactoryWithHandlers<
+                _AxisLockedVerticalDragRecognizer>(
+          () => _AxisLockedVerticalDragRecognizer(),
+          (_AxisLockedVerticalDragRecognizer instance) {
+            instance
+              ..onStart = onStart
+              ..onUpdate = onUpdate
+              ..onEnd = onEnd;
+          },
+        ),
+      },
+    );
   }
 
   Widget _buildEdgeGestures(Widget child) {
@@ -723,30 +746,24 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
         children: [
           Expanded(
             flex: (_splitRatio * 100).round(),
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onVerticalDragUpdate: (d) =>
-                  _onEdgeVerticalDragUpdate(d, false, false),
-              onVerticalDragEnd: (_) => _onEdgeVerticalDragEnd(false),
+            child: _axisLockedVerticalDrag(
+              onUpdate: (d) => _onEdgeVerticalDragUpdate(d, false),
+              onEnd: (_) => _onEdgeVerticalDragEnd(),
             ),
           ),
           Expanded(
             flex: 100 - (_splitRatio * 100).round(),
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onVerticalDragUpdate: (d) =>
-                  _onEdgeVerticalDragUpdate(d, false, true),
-              onVerticalDragEnd: (_) => _onEdgeVerticalDragEnd(false),
+            child: _axisLockedVerticalDrag(
+              onUpdate: (d) => _onEdgeVerticalDragUpdate(d, true),
+              onEnd: (_) => _onEdgeVerticalDragEnd(),
             ),
           ),
         ],
       );
     } else {
-      leftEdge = GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onVerticalDragUpdate: (d) =>
-            _onEdgeVerticalDragUpdate(d, false, false),
-        onVerticalDragEnd: (_) => _onEdgeVerticalDragEnd(false),
+      leftEdge = _axisLockedVerticalDrag(
+        onUpdate: (d) => _onEdgeVerticalDragUpdate(d, false),
+        onEnd: (_) => _onEdgeVerticalDragEnd(),
       );
     }
 
@@ -759,45 +776,18 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
           width: fontStripWidth,
           child: leftEdge,
         ),
-        // Right edge — volume. Global, full-height regardless of split.
+        // Right edge — the audio toolbar's subtitle list. Global,
+        // full-height regardless of split, and opened on drag START
+        // so the list is on its way up as soon as the swipe is
+        // recognised, the way the volume overlay it replaced used to
+        // appear on the first tick.
         Positioned(
           right: 0, top: 0, bottom: 0,
           width: MediaQuery.of(context).size.width * 0.15,
-          child: GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onVerticalDragUpdate: (d) =>
-                _onEdgeVerticalDragUpdate(d, true, false),
-            onVerticalDragEnd: (_) => _onEdgeVerticalDragEnd(true),
+          child: _axisLockedVerticalDrag(
+            onStart: (_) => _openSubtitleList(),
           ),
         ),
-        // Volume indicator
-        if (_showVolumeIndicator)
-          Positioned.fill(
-            child: IgnorePointer(
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.7),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.volume_up,
-                          color: Color(0xFFFFFF00), size: 28),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${(_gestureVolume / _gestureMaxVolume * 100).round()}%',
-                        style: const TextStyle(
-                            color: Color(0xFFFFFF00), fontSize: 14),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
         // Font size indicator
         if (_showFontSizeIndicator)
           Positioned.fill(
@@ -846,6 +836,8 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
     _settingsSnapshotTimer = null;
     _progressPollTimer?.cancel();
     _progressPollTimer = null;
+    _contextMenuRestoreTimer?.cancel();
+    _contextMenuRestoreTimer = null;
     _primaryProgressNotifier.dispose();
     _secondaryProgressNotifier.dispose();
     // Fire-and-forget final bookmark flush for both books. dispose()
@@ -996,6 +988,7 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
             ),
           ),
           bottomNavigationBar: ReaderAudioToolbar(
+            key: _audioToolbarKey,
             bookKey: _safeBookKey(),
             secondaryBookKey:
                 _hasSecondary ? _safeSecondaryBookKey() : null,
@@ -3465,12 +3458,56 @@ class _ReaderTtuSourcePageState extends BaseSourcePageState<ReaderTtuSourcePage>
     required int whitespaceOffset,
     required bool isSpaceDelimited,
   }) async {
+    _contextMenuRestoreTimer?.cancel();
+    _contextMenuRestoreTimer = null;
     await _controller.setContextMenu(emptyContextMenu);
     await _controller.evaluateJavascript(
       source:
           'selectTextForTextLength($cursorX, $cursorY, $offsetIndex, $length, $whitespaceOffset, $isSpaceDelimited);',
     );
-    await _controller.setContextMenu(contextMenu);
+    _scheduleContextMenuRestore();
+  }
+
+  /// Pending restore of the real context menu after a programmatic
+  /// selection. See [_scheduleContextMenuRestore].
+  Timer? _contextMenuRestoreTimer;
+
+  /// How long the empty context menu stays installed after a
+  /// programmatic selection.
+  ///
+  /// Long enough to outlast the WebView raising its ActionMode, short
+  /// enough that it is back before a deliberate long-press could
+  /// finish — Android's own long-press threshold is 500ms of holding
+  /// before the gesture even fires.
+  static const Duration _contextMenuRestoreDelay =
+      Duration(milliseconds: 500);
+
+  /// Put the real context menu back, but not immediately.
+  ///
+  /// [selectTextOnwards] installs [emptyContextMenu] so that the
+  /// selection it makes on the user's behalf doesn't raise the
+  /// floating Search/Stash/Copy/Share/Creator toolbar. Restoring the
+  /// real menu on the next line — as this used to — loses a race:
+  /// `evaluateJavascript` resolves when the script returns, while the
+  /// WebView starts the ActionMode for the resulting selection
+  /// afterwards and asynchronously. Whenever the restore won, the
+  /// toolbar appeared over the page, which is exactly the "white menu
+  /// on tapping a word again" symptom (twice as likely as it looks,
+  /// since a tap runs this method twice — once on the guessed
+  /// highlight length, once on the final one after the lookup
+  /// resolves).
+  ///
+  /// Deferring the restore lets the ActionMode be created while the
+  /// empty menu is still installed, so it has nothing to show. A
+  /// following call cancels the pending restore, so the two
+  /// selections of one tap coalesce into a single window.
+  void _scheduleContextMenuRestore() {
+    _contextMenuRestoreTimer?.cancel();
+    _contextMenuRestoreTimer = Timer(_contextMenuRestoreDelay, () {
+      _contextMenuRestoreTimer = null;
+      if (!mounted || !_controllerInitialised) return;
+      _controller.setContextMenu(contextMenu);
+    });
   }
 
   void onConsoleMessage(
@@ -4146,4 +4183,92 @@ function selectTextForTextLength(x, y, index, length, whitespaceOffset, isSpaceD
     evt.deltaY = -0.001 * ${mediaSource.volumePageTurningSpeed * (mediaSource.volumePageTurningInverted ? -1 : 1)};
     document.body.dispatchEvent(evt); 
     ''';
+}
+
+/// A [VerticalDragGestureRecognizer] that bows out of any drag whose
+/// horizontal component dominates, leaving it to the webview.
+///
+/// The stock recognizer accepts the moment the distance travelled
+/// *along its own axis* passes the touch slop (18 logical pixels),
+/// no matter how far the pointer has gone sideways in the meantime.
+/// That is fine over a horizontally-scrolling list, which competes in
+/// the arena on the other axis, and wrong over the reader: a Japanese
+/// book in `vertical-rl` scrolls the page horizontally, the webview
+/// takes that drag as a platform view rather than through the arena,
+/// and so nothing contests the edge strips. A long horizontal swipe
+/// that drifts 18 pixels off true — which is most of them, on a
+/// hand-held e-ink slab — was therefore claimed as a vertical drag:
+/// the page refused to scroll and the edge gesture fired instead.
+///
+/// Judging the direction from the first few pixels of travel and
+/// rejecting outright when the drag is not clearly vertical hands
+/// those swipes back to the book. Used by both edges — the left
+/// strip's font-size drag had the same defect, it was merely less
+/// dramatic to trip.
+class _AxisLockedVerticalDragRecognizer
+    extends VerticalDragGestureRecognizer {
+  /// How far the pointer must travel before the direction of the drag
+  /// is judged. Well under the stock recognizer's own 18-pixel
+  /// acceptance test so the verdict always lands first, but far
+  /// enough out that the jitter of a finger settling isn't read as a
+  /// direction.
+  static const double _directionSlop = 8;
+
+  /// How much the vertical component must beat the horizontal one by
+  /// for the drag to count as vertical. Deliberately biased against
+  /// the gesture: opening a sheet over the page (or resizing its
+  /// type) is disruptive and scrolling the page is not, so an
+  /// ambiguous diagonal should go to the book. 1.5 puts the cut-off
+  /// about 34° either side of straight up.
+  static const double _dominance = 1.5;
+
+  final Map<int, Offset> _origins = <int, Offset>{};
+  final Set<int> _judged = <int>{};
+
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    _origins[event.pointer] = event.position;
+    _judged.remove(event.pointer);
+    super.addAllowedPointer(event);
+  }
+
+  @override
+  void handleEvent(PointerEvent event) {
+    if (event is PointerMoveEvent && !_judged.contains(event.pointer)) {
+      final Offset? origin = _origins[event.pointer];
+      if (origin != null) {
+        final Offset travel = event.position - origin;
+        if (travel.distance >= _directionSlop) {
+          _judged.add(event.pointer);
+          if (travel.dy.abs() < travel.dx.abs() * _dominance) {
+            // Not ours. Resolving the arena entry as rejected is
+            // enough — the recognizer can no longer win, and the
+            // stock machinery below is inert while unaccepted, so
+            // there is no need to stop tracking the pointer and
+            // unwind its state by hand.
+            resolve(GestureDisposition.rejected);
+          }
+        }
+      }
+    }
+    super.handleEvent(event);
+  }
+
+  @override
+  void didStopTrackingLastPointer(int pointer) {
+    // The only reliable place to drop the per-pointer bookkeeping. A
+    // rejected drag never delivers its up event here — the arena
+    // calls `rejectGesture`, which gives the pointer up immediately —
+    // so cleaning up on `PointerUpEvent` alone would leak an entry
+    // per horizontal swipe, and horizontal swipes are how this book
+    // turns its pages. Clearing wholesale rather than by pointer is
+    // safe: the strips are one-finger targets, so this fires only
+    // when nothing is being tracked at all.
+    _origins.clear();
+    _judged.clear();
+    super.didStopTrackingLastPointer(pointer);
+  }
+
+  @override
+  String get debugDescription => 'axis-locked vertical drag';
 }

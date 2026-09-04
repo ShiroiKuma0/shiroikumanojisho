@@ -602,12 +602,40 @@ class _BrowserSourcePageState extends BaseSourcePageState<BrowserSourcePage> {
     required int whitespaceOffset,
     required bool isSpaceDelimited,
   }) async {
+    _contextMenuRestoreTimer?.cancel();
+    _contextMenuRestoreTimer = null;
     await _controller.setContextMenu(emptyContextMenu);
     await _controller.evaluateJavascript(
       source:
           'selectTextForTextLength($cursorX, $cursorY, $offsetIndex, $length, $whitespaceOffset, $isSpaceDelimited);',
     );
-    await _controller.setContextMenu(contextMenu);
+    _scheduleContextMenuRestore();
+  }
+
+  /// Pending restore of the real context menu after a programmatic
+  /// selection. See [_scheduleContextMenuRestore].
+  Timer? _contextMenuRestoreTimer;
+
+  /// How long the empty context menu stays installed after a
+  /// programmatic selection. See [_scheduleContextMenuRestore].
+  static const Duration _contextMenuRestoreDelay =
+      Duration(milliseconds: 500);
+
+  /// Put the real context menu back, but not immediately — restoring
+  /// it on the line after [selectTextOnwards]'s script races the
+  /// WebView's own asynchronous ActionMode creation and lets the
+  /// floating selection toolbar appear over the page. Deferring the
+  /// restore means the ActionMode is created while the empty menu is
+  /// still installed and so has nothing to show. The same fix as in
+  /// the TTU reader, where the symptom was first reported; see
+  /// `reader_ttu_source_page.dart` for the full account.
+  void _scheduleContextMenuRestore() {
+    _contextMenuRestoreTimer?.cancel();
+    _contextMenuRestoreTimer = Timer(_contextMenuRestoreDelay, () {
+      _contextMenuRestoreTimer = null;
+      if (!mounted || !_controllerInitialised) return;
+      _controller.setContextMenu(contextMenu);
+    });
   }
 
   void onConsoleMessage(

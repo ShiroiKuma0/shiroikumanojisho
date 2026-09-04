@@ -4,9 +4,11 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:hive/hive.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:multi_value_listenable_builder/multi_value_listenable_builder.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:subtitle/subtitle.dart';
 import 'package:shiroikumanojisho/media.dart';
 import 'package:shiroikumanojisho/models.dart';
@@ -142,6 +144,45 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
   static const Duration _seekTolerance = Duration(milliseconds: 250);
   static const Duration _seekWatchdogTimeout = Duration(seconds: 1);
 
+  /// Fires at the current subtitle's end so auto-pause can stop the
+  /// player *at* the cue boundary instead of on the next position
+  /// poll after it.
+  ///
+  /// just_audio's default position stream is
+  /// `createPositionStream(steps: 800, minPeriod: 16ms,
+  /// maxPeriod: 200ms)`, and `duration / steps` on anything longer
+  /// than ~2.7 minutes clamps to the 200ms ceiling. Pausing off that
+  /// stream therefore overshoots the cue end by up to a full tick,
+  /// plus the round trip through the platform channel into
+  /// ExoPlayer's AudioTrack — call it 0.2–0.35s in practice. TTS
+  /// audiobooks routinely leave only 0.25s of silence between
+  /// sentences (VOICEVOX renders from shiroikuma-jisho-subtitles use
+  /// exactly that for a sentence break, 0.55s for a paragraph
+  /// break), so the overshoot runs straight into the next sentence's
+  /// first mora. Arming a timer for the remaining media time instead
+  /// keeps the stop inside the gap.
+  Timer? _autoPauseTimer;
+
+  /// Guards [_armAutoPauseTimer] while [_pauseAtSubtitleEnd] is in
+  /// flight. The pause and the snap-back seek are asynchronous, so
+  /// without this a position emission arriving between them could
+  /// re-arm the timer against state that is about to change.
+  bool _autoPausing = false;
+
+  /// How far short of a cue's end the auto-pause timer may fire and
+  /// still be treated as "close enough" to stop. The timer is armed
+  /// off just_audio's wall-clock-extrapolated position, so it can
+  /// land a few milliseconds early; anything beyond this re-arms for
+  /// the remainder rather than clipping the sentence.
+  static const Duration _autoPauseSlack = Duration(milliseconds: 40);
+
+  /// Largest backwards jump the auto-pause snap is allowed to make.
+  /// The snap exists to discard an overshoot of a few hundred
+  /// milliseconds; if the player has somehow landed a whole cue or
+  /// more past the boundary, rewinding to the next cue's start would
+  /// replay material the user already heard, so we leave it alone.
+  static const Duration _autoPauseSnapLimit = Duration(seconds: 2);
+
   bool _sliderBeingDragged = false;
   bool _audioLoaded = false;
   bool _collapsed = true;
@@ -254,6 +295,7 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
     _playerStateSub?.cancel();
     _durationSub?.cancel();
     _seekWatchdog?.cancel();
+    _autoPauseTimer?.cancel();
     _audioPlayer.dispose();
     super.dispose();
   }
@@ -476,6 +518,10 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
       _playerStateSub?.cancel();
       _playerStateSub = _audioPlayer.playerStateStream.listen((s) {
         _playingNotifier.value = s.playing;
+        // Nothing to auto-pause once the player has stopped — and a
+        // timer left armed here would fire against a stale cue when
+        // playback resumes elsewhere.
+        if (!s.playing) _cancelAutoPauseTimer();
       });
 
       if (restorePosition) {
@@ -551,23 +597,28 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
     }
 
     // Find current subtitle at this position
-    Subtitle? newSub;
-    for (Subtitle s in _subtitles) {
-      if (pos >= s.start && pos <= s.end) {
-        newSub = s;
-        break;
-      }
-    }
+    final Subtitle? newSub = _subtitleAt(pos);
 
     // Only act when subtitle state changes
     if (newSub != _currentSubtitle) {
-      // Auto-pause: pause when leaving a subtitle
+      final Subtitle? leaving = _currentSubtitle;
+
+      // Auto-pause: pause when leaving a subtitle. This is the
+      // backstop for [_autoPauseTimer], which normally stops the
+      // player at the cue end before the position ever gets here. It
+      // still matters for the cases the timer can't cover — the mode
+      // being switched to auto-pause mid-cue, or a cue whose end
+      // arrived before the first position emission armed anything.
       if (widget.appModel.playbackMode == PlaybackMode.autoPausePlayback &&
           !_sliderBeingDragged &&
-          _currentSubtitle != null &&
-          _autoPauseMemory != _currentSubtitle) {
-        _audioPlayer.pause();
-        _autoPauseMemory = _currentSubtitle;
+          leaving != null &&
+          _autoPauseMemory != leaving) {
+        // [_pauseAtSubtitleEnd] takes ownership of _currentSubtitle
+        // from here: it snaps the position to the next cue's start
+        // and lets [_beginSeek] set the field to match. Falling
+        // through to the assignment below would undo that.
+        _pauseAtSubtitleEnd(leaving);
+        return;
       }
 
       // Condensed playback: skip gaps between subtitles
@@ -584,6 +635,124 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
 
       _currentSubtitle = newSub;
     }
+
+    _armAutoPauseTimer(pos);
+  }
+
+  /// Arm [_autoPauseTimer] to fire when the current cue ends.
+  ///
+  /// Called on every position emission, so the timer is continuously
+  /// re-aimed at the cue end from the freshest position we have —
+  /// which also means it self-corrects if a tick is late or the
+  /// player's extrapolated position drifts. Cheap: one cancel plus
+  /// one `Timer` per emission, at most five a second.
+  void _armAutoPauseTimer(Duration pos) {
+    _autoPauseTimer?.cancel();
+    _autoPauseTimer = null;
+
+    if (_autoPausing) return;
+    if (widget.appModel.playbackMode != PlaybackMode.autoPausePlayback) return;
+    if (!_audioPlayer.playing || _sliderBeingDragged) return;
+
+    final Subtitle? sub = _currentSubtitle;
+    if (sub == null) return;
+    // Already auto-paused for this cue and playing on through it —
+    // the user chose to continue, so don't stop them again.
+    if (_autoPauseMemory == sub) return;
+
+    final Duration remaining = sub.end - pos;
+    if (remaining.isNegative) return;
+
+    // `remaining` is media time; the wall-clock wait to reach it is
+    // that divided by the playback rate. The toolbar's speed control
+    // makes this a live value, so read it per arming rather than
+    // caching it.
+    final double speed = _audioPlayer.speed;
+    final int micros =
+        (remaining.inMicroseconds / (speed > 0 ? speed : 1.0)).round();
+
+    _autoPauseTimer = Timer(
+      Duration(microseconds: micros),
+      () => _onAutoPauseTimer(sub),
+    );
+  }
+
+  void _cancelAutoPauseTimer() {
+    _autoPauseTimer?.cancel();
+    _autoPauseTimer = null;
+  }
+
+  /// [_autoPauseTimer]'s callback: stop at [sub]'s end, unless the
+  /// world moved on while the timer was pending.
+  Future<void> _onAutoPauseTimer(Subtitle sub) async {
+    _autoPauseTimer = null;
+    if (!mounted) return;
+    if (widget.appModel.playbackMode != PlaybackMode.autoPausePlayback) return;
+    if (!_audioPlayer.playing || _sliderBeingDragged) return;
+    if (_currentSubtitle != sub) return;
+    if (_autoPauseMemory == sub) return;
+
+    // The timer was armed off an extrapolated position. If the player
+    // is genuinely still short of the cue end — a stall, a slow
+    // decode — re-arm for what's left instead of clipping the tail
+    // off the sentence.
+    final Duration pos = _audioPlayer.position;
+    if (sub.end - pos > _autoPauseSlack) {
+      _armAutoPauseTimer(pos);
+      return;
+    }
+
+    await _pauseAtSubtitleEnd(sub);
+  }
+
+  /// Pause at the end of [sub] and snap the playhead back onto that
+  /// end exactly.
+  ///
+  /// The snap is the part that matters. However promptly we stop,
+  /// something is always overshot — a late timer tick, the platform
+  /// channel round trip, the AudioTrack's own buffered latency — and
+  /// without a seek that overshoot is silently subtracted from the
+  /// head of the next sentence, because resuming just plays on from
+  /// wherever the player happened to stop. Snapping back to `sub.end`
+  /// discards it, so the next sentence is heard whole.
+  ///
+  /// `sub.end` rather than the *next* cue's start, though the latter
+  /// would skip the silence between them and sounds tempting: every
+  /// other control in this toolbar reads the playhead to decide what
+  /// "the current sentence" is, and parking it on the next cue moves
+  /// all of them one sentence on. Replay in particular then replays
+  /// the sentence you are about to hear instead of the one you just
+  /// heard. Parking on the boundary keeps the playhead inside the
+  /// gap — see [_cueContains] — which is where the old poll-driven
+  /// pause used to leave it, so Replay, Prev and Next all mean what
+  /// they always did.
+  Future<void> _pauseAtSubtitleEnd(Subtitle sub) async {
+    if (_autoPausing) return;
+    _autoPausing = true;
+    _cancelAutoPauseTimer();
+    try {
+      await _audioPlayer.pause();
+
+      // Guard against a pathological backwards jump — see
+      // [_autoPauseSnapLimit].
+      final Duration pos = _audioPlayer.position;
+      if (pos - sub.end > _autoPauseSnapLimit) {
+        _autoPauseMemory = sub;
+        _currentSubtitle = null;
+        return;
+      }
+
+      _beginSeek(sub.end);
+      await _audioPlayer.seek(sub.end);
+      // [_beginSeek] resolves the target to a cue for us, and with
+      // the half-open test that is null — the boundary belongs to
+      // the gap. Which is exactly the state the resume needs: no cue
+      // to "leave", so nothing re-fires auto-pause, and the first
+      // emission inside the next cue simply adopts it.
+      _autoPauseMemory = sub;
+    } finally {
+      _autoPausing = false;
+    }
   }
 
   /// Begin an audio seek with the racy-position-stream guarding
@@ -597,6 +766,9 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
   /// The notifier WILL be overwritten with the audio player's real
   /// position when the next position emission arrives.
   void _beginSeek(Duration target) {
+    // Any armed auto-pause belongs to the cue we are leaving. The
+    // next position emission re-arms it against wherever we land.
+    _cancelAutoPauseTimer();
     _pendingSeekTarget = target;
     _seekWatchdog?.cancel();
     _seekWatchdog = Timer(_seekWatchdogTimeout, () {
@@ -612,17 +784,31 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
     // lands in. This means the post-seek "real" emission won't
     // look like a subtitle change to [_onPosition], so auto-pause
     // won't mis-fire.
-    Subtitle? targetSub;
-    for (Subtitle s in _subtitles) {
-      if (target >= s.start && target <= s.end) {
-        targetSub = s;
-        break;
-      }
-    }
-    _currentSubtitle = targetSub;
+    _currentSubtitle = _subtitleAt(target);
     // Reset auto-pause memory so the user gets a chance to hear
     // the targeted subtitle's auto-pause if they keep playing.
     _autoPauseMemory = null;
+  }
+
+  /// Whether [pos] falls inside cue [s].
+  ///
+  /// Half-open — `[start, end)`. A playhead sitting exactly on a
+  /// cue's end counts as being in the gap that follows it, not as
+  /// still inside it, and that boundary is not hypothetical:
+  /// [_pauseAtSubtitleEnd] parks the playhead on precisely that
+  /// sample. Were the end inclusive, the first position emission
+  /// after the user resumed would read as leaving the cue all over
+  /// again, auto-pause would fire on the spot, and playback would
+  /// stall at the same boundary for good.
+  static bool _cueContains(Subtitle s, Duration pos) =>
+      pos >= s.start && pos < s.end;
+
+  /// The cue [pos] falls in, or null when it falls in a gap.
+  Subtitle? _subtitleAt(Duration pos) {
+    for (final Subtitle s in _subtitles) {
+      if (_cueContains(s, pos)) return s;
+    }
+    return null;
   }
 
   Subtitle? _getNearestSubtitle() {
@@ -642,9 +828,8 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
     Subtitle? containing;
     int containingIdx = -1;
     for (int i = 0; i < _subtitles.length; i++) {
-      final s = _subtitles[i];
-      if (pos >= s.start && pos <= s.end) {
-        containing = s;
+      if (_cueContains(_subtitles[i], pos)) {
+        containing = _subtitles[i];
         containingIdx = i;
         break;
       }
@@ -704,6 +889,7 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
 
   Future<void> _playPause() async {
     if (_audioPlayer.playing) {
+      _cancelAutoPauseTimer();
       await _audioPlayer.pause();
     } else {
       _autoPauseMemory = null;
@@ -720,6 +906,9 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
     final mode = widget.appModel.playbackMode;
     final next = (mode.index + 1) % PlaybackMode.values.length;
     widget.appModel.setPlaybackMode(PlaybackMode.values[next]);
+    // Drop any auto-pause armed under the outgoing mode; if the new
+    // mode is still auto-pause the next emission re-arms it.
+    _cancelAutoPauseTimer();
     // The mode is read live in `_onPosition`, so the behaviour
     // change takes effect on the next position update without any
     // further intervention. The setState here is purely so the
@@ -1139,6 +1328,76 @@ class ReaderAudioToolbarState extends State<ReaderAudioToolbar> {
   /// "Previous/Next file" rows only when there's chapter audio in
   /// the same folder. The book-side prev/next chapter and go-to
   /// page rows always appear (they target the book, not the audio).
+  /// Show the loaded subtitle file as a list, opened at the sentence
+  /// currently under the playhead; tapping an entry moves playback
+  /// there.
+  ///
+  /// Public because the gesture that opens it lives on the reader
+  /// page — it has to sit over the webview — while the subtitles and
+  /// the player live here. The page holds a
+  /// `GlobalKey<ReaderAudioToolbarState>` and calls this.
+  ///
+  /// Modelled on the video player's transcript
+  /// ([PlayerTranscriptPage]), but not built on it: that page is
+  /// wired throughout to a [VlcPlayerController], and carries mining,
+  /// search and subtitle-alignment machinery this has no use for.
+  Future<void> showSubtitleList() async {
+    if (!mounted) return;
+
+    if (_subtitles.isEmpty) {
+      Fluttertoast.showToast(
+        msg: _srtPath == null
+            ? 'No subtitle file loaded'
+            : 'No subtitles in this file',
+      );
+      return;
+    }
+
+    // Open where the ear is, not at the top: a chapter runs to
+    // several hundred cues and scrolling to the current one by hand
+    // would defeat the point of the gesture. [_getNearestSubtitle]
+    // gives the cue behind the playhead when we are sitting in a
+    // gap, which is exactly the anchor wanted after an auto-pause.
+    final Subtitle? anchor = _getNearestSubtitle();
+    final int anchorIndex = anchor == null ? 0 : _subtitles.indexOf(anchor);
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.black,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return _sheetWithTopEdge(
+          child: SafeArea(
+            child: SizedBox(
+              height: MediaQuery.of(ctx).size.height * 0.7,
+              child: _SubtitleListSheet(
+                subtitles: _subtitles,
+                initialIndex: anchorIndex < 0 ? 0 : anchorIndex,
+                positionNotifier: _positionNotifier,
+                onTap: (Subtitle sub) {
+                  Navigator.pop(ctx);
+                  _seekToSubtitle(sub);
+                },
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Move playback to the start of [sub] and play from there.
+  ///
+  /// Plays even when the player was paused, matching what tapping a
+  /// line in the video player's transcript does — picking a sentence
+  /// out of a list is a request to hear it, not merely to move a
+  /// cursor.
+  Future<void> _seekToSubtitle(Subtitle sub) async {
+    _beginSeek(sub.start);
+    await _audioPlayer.seek(sub.start);
+    if (!_audioPlayer.playing) await _audioPlayer.play();
+  }
+
   void _showNavigateMenu() {
     final bool hasSecondary =
         widget.hasSecondary && widget.secondaryBookKey != null;
@@ -1980,4 +2239,173 @@ Future<void> showReaderToolbarCustomiseDialog(
       ],
     ),
   );
+}
+
+/// The body of the subtitle-list sheet: every cue in the loaded SRT,
+/// the one under the playhead marked, tap to move playback there.
+///
+/// A [ScrollablePositionedList] rather than a [ListView] because the
+/// sheet must open already scrolled to an arbitrary index — a chapter
+/// is several hundred cues and a pixel-offset jump would need every
+/// row's height measured first. Same reason the player's transcript
+/// uses one.
+class _SubtitleListSheet extends StatefulWidget {
+  const _SubtitleListSheet({
+    required this.subtitles,
+    required this.initialIndex,
+    required this.positionNotifier,
+    required this.onTap,
+  });
+
+  final List<Subtitle> subtitles;
+  final int initialIndex;
+  final ValueNotifier<Duration> positionNotifier;
+  final void Function(Subtitle) onTap;
+
+  @override
+  State<_SubtitleListSheet> createState() => _SubtitleListSheetState();
+}
+
+class _SubtitleListSheetState extends State<_SubtitleListSheet> {
+  final ItemScrollController _scrollController = ItemScrollController();
+
+  /// Index of the cue under the playhead, or -1 when the playhead is
+  /// in a gap between cues.
+  ///
+  /// Derived from the position notifier rather than read from it
+  /// directly so the list rebuilds when the *sentence* changes —
+  /// once every few seconds — instead of on every position tick,
+  /// five times a second. That matters on the e-ink target, where a
+  /// needless repaint is a visible flash.
+  late final ValueNotifier<int> _activeIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _activeIndex = ValueNotifier<int>(_indexAt(widget.positionNotifier.value));
+    widget.positionNotifier.addListener(_onPosition);
+  }
+
+  @override
+  void dispose() {
+    widget.positionNotifier.removeListener(_onPosition);
+    _activeIndex.dispose();
+    super.dispose();
+  }
+
+  void _onPosition() {
+    final int next = _indexAt(widget.positionNotifier.value);
+    if (next != _activeIndex.value) _activeIndex.value = next;
+  }
+
+  /// Index of the last cue that has begun at [pos] — the sentence
+  /// being spoken, or the one just spoken when the playhead sits in
+  /// a gap between two. Nearest rather than strictly containing so
+  /// the list always marks something: auto-pause parks the playhead
+  /// on a cue boundary, which belongs to the gap, and a list with
+  /// nothing marked at exactly the moment you stop to look at it
+  /// would be perverse.
+  int _indexAt(Duration pos) {
+    int found = -1;
+    for (int i = 0; i < widget.subtitles.length; i++) {
+      if (pos < widget.subtitles[i].start) break;
+      found = i;
+    }
+    return found;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const Color yellow = Color(0xFFFFFF00);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: Row(
+            children: [
+              const Icon(Icons.format_list_bulleted, color: yellow, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Subtitles (${widget.subtitles.length})',
+                  style: const TextStyle(
+                    color: yellow,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              // Jump back to what is playing after scrolling away.
+              IconButton(
+                icon: const Icon(Icons.my_location, color: yellow, size: 20),
+                tooltip: 'Scroll to current',
+                onPressed: () {
+                  final int i = _activeIndex.value;
+                  _scrollController.jumpTo(
+                      index: i >= 0 ? i : widget.initialIndex);
+                },
+              ),
+            ],
+          ),
+        ),
+        const Divider(color: yellow, height: 1),
+        Expanded(
+          child: ValueListenableBuilder<int>(
+            valueListenable: _activeIndex,
+            builder: (context, active, _) {
+              return ScrollablePositionedList.builder(
+                itemScrollController: _scrollController,
+                initialScrollIndex: widget.initialIndex,
+                itemCount: widget.subtitles.length,
+                itemBuilder: (context, index) {
+                  final Subtitle sub = widget.subtitles[index];
+                  final bool isActive = index == active;
+                  return InkWell(
+                    onTap: () => widget.onTap(sub),
+                    child: Container(
+                      color: isActive
+                          ? yellow.withValues(alpha: 0.18)
+                          : Colors.transparent,
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            width: 56,
+                            child: Text(
+                              JidoujishoTimeFormat.getVideoDurationText(
+                                      sub.start)
+                                  .trim(),
+                              style: TextStyle(
+                                color: yellow.withValues(alpha: 0.6),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              sub.data,
+                              style: TextStyle(
+                                color: yellow,
+                                fontSize: 15,
+                                fontWeight: isActive
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
 }

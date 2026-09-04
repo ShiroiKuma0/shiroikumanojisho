@@ -114,6 +114,7 @@ class JapaneseLanguage extends Language {
               color: Color(appModel.dictionaryFontColor),
             ),
         rubyStyle: Theme.of(context).textTheme.labelSmall?.copyWith(
+              fontSize: appModel.dictionaryHeadingRubyFontSize,
               color: Color(appModel.dictionaryFontColor),
             ),
         indexAction: indexAction,
@@ -133,6 +134,7 @@ class JapaneseLanguage extends Language {
             color: Color(appModel.dictionaryFontColor),
           ),
       rubyStyle: Theme.of(context).textTheme.labelSmall?.copyWith(
+            fontSize: appModel.dictionaryHeadingRubyFontSize,
             color: Color(appModel.dictionaryFontColor),
           ),
       indexAction: indexAction,

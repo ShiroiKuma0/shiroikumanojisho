@@ -287,6 +287,19 @@ class _JishoUiSettingsPageState extends BasePageState<JishoUiSettingsPage> {
               },
             ),
             _sliderRow(
+              title: 'Furigana',
+              inset: _insetRowL2,
+              value: appModel.dictionaryHeadingRubyFontSize,
+              min: 6,
+              max: 40,
+              display: (value) => value.round().toString(),
+              onChanged: (value) {
+                appModel
+                    .setDictionaryHeadingRubyFontSize(value.roundToDouble());
+                setState(() {});
+              },
+            ),
+            _sliderRow(
               title: 'Entry',
               inset: _insetRowL2,
               value: appModel.dictionaryFontSize,

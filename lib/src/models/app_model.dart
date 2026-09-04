@@ -4972,6 +4972,11 @@ class AppModel with ChangeNotifier {
   /// Default value of [dictionaryHeadingFontSize].
   final double defaultDictionaryHeadingFontSize = 28;
 
+  /// Default value of [dictionaryHeadingRubyFontSize] — half the
+  /// heading default, which is roughly the ratio furigana is set at
+  /// in print.
+  final double defaultDictionaryHeadingRubyFontSize = 14;
+
   /// The sizes these two defaults used to be, before 1.5.0+011.
   /// Kept only for [migrateDictionaryFontSizeDefaults].
   static const double _legacyDictionaryFontSize = 16;
@@ -5160,6 +5165,27 @@ class AppModel with ChangeNotifier {
   /// Sets the heading font size used in the dictionary.
   void setDictionaryHeadingFontSize(double fontSize) async {
     await _preferences.put('dictionary_heading_font_size', fontSize);
+  }
+
+  /// The font size of the furigana printed above a dictionary
+  /// heading.
+  ///
+  /// Its own setting rather than a fraction of
+  /// [dictionaryHeadingFontSize] because the two are read at
+  /// different distances: the heading is the word you are looking
+  /// up, the furigana is the reading you may already know. Before
+  /// 1.5.0+019 the ruby had no size of its own at all — it fell
+  /// through to the theme's `labelSmall` (11sp) no matter how large
+  /// the heading was set, which is why a 28sp heading carried
+  /// near-illegible furigana.
+  double get dictionaryHeadingRubyFontSize {
+    return _preferences.get('dictionary_heading_ruby_font_size',
+        defaultValue: defaultDictionaryHeadingRubyFontSize);
+  }
+
+  /// Sets the font size of the furigana above a dictionary heading.
+  void setDictionaryHeadingRubyFontSize(double fontSize) async {
+    await _preferences.put('dictionary_heading_ruby_font_size', fontSize);
   }
 
   /// Whether dragging the left edge of dictionary results changes font size.
