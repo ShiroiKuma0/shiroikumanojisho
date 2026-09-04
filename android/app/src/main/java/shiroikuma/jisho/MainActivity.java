@@ -204,6 +204,14 @@ public class MainActivity extends AudioServiceActivity {
                                 Boolean.TRUE.equals(call.argument("enabled")));
                             result.success(null);
                             break;
+                        case "isTokenRequired":
+                            result.success(AutomationPrefs.isTokenRequired(this));
+                            break;
+                        case "setTokenRequired":
+                            AutomationPrefs.setTokenRequired(this,
+                                Boolean.TRUE.equals(call.argument("required")));
+                            result.success(null);
+                            break;
                         case "getToken":
                             result.success(AutomationPrefs.getToken(this));
                             break;

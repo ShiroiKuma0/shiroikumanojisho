@@ -10,6 +10,19 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:shiroikumanojisho/src/utils/ui_settings/ui_settings_export.dart';
 
+/// Thrown out of [StateExport.run] when a cancel was noticed at a write
+/// boundary. Carried as an exception rather than a return value so the
+/// `finally` that deletes the `.part` is the same one every other
+/// failure goes through — a cancelled export must leave the backup
+/// directory exactly as it found it.
+class StateExportCancelled implements Exception {
+  /// Construct the marker.
+  const StateExportCancelled();
+
+  @override
+  String toString() => 'cancelled';
+}
+
 /// One exportable category of the 保存復元 state-export contract.
 class StateCategory {
   /// Define a category.
@@ -131,12 +144,17 @@ class StateExport {
     File? embedBundle,
     void Function(String text, int current, int total, String unit)?
         onProgress,
+    Future<bool> Function()? shouldCancel,
   }) async {
     Directory(directory).createSync(recursive: true);
     final timestamp =
         DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now());
     final zipTarget =
         File(path.join(directory, '$filePrefix$timestamp.zip'));
+    // Written under `.part` and renamed on success. A cancelled or
+    // failed run therefore never leaves a short archive behind for a
+    // later restore to find — 保存復元 §1, obligation 2.
+    final partTarget = File('${zipTarget.path}.part');
 
     final selectedSettings =
         settingsIds.where(ids.contains).toList();
@@ -161,8 +179,9 @@ class StateExport {
     }
 
     final writer = ZipFileWriter();
+    var completed = false;
     try {
-      await writer.create(zipTarget);
+      await writer.create(partTarget);
 
       // Manifest + settings categories.
       final byLabel = UiSettingsExport.categorise(box);
@@ -183,6 +202,9 @@ class StateExport {
           Uint8List.fromList(utf8.encode(jsonEncode(manifest))));
 
       for (var i = 0; i < selectedSettings.length; i++) {
+        if (await shouldCancel?.call() ?? false) {
+          throw const StateExportCancelled();
+        }
         final id = selectedSettings[i];
         final labelIndex = settingsIds.indexOf(id);
         final data = byLabel[labels[labelIndex].key] ?? {};
@@ -194,6 +216,9 @@ class StateExport {
 
       // Artifact files with real counts.
       for (var i = 0; i < artifactFiles.length; i++) {
+        if (await shouldCancel?.call() ?? false) {
+          throw const StateExportCancelled();
+        }
         onProgress?.call(
             'ファイル ${i + 1}/${artifactFiles.length}',
             i + 1,
@@ -207,14 +232,24 @@ class StateExport {
       // already a DEFLATE zip; recompressing would double the time
       // for zero gain.
       if (embedBundle != null) {
+        if (await shouldCancel?.call() ?? false) {
+          throw const StateExportCancelled();
+        }
         final size = embedBundle.lengthSync();
         onProgress?.call('連携データ ${humanSize(size)}', size, size,
             'bytes');
         await writer.writeFile(bundleEntry, embedBundle,
             compress: false);
       }
+      completed = true;
     } finally {
       await writer.close();
+      if (completed) {
+        partTarget.renameSync(zipTarget.path);
+      } else if (partTarget.existsSync()) {
+        // Cancel and failure land here alike: nothing partial survives.
+        partTarget.deleteSync();
+      }
     }
     return zipTarget;
   }

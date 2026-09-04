@@ -4,6 +4,7 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Handler;
@@ -16,6 +17,7 @@ import androidx.core.app.NotificationCompat;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.flutter.embedding.engine.FlutterEngine;
 import io.flutter.embedding.engine.dart.DartExecutor;
@@ -30,6 +32,17 @@ import io.flutter.plugin.common.MethodChannel;
  * (real counts) which this service re-broadcasts, and delivers the
  * terminal result which this service replies with. Exactly one
  * terminal reply per request, guarded here.
+ *
+ * <h3>Cancellation</h3>
+ *
+ * {@code CANCEL_EXPORT} sets {@link #cancelled} on the running
+ * instance. The Dart side polls it between entries — never mid-write —
+ * so the archive unwinds at a boundary rather than being torn down
+ * half-written; Dart deletes its {@code .part} on the way out, and the
+ * terminal reply for the ORIGINAL request is {@code ERROR:cancelled},
+ * sent even though 自由作業盤 stopped listening the moment 白い熊
+ * pressed 中止 — the reply is what proves the run really ended rather
+ * than continuing unseen.
  */
 public class StateExportService extends Service {
     private static final String TAG = "StateExportService";
@@ -40,8 +53,34 @@ public class StateExportService extends Service {
 
     private FlutterEngine engine;
     private PowerManager.WakeLock wakeLock;
-    private boolean replied = false;
+    private final AtomicBoolean replied = new AtomicBoolean(false);
     private long lastProgressAt = 0;
+    private volatile boolean cancelled = false;
+    private String replyIdInFlight;
+
+    /** The run a cancel can reach. One export at a time, by contract. */
+    private static volatile StateExportService running;
+
+    /**
+     * Ask the running export to stop. Silent by contract: a cancel for
+     * a run that already finished, or that never started, is a no-op —
+     * not an error, not a reply, not a crash.
+     *
+     * @param replyId the run to stop; null means "the one you are
+     *                running", which is unambiguous because the
+     *                contract forbids two at once.
+     */
+    static void requestCancel(Context context, String replyId) {
+        StateExportService service = running;
+        if (service == null) {
+            return;
+        }
+        if (replyId != null && service.replyIdInFlight != null
+            && !replyId.equals(service.replyIdInFlight)) {
+            return;
+        }
+        service.cancelled = true;
+    }
 
     @Override
     public void onCreate() {
@@ -86,6 +125,8 @@ public class StateExportService extends Service {
         final String replyAction = intent.getStringExtra("reply_action");
         final String replyPackage = intent.getStringExtra("reply_package");
         final String replyId = intent.getStringExtra("reply_id");
+        replyIdInFlight = replyId;
+        running = this;
 
         engine = new FlutterEngine(this);
         MethodChannel channel = new MethodChannel(
@@ -98,6 +139,11 @@ public class StateExportService extends Service {
                     request.put("path", pathExtra);
                     request.put("items", items);
                     result.success(request);
+                    break;
+                }
+                case "isCancelled": {
+                    // Polled at write boundaries, never mid-write.
+                    result.success(cancelled);
                     break;
                 }
                 case "progress": {
@@ -137,10 +183,12 @@ public class StateExportService extends Service {
                 }
                 case "done": {
                     String resultLine = call.argument("result");
-                    if (!replied) {
-                        replied = true;
+                    // The same AtomicBoolean guards success and cancel,
+                    // so the two can never double-fire.
+                    if (replied.compareAndSet(false, true)) {
                         StateExportReceiver.sendReply(this, replyAction,
-                            replyPackage, replyId, resultLine);
+                            replyPackage, replyId,
+                            cancelled ? "ERROR:cancelled" : resultLine);
                     }
                     result.success(null);
                     // Engine teardown must happen on the main thread,
@@ -165,6 +213,9 @@ public class StateExportService extends Service {
 
     @Override
     public void onDestroy() {
+        if (running == this) {
+            running = null;
+        }
         if (engine != null) {
             engine.destroy();
             engine = null;

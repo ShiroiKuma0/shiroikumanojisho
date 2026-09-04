@@ -8,6 +8,13 @@
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <!-- Inert at the targetSdk 32 held here: FGS types are enforced
+         from targetSdk 34. Declared now because AutomationDataService
+         is foregroundServiceType="specialUse", and the day targetSdk
+         rises WITHOUT this the service is refused at startForeground()
+         — an automation export that dies silently rather than loudly.
+         (compileSdk is 36, so aapt2 accepts the specialUse literal.) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
     <uses-permission android:name="android.permission.READ_PHONE_STATE" tools:node="remove" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" tools:node="remove"/>
     <uses-permission android:name="android.permission.INTERNET"/>
@@ -106,21 +113,61 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
-        <!-- 保存復元 automation contract: token-gated headless state
-             export, driven by 自由作業盤. No android:permission by
-             design (the caller cannot hold one); the token is the
-             gate. -->
+        <!-- 保存復元 automation contract v2: headless state export,
+             driven by 自由作業盤. No android:permission by design — in
+             v2 this receiver is the deliberately UNAUTHENTICATED half
+             of the surface: it only ever writes where it was told to
+             and reports what it did. Everything that moves data
+             through a caller-supplied descriptor lives behind
+             AutomationProvider below, which knows who is calling.
+
+             CANCEL_EXPORT must be reachable from outside, so it is
+             routed through this exported receiver and signals the
+             service internally — the service is (correctly)
+             exported="false" and a third-party app cannot start it. -->
         <receiver
             android:name="shiroikuma.jisho.StateExportReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="shiroikuma.jisho.action.EXPORT_STATE" />
                 <action android:name="shiroikuma.jisho.action.LIST_CATEGORIES" />
+                <action android:name="shiroikuma.jisho.action.CANCEL_EXPORT" />
             </intent-filter>
         </receiver>
         <service
             android:name="shiroikuma.jisho.StateExportService"
             android:exported="false" />
+
+        <!-- v2 §2a — the data door. A provider rather than another
+             broadcast action because a broadcast cannot tell you who
+             sent it, and a caller supplies the descriptor an export is
+             written into. No android:permission: a custom one would
+             have to be "normal" (any app may hold it) or "signature"
+             (impossible — every app in this family has its own
+             keystore), and neither buys anything the pinned caller
+             check in AutomationCallers does not. -->
+        <provider
+            android:name="shiroikuma.jisho.AutomationProvider"
+            android:authorities="${applicationId}.automation"
+            android:exported="true" />
+        <service
+            android:name="shiroikuma.jisho.AutomationDataService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Automation data export/import" />
+        </service>
+
+        <!-- Capability discovery, read WITHOUT waking this app: a
+             frozen app cannot be asked anything, and 白い熊 freezes
+             aggressively. 応用管理 reads these across every installed
+             package with MATCH_UNINSTALLED_PACKAGES |
+             MATCH_DISABLED_COMPONENTS. An app without them is simply
+             not offered for data backup or restore. -->
+        <meta-data android:name="shiroikuma.automation.contract"   android:value="2" />
+        <meta-data android:name="shiroikuma.automation.format"     android:value="1" />
+        <meta-data android:name="shiroikuma.automation.min_format" android:value="1" />
         <!-- Keeps the process alive/unfrozen during long imports
              (scanned-PDF OCR) when the app is backgrounded. -->
         <service
@@ -176,5 +223,13 @@
     <!-- Used for AnkiDroid API -->
     <queries>
         <package android:name="com.ichi2.anki" />
+        <!-- 保存復元 v2 §4: without these, the reply broadcast's
+             setPackage() fails SILENTLY on Android 11+ — the export
+             runs, writes correctly, and is never heard of. (This app
+             also holds QUERY_ALL_PACKAGES, which would cover it, but
+             the contract names them explicitly and the permission is
+             not something to depend on here.) -->
+        <package android:name="shiroikuma.oyokanri" />
+        <package android:name="shiroikuma.jiyusagyoban" />
     </queries>
 </manifest>

@@ -75,6 +75,11 @@ Future<void> stateExportMain() async {
           'unit': unit,
         });
       },
+      // Polled between entries, never mid-write: CANCEL_EXPORT unwinds
+      // the archive at a boundary and StateExport.run deletes its
+      // `.part` on the way out.
+      shouldCancel: () async =>
+          await channel.invokeMethod<bool>('isCancelled') ?? false,
     );
     final bytes = file.lengthSync();
     await channel.invokeMethod('progress', {
@@ -86,6 +91,106 @@ Future<void> stateExportMain() async {
     });
     await done('OK:${file.path}|$bytes|${StateExport.humanSize(bytes)}|'
         '${ids.length} categories');
+  } on StateExportCancelled {
+    // The terminal reply for the ORIGINAL request, sent even though
+    // 自由作業盤 stopped listening the moment 白い熊 pressed 中止 — it is
+    // what proves the run really ended rather than continuing unseen.
+    await done('ERROR:cancelled');
+  } catch (e) {
+    await done('ERROR:$e');
+  }
+}
+
+/// Headless entrypoint for the 保存復元 automation **data door**
+/// (contract v2 §2a), started by [AutomationDataService]'s background
+/// Flutter engine — no UI, no [runApp].
+///
+/// The door itself is native: [AutomationProvider] identifies the
+/// caller, and the service bridges the caller's [ParcelFileDescriptor]
+/// to a file in our cache. This entrypoint only ever sees a path — it
+/// exports into a directory the service owns, or imports from an
+/// archive the service already staged — so nothing here has to know
+/// about descriptors, and the export core stays the single
+/// implementation the contract requires.
+@pragma('vm:entry-point')
+Future<void> automationDataMain() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  const channel = MethodChannel('shiroikuma.jisho/automation_data');
+  Future<void> done(String result) =>
+      channel.invokeMethod('done', {'result': result});
+  try {
+    final request =
+        await channel.invokeMapMethod<String, dynamic>('getRequest');
+    final mode = request?['mode'] as String? ?? 'export';
+    final items = request?['items'] as String?;
+    final directory = request?['directory'] as String?;
+    final archive = request?['archive'] as String?;
+
+    if (items != null && items.trim().isNotEmpty) {
+      final unknown = StateExport.unknownItems(items);
+      if (unknown.isNotEmpty) {
+        await done('ERROR:unknown category in items: $items');
+        return;
+      }
+    }
+
+    await Hive.initFlutter();
+    final box = await Hive.openBox('appModel');
+    final ids = StateExport.resolveItems(items);
+
+    if (mode == 'import') {
+      if (archive == null || archive.isEmpty) {
+        await done('ERROR:no archive');
+        return;
+      }
+      final summary = await StateExport.import(
+        box: box,
+        archive: File(archive),
+        ids: ids,
+      );
+      // Force the box to disk before we answer: 応用管理 force-stops us
+      // the instant we reply success, and an unflushed box would be
+      // the import silently undoing itself.
+      await box.flush();
+      final restored =
+          summary.values.fold<int>(0, (sum, count) => sum + count);
+      await done('OK:$restored restored|${summary.length} categories');
+      return;
+    }
+
+    if (directory == null || directory.isEmpty) {
+      await done('ERROR:no-directory');
+      return;
+    }
+    final version = (await PackageInfo.fromPlatform()).version;
+    final file = await StateExport.run(
+      box: box,
+      ids: ids,
+      directory: directory,
+      appVersion: version,
+      onProgress: (text, current, total, unit) {
+        channel.invokeMethod('progress', {
+          'text': text,
+          'current': current,
+          'total': total,
+          'unit': unit,
+        });
+      },
+      shouldCancel: () async =>
+          await channel.invokeMethod<bool>('isCancelled') ?? false,
+    );
+    final bytes = file.lengthSync();
+    await channel.invokeMethod('progress', {
+      'text': '完了 — ${StateExport.humanSize(bytes)}',
+      'current': bytes,
+      'total': bytes,
+      'unit': 'bytes',
+      'final': true,
+    });
+    await done('OK:${file.path}|$bytes|${StateExport.humanSize(bytes)}|'
+        '${ids.length} categories');
+  } on StateExportCancelled {
+    await done('ERROR:cancelled');
   } catch (e) {
     await done('ERROR:$e');
   }

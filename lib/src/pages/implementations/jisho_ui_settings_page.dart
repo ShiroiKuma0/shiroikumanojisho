@@ -62,7 +62,14 @@ class _JishoUiSettingsPageState extends BasePageState<JishoUiSettingsPage> {
   /// over the automation channel (never part of any export).
   static const MethodChannel _automationChannel =
       MethodChannel('shiroikuma.jisho/automation');
-  bool _automationEnabled = false;
+  /// Mirrors the native default (contract v2: the switch ships ON, so
+  /// a clean phone can be restored before anything has been configured).
+  bool _automationEnabled = true;
+
+  /// Contract v2: the token is opt-in and OFF by default — the data
+  /// door identifies its caller by package, uid and pinned signing
+  /// certificate instead of by a shared secret.
+  bool _automationRequireToken = false;
   String _automationToken = '';
 
   @override
@@ -93,12 +100,16 @@ class _JishoUiSettingsPageState extends BasePageState<JishoUiSettingsPage> {
 
   void _loadAutomationState() async {
     final enabled =
-        await _automationChannel.invokeMethod<bool>('isEnabled') ?? false;
+        await _automationChannel.invokeMethod<bool>('isEnabled') ?? true;
+    final requireToken = await _automationChannel
+            .invokeMethod<bool>('isTokenRequired') ??
+        false;
     final token =
         await _automationChannel.invokeMethod<String>('getToken') ?? '';
     if (mounted) {
       setState(() {
         _automationEnabled = enabled;
+        _automationRequireToken = requireToken;
         _automationToken = token;
       });
     }
@@ -177,8 +188,8 @@ class _JishoUiSettingsPageState extends BasePageState<JishoUiSettingsPage> {
             ),
             _row(
               title: 'Automation export',
-              summary: 'Sister-app tasks (自由作業盤 保存復元) may trigger '
-                  'this app\'s export via the token-gated intent.',
+              summary: 'Sister apps (応用管理, 自由作業盤 保存復元) may '
+                  'trigger this app\'s export and back its data up.',
               trailing: Switch(
                 value: _automationEnabled,
                 onChanged: (enabled) async {
@@ -189,14 +200,33 @@ class _JishoUiSettingsPageState extends BasePageState<JishoUiSettingsPage> {
               ),
             ),
             _row(
-              title: 'Automation token',
-              summary: _abbreviatedToken(),
-              trailing: TextButton(
-                onPressed: _regenerateToken,
-                child: const Text('Regenerate'),
+              title: 'Use authorization token?',
+              summary: 'Off: any sister app may drive the automation. '
+                  'On: a caller must also present the token below. '
+                  'Either way the data door checks the caller\'s '
+                  'identity and signature.',
+              trailing: Switch(
+                value: _automationRequireToken,
+                onChanged: (required) async {
+                  await _automationChannel.invokeMethod(
+                      'setTokenRequired', {'required': required});
+                  setState(() => _automationRequireToken = required);
+                },
               ),
-              onTap: _copyToken,
             ),
+            // Hidden unless the token is actually being asked for: a
+            // 48-character secret sitting under an off switch invites
+            // pasting it somewhere it will do nothing.
+            if (_automationRequireToken)
+              _row(
+                title: 'Automation token',
+                summary: _abbreviatedToken(),
+                trailing: TextButton(
+                  onPressed: _regenerateToken,
+                  child: const Text('Regenerate'),
+                ),
+                onTap: _copyToken,
+              ),
             _sectionHeader('Toolbars'),
             _row(
               title: 'Anki card creator button',
