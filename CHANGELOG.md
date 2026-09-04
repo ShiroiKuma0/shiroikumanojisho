@@ -4,9 +4,131 @@ All notable user-visible changes to **白い熊の辞書 (shiroikumanojisho)** a
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.5.0+024] - 2026-09-04
 
-_Nothing yet._
+### Changed
+
+- **Automation export is now on by default, and its token is opt-in.**
+  The master switch shipped off and every caller had to present a
+  48-character secret pasted from this app's settings — which cannot
+  survive a wipe, and so was useless for the case the feature now
+  exists to serve: restoring this app onto a clean phone where nothing
+  has been configured yet. The switch now defaults on, and a new
+  「Use authorization token?」 row (default off) decides whether the
+  token is asked for at all; the token row is hidden unless it is, so a
+  secret is no longer on display under a switch that ignores it. A
+  token sent to the app while that switch is off is ignored rather than
+  refused, so callers configured against the old behaviour keep
+  working. Turning the master switch off still closes the app off
+  entirely.
+
+- **Swiping vertically on the reader's right edge now opens the
+  subtitle list instead of changing the system volume.** The list
+  shows every cue in the loaded `.srt`, opens already scrolled to the
+  sentence under the playhead, marks that sentence as it advances,
+  and moves playback to any line you tap — the reader's counterpart
+  to the video player's transcript, which the same gesture reaches
+  there. A `⌖` button in its header scrolls back to what is playing
+  after you have browsed away. Tapping a line starts playback from
+  it even if the player was paused, matching the transcript. With no
+  subtitle file loaded the swipe says so rather than opening an empty
+  sheet. The volume swipe is gone; the hardware volume keys are
+  unaffected (including volume-key page turning, which is a separate
+  setting).
+
+- **Both edge swipes now respond only to drags that are clearly
+  vertical, instead of to any drag that wanders 18 pixels off
+  horizontal.** Flutter's vertical drag recognizer accepts as soon as
+  the distance travelled *along its own axis* passes the touch slop,
+  however far the pointer has gone sideways meanwhile — which is fine
+  against a competing horizontal scroller and wrong over the reader,
+  where a `vertical-rl` Japanese book scrolls horizontally inside a
+  webview that takes the drag as a platform view rather than through
+  the gesture arena. Nothing contested the edge strips, so a
+  horizontal page swipe that drifted slightly off true was claimed as
+  a vertical one: the page refused to scroll and the edge gesture
+  fired instead. Both strips now judge the direction from the first
+  8 pixels of travel and stand down unless the vertical component
+  beats the horizontal one by half again — about 34° either side of
+  straight up — so an ambiguous diagonal goes to the book.
+
+### Added
+
+- **Sister apps can now back up and restore this app's data through a
+  new automation data door.** 応用管理 and 自由作業盤 can ask the app to
+  describe itself, write its whole state into a file they opened, and
+  put it back — which is what makes restoring onto a wiped phone
+  possible. The door is a `ContentProvider` at
+  `shiroikuma.jisho.automation` rather than another broadcast, because
+  a broadcast cannot tell you who sent it and the caller supplies the
+  file the export is written into: callers are checked by exact package
+  name, by the uid the kernel reports, and against a pinned signing
+  certificate, so a sideloaded app calling itself `shiroikuma.anything`
+  is refused. Import lives only here and has deliberately **no**
+  broadcast action — the broadcast receiver is exported without a
+  permission, and an import there would let any app on the phone
+  overwrite this one's data.
+
+- **An export triggered from outside can now be stopped from outside.**
+  `shiroikuma.jisho.action.CANCEL_EXPORT` on the existing receiver
+  unwinds a running export at the next write boundary, deletes the
+  partial file, and answers the original request with
+  `ERROR:cancelled`. Previously 中止 in 自由作業盤's panel only stopped
+  it *listening*: the app carried on to the end and delivered a backup
+  that had been cancelled. Exports are also written under a `.part`
+  name and renamed on success, so a cancelled or failed run now leaves
+  the backup directory exactly as it found it.
+
+- **The furigana above a dictionary heading has its own size, under
+  Settings → UI → Dictionary → Sizes → Furigana.** It previously had
+  no size of its own at all: it fell through to the theme's
+  `labelSmall` (11sp) no matter how large the heading was set, so a
+  28sp heading carried a reading too small to read — the exact
+  situation the heading slider exists to prevent. It now defaults to
+  14, half the heading default, and rides along with the
+  drag-the-left-edge font gesture on the same terms as the entry and
+  translation sizes, so a swipe can no longer grow the word away from
+  its reading. Stored as `dictionary_heading_ruby_font_size`.
+
+### Fixed
+
+- **Auto-pause playback no longer eats the first moment of the next
+  sentence.** Stopping at the end of a subtitle was driven by
+  just_audio's position stream, which ticks at most every 200ms on
+  anything longer than a few minutes; the player therefore ran past
+  the cue end by up to a full tick plus the round trip into
+  ExoPlayer, and — since resuming simply played on from wherever it
+  had stopped — that overshoot was subtracted from the head of the
+  following sentence for good. On TTS audiobooks it was constant:
+  renders from shiroikuma-jisho-subtitles leave 0.25s of silence
+  between sentences and 0.55s between paragraphs, so roughly two in
+  five boundaries were narrower than the overshoot. Auto-pause now
+  arms a timer for the cue's end instead of waiting to be told it has
+  passed, and — the part that actually guarantees it — snaps the
+  playhead back onto that end when it pauses, so whatever was
+  overshot is discarded rather than borrowed from the next sentence.
+  Every sentence now begins on its first sample. Cue membership is
+  half-open (`[start, end)`) so that a playhead parked on a boundary
+  counts as being in the gap after it, which is where the old
+  poll-driven pause left it: Replay, Prev and Next go on meaning what
+  they always did, and resuming cannot re-trigger the pause it has
+  just come out of.
+
+- **Tapping a word in the reader no longer raises the white
+  selection toolbar over the page.** Highlighting the tapped word
+  installs an empty context menu so the app's own selection doesn't
+  bring up the floating Search/Stash/Copy/Share/Creator bar, but the
+  real menu was restored on the line after the selection script
+  returned — which races the WebView's own asynchronous ActionMode
+  creation, and lost often enough to be a constant irritation
+  (a single tap runs the selection twice, once on the guessed
+  highlight length and again on the final one after the lookup
+  resolves, so there were two chances to lose it). The restore is now
+  deferred past the ActionMode, and back well within the 500ms
+  Android itself requires before a deliberate long-press fires, so
+  manually selecting text still offers the menu. Fixed in the TTU
+  reader, the browser and the mokuro reader, which carried the same
+  code.
 
 ## [1.5.0+018] - 2026-08-20
 
@@ -548,7 +670,8 @@ Initial release after the rename and restructure from `ShiroiKuma0/jidoujisho2`.
 - App display name set to `白い熊の辞書` (Android and iOS); iOS identity also updated.
 - Version baseline reset to `1.0.0+1` post-rename.
 
-[Unreleased]: https://github.com/ShiroiKuma0/shiroikumanojisho/compare/1.4.0+25...HEAD
+[Unreleased]: https://github.com/ShiroiKuma0/shiroikumanojisho/compare/1.5.0+024...HEAD
+[1.5.0+024]: https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.5.0+024
 [1.4.0+25]: https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.4.0+25
 [1.4.0+6]: https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.4.0+6
 [1.4.0+3]: https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.4.0+3

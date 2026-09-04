@@ -10,7 +10,7 @@ A fork of [arianneorpilla/jidoujisho](https://github.com/arianneorpilla/jidoujis
 
 Installs **side-by-side** with jidoujisho (app id `shiroikuma.jisho`).
 
-**📥 Latest release: [`1.5.0+018`](https://github.com/ShiroiKuma0/shiroikumanojisho/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikumanojisho/releases)
+**📥 Latest release: [`1.5.0+024`](https://github.com/ShiroiKuma0/shiroikumanojisho/releases/latest)** — [all releases & APK downloads »](https://github.com/ShiroiKuma0/shiroikumanojisho/releases)
 
 </div>
 
@@ -58,6 +58,8 @@ One tap in [shiroikuma-jiyudoga](https://github.com/ShiroiKuma0/shiroikuma-jiyud
 
 ## 🔁 Cross-device backup and restore
 Everything — dictionaries, reading positions, books, preferences, browser bookmarks, mokuro catalogs — exports to a single portable ZIP bundle and imports on another device, surviving package re-signing. Audio paths remap automatically on the destination device.
+
+The same export runs **headlessly, driven from outside the app**, so a backup tool can capture 白い熊 辞書 along with everything else on the phone and put it back on a wiped one — without the app ever being opened. Callers are identified by the system rather than by a shared secret: an exact package name, the uid the kernel reports, and a pinned signing certificate. A long export can be **cancelled from where it was started**, and unwinds at a write boundary leaving no partial archive behind.
 
 ---
 
