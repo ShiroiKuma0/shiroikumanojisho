@@ -4,6 +4,28 @@ All notable user-visible changes to **白い熊の辞書 (shiroikumanojisho)** a
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0+025] - 2026-09-04
+
+### Changed
+
+- **⚠️ This build is signed with a real key, so it cannot be installed
+  over an older one — you must uninstall first, and that erases the
+  app's data.** Every previous release, this project's tagged releases
+  included, was signed with the universal Android debug key: the
+  release build was configured to fall back to it, and nobody noticed
+  for twenty-four builds. Nothing depended on that key being secret so
+  there is nothing to undo, but it was not really a signature — anyone
+  could have built a package that installed over this app. Releases now
+  use a dedicated 4096-bit key held outside the repository. Android
+  refuses to update an app when the signature changes, so the switch
+  costs one uninstall: **export everything from Settings → UI →
+  Export / Import first, uninstall, install this build, then import.**
+  Dictionaries, reading positions and Anki settings all live in that
+  export. A future release will install over this one normally; it is
+  this one crossing that is the problem. A release build with no
+  keystore available now fails outright rather than quietly signing
+  itself with the debug key again.
+
 ## [1.5.0+024] - 2026-09-04
 
 ### Changed
@@ -670,7 +692,8 @@ Initial release after the rename and restructure from `ShiroiKuma0/jidoujisho2`.
 - App display name set to `白い熊の辞書` (Android and iOS); iOS identity also updated.
 - Version baseline reset to `1.0.0+1` post-rename.
 
-[Unreleased]: https://github.com/ShiroiKuma0/shiroikumanojisho/compare/1.5.0+024...HEAD
+[Unreleased]: https://github.com/ShiroiKuma0/shiroikumanojisho/compare/1.5.0+025...HEAD
+[1.5.0+025]: https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.5.0+025
 [1.5.0+024]: https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.5.0+024
 [1.4.0+25]: https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.4.0+25
 [1.4.0+6]: https://github.com/ShiroiKuma0/shiroikumanojisho/releases/tag/1.4.0+6
