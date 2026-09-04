@@ -32,7 +32,7 @@ A handful of facts worth knowing up front, repeated here so they catch your eye 
 
 - **JDK must be 17+ (pinned: system OpenJDK 21) and the Flutter SDK is the dedicated `~/git/flutter-3.44` checkout.** Since the 2026-07 toolchain migration (Gradle 9.1.0 / AGP 9.0.1) the old Zulu-11 rule is INVERTED — JDK 11 no longer builds this repo, and neither does the machine-wide `~/git/flutter` (still 3.13.5 for other projects). Set `JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64` and `PATH="$JAVA_HOME/bin:$HOME/git/flutter-3.44/bin:$PATH"` before `flutter build`. Builds will fail in confusing ways otherwise.
 - **The build artifact ships to two places.** Every successful build pushes the APK to the test device at `/sdcard/tmp/` via `adb push` AND copies it to `~/tmp/` for archival. Never one or the other.
-- **Release tags are bare semver, no `v` prefix.** `1.3.1`, not `v1.3.1`. Same on the GitHub release name.
+- **Release tags are `VERSION_NAME+NNN`, no `v` prefix.** `1.5.0+024`, not `v1.5.0` and not bare `1.5.0` — byte-identical to the version in the APK filename. Releases up to `1.5.0` used bare semver; everything since carries the counter. Confirm with `gh release list`, never `git tag`.
 
 ## Machine and toolchain
 
@@ -129,7 +129,14 @@ Edit, build with the dev flow from the skill (auto-bumps `+N`), test on the devi
 
 ### Cut a release
 
-Always done from a clean `origin/main` state. Reset pubspec from `X.Y.Z+N` to plain `X.Y.Z`, commit as `Release X.Y.Z`, push, tag `X.Y.Z` (bare, no `v`), push tag, build with the release filename rule (no datetime — `shiroikuma-jisho_X.Y.Z_arm64-v8a.apk`), deploy to both targets, then upload the APK to the GitHub release page.
+**Never `git reset --hard` to start a release.** This tree is routinely dirty with in-flight work and
+that command deletes it unrecoverably; run `git status` first, and if there is uncommitted work it is
+白い熊's call what happens to it. Ask.
+
+The release is the build, not a re-versioning: `pubspec.yaml` keeps `X.Y.Z+NNN`, the tree is committed,
+the tag is that same version string, and the APK filename matches it. Publish with the global
+`/publish-version` skill (README refresh, `## [Unreleased]` promoted to `## [X.Y.Z+NNN] - <date>`,
+`gh release create` with the APK attached). Full procedure in `.claude/skills/build-and-release/SKILL.md`.
 
 ### Roll back a bad commit
 

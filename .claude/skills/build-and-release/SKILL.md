@@ -87,9 +87,16 @@ The padding lives in `tools/bump-build.sh`, which writes it into `pubspec.yaml` 
 
 ### Release builds
 
-Filename: `shiroikuma-jisho_X.Y.Z_arm64-v8a.apk`
+Filename: `shiroikuma-jisho_X.Y.Z+NNN_arm64-v8a.apk` — **identical in shape to a dev build.**
 
-No `+N`. The tag and the version both pinpoint the build. The only difference from a dev filename is the absence of the `+N` — verify before publishing: the release `apk_name=` must have no `+N` (and never a datetime; two early releases, 1.2.0 and 1.3.0, shipped with timestamped filenames back when dev names carried datetimes).
+There is no separate release filename any more. Since `1.5.0+6` (2026-07-25) this project publishes
+the build counter in the tag, so a release artifact is simply the dev artifact that got published:
+same name, same `+NNN`, no datetime. The tag must match the version string in the filename exactly,
+which is what keeps tag, title and artifact from ever disagreeing.
+
+Two early releases, `1.2.0` and `1.3.0`, shipped with timestamped filenames back when dev names
+carried datetimes; and releases up to `1.5.0` used a bare `X.Y.Z` with no counter. Both are history —
+do not imitate either.
 
 ## Version handling
 
@@ -112,33 +119,50 @@ cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "$HOME/tmp/$apk_name"
 
 Never reset `pubspec.yaml` from a checkout or stash while iterating — that erases the build counter and breaks the monotonicity that lets the user tell builds apart.
 
-### Release: clean the version, commit, tag, build
+### Release: commit what is in the tree, tag the build, publish
 
-A release starts from a clean `origin/main`:
+> **NEVER run `git reset --hard` here.** An earlier version of this section opened with
+> `git reset --hard origin/main`. This repo's tree is routinely dirty with in-flight work, and that
+> command is an unrecoverable delete of it — no stash, no reflog for uncommitted content. On
+> 2026-09-04 following it would have destroyed ~1400 uncommitted lines. **Run `git status` first.
+> If there is uncommitted work, it is 白い熊's to decide about — ask; do not stash and do not reset.**
+
+The release is the **build**, not a re-versioning. `pubspec.yaml` keeps its `X.Y.Z+NNN` — it is
+**not** reset to bare semver — and the tag is that same string.
 
 ```bash
-git fetch origin
-git reset --hard origin/main
-sed -i "s/^version:.*/version: X.Y.Z/" pubspec.yaml   # plain semver
-git add pubspec.yaml
-git commit -m "Release X.Y.Z"
+git status                      # must be clean before tagging; the APK is built from this tree
 git push origin main
-git tag X.Y.Z                                          # bare semver, NO 'v' prefix
-git push origin X.Y.Z
-flutter clean
-apk_name="shiroikuma-jisho_X.Y.Z_arm64-v8a.apk"       # no +N
-flutter build apk --split-per-abi --release
-cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk "$HOME/tmp/$apk_name"
-# then deliver via /after-build (adb-push if a phone is connected, else scp to skhw)
+git tag "X.Y.Z+NNN"             # exactly the version in the APK filename, no 'v'
+git push origin "X.Y.Z+NNN"
 ```
 
-Then upload `~/tmp/$apk_name` to the GitHub release page via the web UI: New release → choose the tag you just pushed → title is the bare version → description is the changelog → drag APK → publish.
+Then publish with the global **/publish-version** skill, which is what this repo actually uses: it
+refreshes `README.md`, promotes the `## [Unreleased]` changelog block to `## [X.Y.Z+NNN] - <date>`,
+and runs `gh release create` with the APK attached. Derive `OWNER_REPO` from `origin` and strip the
+`.git` suffix, then pass `--repo "$OWNER_REPO"` to every `gh` call — a bare `gh` call in a fork
+resolves to the **upstream parent** and its failure reads like an auth error.
+
+A release must be **source-reproducible**: the working tree must be fully committed before tagging,
+because the attached APK was built from it. Never attach an APK built from a dirtier tree than the
+tag contains.
 
 ## Release tag format
 
-Bare semver, **no `v` prefix**. Tag `1.3.1`, not `v1.3.1`. Same for the release name on the GitHub web UI.
+`VERSION_NAME+NNN`, **no `v` prefix** — `1.5.0+024`, not `v1.5.0` and not bare `1.5.0`. The tag is
+byte-identical to the version string in the APK filename, and the release title is the same string.
 
-The first release on this project (`1.1.0`) was tagged this way and the convention has held since. Many other projects use `v`-prefixed tags; this one does not. If you find yourself typing `git tag v1.x.y`, you are about to deviate — correct course.
+**Learn the convention from `gh release list`, never from `git tag` and never from this file.**
+`git tag` also carries non-release refs (`pre-toolchain-migration`), and a written convention can
+fall behind what is actually published — this section did, for four releases. The published record
+is authoritative:
+
+```bash
+gh release list --limit 5      # 1.5.0+024, 1.5.0+018, 1.5.0+016, 1.5.0+015, 1.5.0+6
+```
+
+Releases up to and including `1.5.0` (2026-07-25) used bare semver; everything since carries the
+counter. Never retag or rename what is already published — carry on from the current build.
 
 ## Commit message style
 
